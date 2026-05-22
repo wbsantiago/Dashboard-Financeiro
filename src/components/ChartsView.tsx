@@ -278,7 +278,7 @@ export const ChartsView: React.FC<ChartsViewProps> = ({
                     >
                       {pieChartData[activeIndex].name}
                     </span>
-                    <span className="text-sm font-black text-white mt-0.5 block font-mono">
+                    <span className="text-sm font-black text-white mt-0.5 block font-mono privacy-blur">
                       {formatCurrency(pieChartData[activeIndex].value)}
                     </span>
                     <span className="text-[9px] font-bold text-slate-300 font-mono mt-1 bg-zinc-950/80 px-1.5 py-0.5 rounded border border-white/5 shadow-md">
@@ -290,7 +290,7 @@ export const ChartsView: React.FC<ChartsViewProps> = ({
                     <span className="text-[9px] uppercase font-bold tracking-widest text-[#888888]">
                       Total Pago
                     </span>
-                    <span className="text-sm font-black text-white font-sans mt-0.5 block">
+                    <span className="text-sm font-black text-white font-sans mt-0.5 block privacy-blur">
                       {formatCurrency(totalExpenseInMonth)}
                     </span>
                   </div>
