@@ -191,6 +191,23 @@ export default function App() {
     }
   };
 
+  const handleUpdateExpense = (id: string, updatedFields: Partial<Omit<Expense, 'id' | 'createdAt'>>) => {
+    setData(prev => {
+      const expenses = prev.expenses.map(exp => {
+        if (exp.id === id) {
+          const merged = { ...exp, ...updatedFields };
+          if (updatedFields.date) {
+            merged.month = updatedFields.date.substring(0, 7);
+          }
+          return merged;
+        }
+        return exp;
+      });
+      return { ...prev, expenses };
+    });
+    triggerNotification('Lançamento de saída atualizado com sucesso!');
+  };
+
   const handleAddRevenue = (revenueData: Omit<Revenue, 'id' | 'createdAt'>) => {
     const newRevenue: Revenue = {
       ...revenueData,
@@ -661,6 +678,7 @@ export default function App() {
                 expenses={data.expenses}
                 onAddExpense={handleAddExpense}
                 onDeleteExpense={handleDeleteExpense}
+                onUpdateExpense={handleUpdateExpense}
                 revenues={data.revenues || []}
                 onAddRevenue={handleAddRevenue}
                 onDeleteRevenue={handleDeleteRevenue}

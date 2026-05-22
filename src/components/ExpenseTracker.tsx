@@ -9,7 +9,8 @@ import {
   TrendingUp,
   PiggyBank,
   ArrowUpRight,
-  TrendingDown
+  TrendingDown,
+  Pencil
 } from 'lucide-react';
 import { Expense, Revenue } from '../types';
 import { formatCurrency, formatDate, getInstallmentInfo } from '../utils/format';
@@ -24,6 +25,7 @@ interface ExpenseTrackerProps {
   expenses: Expense[];
   onAddExpense: (expenseData: Omit<Expense, 'id' | 'createdAt'>) => void;
   onDeleteExpense: (id: string) => void;
+  onUpdateExpense: (id: string, updatedData: Partial<Omit<Expense, 'id' | 'createdAt'>>) => void;
   revenues: Revenue[];
   onAddRevenue: (revenueData: Omit<Revenue, 'id' | 'createdAt'>) => void;
   onDeleteRevenue: (id: string) => void;
@@ -34,6 +36,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   expenses,
   onAddExpense,
   onDeleteExpense,
+  onUpdateExpense,
   revenues,
   onAddRevenue,
   onDeleteRevenue,
@@ -92,6 +95,61 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   };
 
   const monthLabels = getMonthsLabels();
+
+  // EDIT STATE (Expenses)
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editValue, setEditValue] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editCustomCategory, setEditCustomCategory] = useState('');
+  const [isEditCustomCategory, setIsEditCustomCategory] = useState(false);
+  const [editDate, setEditDate] = useState('');
+
+  const handleStartEditExpense = (exp: Expense) => {
+    setEditingExpense(exp);
+    setEditTitle(exp.title);
+    setEditValue(exp.value.toString());
+    setEditDate(exp.date);
+    if (DEFAULT_CATEGORIES.includes(exp.category)) {
+      setEditCategory(exp.category);
+      setIsEditCustomCategory(false);
+    } else {
+      setEditCategory('CUSTOM');
+      setEditCustomCategory(exp.category);
+      setIsEditCustomCategory(true);
+    }
+  };
+
+  const handleSaveEditExpense = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingExpense) return;
+
+    const parsedValue = parseFloat(editValue);
+    if (isNaN(parsedValue) || parsedValue <= 0) {
+      alert('Por favor, informe um valor maior que zero.');
+      return;
+    }
+
+    if (!editTitle.trim()) {
+      alert('Por favor, informe uma descrição.');
+      return;
+    }
+
+    const finalCategory = isEditCustomCategory ? editCustomCategory.trim() : editCategory;
+    if (!finalCategory) {
+      alert('Por favor, informe a categoria.');
+      return;
+    }
+
+    onUpdateExpense(editingExpense.id, {
+      title: editTitle.trim(),
+      value: parsedValue,
+      category: finalCategory,
+      date: editDate,
+    });
+
+    setEditingExpense(null);
+  };
 
   // FORM STATE (Revenues)
   const [revTitle, setRevTitle] = useState('');
@@ -664,15 +722,22 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-3 shrink-0">
-                              <div className="text-right">
+                            <div className="flex items-center gap-1 shrink-0">
+                              <div className="text-right mr-1.5 animate-fadeIn">
                                 <span className="font-extrabold text-white text-xs block font-mono privacy-blur">
                                   {formatCurrency(exp.value)}
                                 </span>
                               </div>
                               <button
+                                onClick={() => handleStartEditExpense(exp)}
+                                className="p-1.5 text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-indigo-500/10"
+                                title="Editar Gasto"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
                                 onClick={() => onDeleteExpense(exp.id)}
-                                className="p-1.5 text-slate-600 hover:text-rose-450 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-rose-500/10"
+                                className="p-1.5 text-slate-500 hover:text-rose-455 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-rose-500/10"
                                 title="Remover Gasto"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -922,6 +987,132 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
         )}
 
       </div>
+
+      {/* MODAL DE EDIÇÃO DE DESPESA */}
+      {editingExpense && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-[#141414] border border-white/10 max-w-sm w-full rounded-2xl p-5 shadow-2xl flex flex-col gap-4 animate-scaleUp">
+            <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+              <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400">
+                <Pencil className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Editar Saída / Despesa</h3>
+                <p className="text-[10px] text-slate-400">Altere as informações abaixo</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveEditExpense} className="space-y-3.5">
+              {/* Descrição */}
+              <div>
+                <label className="block text-[9px] font-bold text-slate-450 uppercase mb-1">
+                  Descrição / Local
+                </label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
+                  maxLength={50}
+                  required
+                />
+              </div>
+
+              {/* Valor e Data */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-450 uppercase mb-1">
+                    Valor (R$)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
+                    required
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-450 uppercase mb-1">
+                    Data do Vencimento / Compra
+                  </label>
+                  <input
+                    type="date"
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 outline-none transition-colors font-sans"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Selecionar Categoria */}
+              <div>
+                <label className="block text-[9px] font-bold text-slate-450 uppercase mb-1">
+                  Categoria
+                </label>
+                {!isEditCustomCategory ? (
+                  <select
+                    value={editCategory}
+                    onChange={(e) => {
+                      if (e.target.value === 'CUSTOM') {
+                        setIsEditCustomCategory(true);
+                      } else {
+                        setIsEditCustomCategory(false);
+                        setEditCategory(e.target.value);
+                      }
+                    }}
+                    className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 outline-none transition-all cursor-pointer"
+                  >
+                    {DEFAULT_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat} className="bg-zinc-900">
+                        {cat}
+                      </option>
+                    ))}
+                    <option value="CUSTOM" className="bg-zinc-900 text-indigo-400">☀️ + Criar Nova Categoria</option>
+                  </select>
+                ) : (
+                  <div className="flex gap-1.5 animate-fade-in">
+                    <input
+                      type="text"
+                      placeholder="Nome do setor"
+                      value={editCustomCategory}
+                      onChange={(e) => setEditCustomCategory(e.target.value)}
+                      className="flex-1 px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 outline-none transition-colors"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIsEditCustomCategory(false)}
+                      className="px-2.5 py-1.5 text-[9px] uppercase font-bold border border-white/10 text-slate-350 hover:bg-white/5 rounded-xl transition-colors shrink-0"
+                    >
+                      Voltar
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 pt-3 border-t border-white/5 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setEditingExpense(null)}
+                  className="px-4 py-2 text-xs font-bold text-slate-450 hover:text-white bg-zinc-900/40 hover:bg-zinc-900 rounded-xl border border-white/5 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all cursor-pointer shadow-md shadow-indigo-600/10"
+                >
+                  Salvar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
