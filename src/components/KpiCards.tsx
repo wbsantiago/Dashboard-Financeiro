@@ -89,18 +89,30 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
             <PiggyBank className="w-5 h-5" />
           </div>
         </div>
-        <div className="mt-4 flex items-center text-[10px] text-slate-400 justify-between w-full">
-          {totalRevenue === 0 ? (
-            <span className="text-slate-500 font-medium font-sans">Sem entradas cadastradas neste mês</span>
-          ) : revenueVsIdealDiff < 0 ? (
-            <span className="text-slate-400 font-sans leading-tight">
-              Faltam <strong className="text-amber-400 font-mono font-bold">{formatCurrency(Math.abs(revenueVsIdealDiff))}</strong> para atingir o salário ideal
+        <div className="mt-3.5 flex flex-col gap-2">
+          <div className="flex items-center text-[10px] text-slate-400 justify-between w-full">
+            {totalRevenue === 0 ? (
+              <span className="text-slate-500 font-medium font-sans">Sem entradas cadastradas neste mês</span>
+            ) : revenueVsIdealDiff < 0 ? (
+              <span className="text-slate-400 font-sans leading-tight">
+                Faltam <strong className="text-amber-400 font-mono font-bold">{formatCurrency(Math.abs(revenueVsIdealDiff))}</strong> para atingir o salário ideal
+              </span>
+            ) : (
+              <span className="text-slate-400 font-sans leading-tight">
+                Receita real superou o ideal planejado em <strong className="text-emerald-400 font-mono font-bold">+{formatCurrency(revenueVsIdealDiff)}</strong>
+              </span>
+            )}
+          </div>
+          
+          <div className="border-t border-white/5 pt-2 flex items-center justify-between text-[11px] bg-white/2 rounded-lg p-1.5">
+            <span className="font-semibold text-slate-300 flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              Sobra (Poupar):
             </span>
-          ) : (
-            <span className="text-slate-400 font-sans leading-tight">
-              Receita real superou o ideal planejado em <strong className="text-emerald-400 font-mono font-bold">+{formatCurrency(revenueVsIdealDiff)}</strong>
+            <span className={`font-mono font-extrabold text-[13px] ${balance >= 0 ? 'text-emerald-400' : 'text-rose-450'}`}>
+              {formatCurrency(balance)}
             </span>
-          )}
+          </div>
         </div>
         <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-400"></div>
       </div>
@@ -174,13 +186,23 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
             <Wallet className="w-5 h-5" />
           </div>
         </div>
-        <div className="mt-3.5 flex flex-col gap-0.5 text-xs">
+        <div className="mt-3.5 flex flex-col gap-2 text-xs">
           <div className="flex justify-between items-center">
             <span className="text-slate-400 text-[10px]">
               {isOverBudget ? 'Orçamento estourado em:' : 'Margem de segurança:'}
             </span>
             <span className={`font-mono font-bold text-xs ${isOverBudget ? 'text-rose-400' : 'text-emerald-400'}`}>
               {isOverBudget ? '' : '+'}{formatCurrency(budgetDiff)}
+            </span>
+          </div>
+
+          <div className="border-t border-white/5 pt-2 flex justify-between items-center bg-white/2 rounded-lg p-1.5 mt-0.5">
+            <span className="text-slate-300 text-[11px] flex items-center gap-1 font-semibold">
+              <Wallet className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              Sobra Real:
+            </span>
+            <span className={`font-mono font-extrabold text-[13px] ${balance >= 0 ? 'text-emerald-400' : 'text-rose-400 font-bold'}`}>
+              {formatCurrency(balance)}
             </span>
           </div>
         </div>
