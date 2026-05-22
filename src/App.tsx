@@ -39,6 +39,7 @@ export default function App() {
   // UI States
   const [activeView, setActiveView] = useState<'monthly' | 'annual'>('monthly');
   const [showConfigPanel, setShowConfigPanel] = useState<boolean>(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [salaryInput, setSalaryInput] = useState<string>('');
   const [savingsInput, setSavingsInput] = useState<number>(30);
   const [showNotification, setShowNotification] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
@@ -282,48 +283,48 @@ export default function App() {
     e.target.value = '';
   };
 
-  // Destructive reset
+  // Destructive reset triggered from custom modal
+  const handleRealClearData = () => {
+    const emptyData: AppData = {
+      expenses: [],
+      revenues: [],
+      categoryBudgets: [
+        { category: 'Alimentação', idealLimit: 0.00 },
+        { category: 'Presentes', idealLimit: 0.00 },
+        { category: 'Saúde', idealLimit: 0.00 },
+        { category: 'Moradia', idealLimit: 0.00 },
+        { category: 'Transporte', idealLimit: 0.00 },
+        { category: 'Vestuário', idealLimit: 0.00 },
+        { category: 'Lazer & Entretenimento', idealLimit: 0.00 },
+        { category: 'Serviços de utilidade pública', idealLimit: 0.00 },
+        { category: 'Viagens', idealLimit: 0.00 },
+        { category: 'Tecnologia & Eletrônicos', idealLimit: 0.00 },
+        { category: 'Cuidados Pessoais', idealLimit: 0.00 },
+        { category: 'Assinaturas', idealLimit: 0.00 },
+        { category: 'Educação & Profissional', idealLimit: 0.00 },
+        { category: 'Outros', idealLimit: 0.00 }
+      ],
+      monthlyBudgets: [],
+      defaultMonthlySalary: 0.00,
+      defaultTargetSavingsPercentage: 20
+    };
+
+    // Limpeza completa em todos os níveis
+    localStorage.clear();
+    saveAppData(emptyData);
+    setData(emptyData);
+    setShowDeleteConfirm(false);
+
+    triggerNotification('Todos os dados foram completamente limpos!', 'success');
+
+    // Forçar o recarregamento total da página para resetar todos os estados de componentes internos e campos de input
+    setTimeout(() => {
+      window.location.reload();
+    }, 150);
+  };
+
   const handleClearData = () => {
-    const confirmReset = window.confirm(
-      'Tem certeza de que deseja apagar todos os dados registrados do cache do seu navegador? Essa ação é irreversível.'
-    );
-    if (confirmReset) {
-      const emptyData: AppData = {
-        expenses: [],
-        revenues: [],
-        categoryBudgets: [
-          { category: 'Alimentação', idealLimit: 0.00 },
-          { category: 'Presentes', idealLimit: 0.00 },
-          { category: 'Saúde', idealLimit: 0.00 },
-          { category: 'Moradia', idealLimit: 0.00 },
-          { category: 'Transporte', idealLimit: 0.00 },
-          { category: 'Vestuário', idealLimit: 0.00 },
-          { category: 'Lazer & Entretenimento', idealLimit: 0.00 },
-          { category: 'Serviços de utilidade pública', idealLimit: 0.00 },
-          { category: 'Viagens', idealLimit: 0.00 },
-          { category: 'Tecnologia & Eletrônicos', idealLimit: 0.00 },
-          { category: 'Cuidados Pessoais', idealLimit: 0.00 },
-          { category: 'Assinaturas', idealLimit: 0.00 },
-          { category: 'Educação & Profissional', idealLimit: 0.00 },
-          { category: 'Outros', idealLimit: 0.00 }
-        ],
-        monthlyBudgets: [],
-        defaultMonthlySalary: 0.00,
-        defaultTargetSavingsPercentage: 20
-      };
-
-      // Limpeza completa em todos os níveis
-      localStorage.clear();
-      saveAppData(emptyData);
-      setData(emptyData);
-
-      triggerNotification('Todos os dados foram completamente limpos!', 'success');
-
-      // Forçar o recarregamento total da página para resetar todos os estados de componentes internos e campos de input
-      setTimeout(() => {
-        window.location.reload();
-      }, 150);
-    }
+    setShowDeleteConfirm(true);
   };
 
   // Aggregated analytics values for selected month
@@ -637,6 +638,39 @@ export default function App() {
           </p>
         </div>
       </footer>
+
+      {/* CONFIRMAÇÃO DE EXCLUSÃO DE DADOS */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#141414] border border-white/5 max-w-md w-full rounded-2xl p-6 shadow-2xl flex flex-col gap-4">
+            <div className="w-12 h-12 rounded-full bg-rose-950/40 text-rose-400 flex items-center justify-center">
+              <Trash2 className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white mb-1">
+                Apagar todos os dados registrados?
+              </h3>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Tem certeza de que deseja limpar completamente todas as despesas, rendimentos, limites e planejamentos do navegador? Esta ação é irreversível.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end mt-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 bg-[#1c1c1c] hover:bg-[#252525] text-slate-200 text-xs font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleRealClearData}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-rose-600/20 cursor-pointer"
+              >
+                Confirmar Limpeza
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
