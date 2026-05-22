@@ -20,7 +20,7 @@ import {
   Area
 } from 'recharts';
 import { CategoryBudget, Expense } from '../types';
-import { formatCurrency, formatMonthName, getJustMonthName } from '../utils/format';
+import { formatCurrency, formatMonthName, getJustMonthName, formatShortMonthYear } from '../utils/format';
 import { CATEGORY_COLORS } from '../utils/storage';
 import { BarChart3, PieChart as PieIcon, LineChart as LineIcon } from 'lucide-react';
 
@@ -82,7 +82,7 @@ export const ChartsView: React.FC<ChartsViewProps> = ({
     const totalSpentInM = monthExpenses.reduce((sum, item) => sum + item.value, 0);
     return {
       monthCode: m,
-      monthName: getJustMonthName(m),
+      monthName: formatShortMonthYear(m),
       "Gasto do Mês": parseFloat(totalSpentInM.toFixed(2)),
     };
   });

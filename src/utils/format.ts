@@ -32,6 +32,17 @@ export function getJustMonthName(monthStr: string): string {
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
+// Retorna o mês e ano encurtados, ex: "Mai/26", para evitar duplicatas em gráficos temporais de anos diferentes
+export function formatShortMonthYear(monthStr: string): string {
+  if (!monthStr || !monthStr.includes('-')) return monthStr;
+  const [year, month] = monthStr.split('-');
+  const shortYear = year.slice(-2); // Ex: "26" ou "27"
+  const shortMonths = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const monthIdx = parseInt(month, 10) - 1;
+  const monthName = shortMonths[monthIdx] || '';
+  return `${monthName}/${shortYear}`;
+}
+
 // Formata data padrão (YYYY-MM-DD) para DD/MM/YYYY
 export function formatDate(dateStr: string): string {
   if (!dateStr) return '';
