@@ -19,7 +19,8 @@ import {
   Coins,
   Settings,
   Eye,
-  EyeOff
+  EyeOff,
+  Sliders
 } from 'lucide-react';
 
 import { AppData, Expense, Revenue, CategoryBudget, MonthlyBudget } from './types';
@@ -48,6 +49,9 @@ export default function App() {
   const [privacyMode, setPrivacyMode] = useState<boolean>(() => {
     return localStorage.getItem('privacy-mode') === 'true';
   });
+  const [hideMobileBudgets, setHideMobileBudgets] = useState<boolean>(() => {
+    return localStorage.getItem('hide-mobile-budgets') === 'true';
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -59,6 +63,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('privacy-mode', String(privacyMode));
   }, [privacyMode]);
+
+  useEffect(() => {
+    localStorage.setItem('hide-mobile-budgets', String(hideMobileBudgets));
+  }, [hideMobileBudgets]);
 
   // Load active month config values into inputs
   useEffect(() => {
@@ -438,15 +446,31 @@ export default function App() {
                 setPrivacyMode(nv);
                 triggerNotification(nv ? 'Modo de privacidade ativado! Os valores foram borrados para locais públicos.' : 'Modo de privacidade desativado. Valores visíveis.', 'info');
               }}
-              className={`p-1.5 px-3 text-xs font-bold rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all cursor-pointer shrink-0 ${
                 privacyMode 
                   ? 'bg-amber-950/40 text-amber-400 border-amber-500/30 shadow-md shadow-amber-950/20' 
                   : 'bg-[#1c1c1c] hover:bg-[#252525] text-slate-200 border-white/5'
               }`}
               title={privacyMode ? 'Mostrar valores (Modo público)' : 'Esconder valores (Modo privado)'}
             >
-              {privacyMode ? <EyeOff className="w-3.5 h-3.5 text-amber-400" /> : <Eye className="w-3.5 h-3.5 text-slate-400" />}
-              <span>{privacyMode ? 'Modo Privado' : 'Esconder Valores'}</span>
+              {privacyMode ? <EyeOff className="w-4 h-4 text-amber-400" /> : <Eye className="w-4 h-4 text-slate-400" />}
+            </button>
+
+            {/* Esconder Teto de Gastos (Apenas Mobile/Tablet) */}
+            <button
+              onClick={() => {
+                const nv = !hideMobileBudgets;
+                setHideMobileBudgets(nv);
+                triggerNotification(nv ? 'Seção de Teto de Gastos ocultada para telas menores.' : 'Seção de Teto de Gastos visível.', 'info');
+              }}
+              className={`lg:hidden w-8 h-8 flex items-center justify-center rounded-xl border transition-all cursor-pointer shrink-0 ${
+                hideMobileBudgets 
+                  ? 'bg-indigo-950/40 text-indigo-400 border-indigo-500/30 shadow-md shadow-indigo-950/20' 
+                  : 'bg-[#1c1c1c] hover:bg-[#252525] text-slate-200 border-white/5'
+              }`}
+              title={hideMobileBudgets ? 'Mostrar Teto de Gastos Adotado' : 'Esconder Teto de Gastos Adotado'}
+            >
+              <Sliders className="w-4 h-4" />
             </button>
 
             {/* Editar Salário e Metas */}
@@ -622,7 +646,7 @@ export default function App() {
               </div>
 
               {/* Planejamento de Metas Limites por Categoria (4 colunas) */}
-              <div className="lg:col-span-4 lg:h-[550px]">
+              <div className={`lg:col-span-4 lg:h-[550px] ${hideMobileBudgets ? 'hidden lg:block' : ''}`}>
                 <CategoryBudgets 
                   categoryBudgets={data.categoryBudgets}
                   expensesByCategory={expensesByCategory}
