@@ -17,7 +17,9 @@ import {
   Check,
   RefreshCw,
   Coins,
-  Settings
+  Settings,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 import { AppData, Expense, Revenue, CategoryBudget, MonthlyBudget } from './types';
@@ -43,6 +45,9 @@ export default function App() {
   const [salaryInput, setSalaryInput] = useState<string>('');
   const [savingsInput, setSavingsInput] = useState<number>(30);
   const [showNotification, setShowNotification] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
+  const [privacyMode, setPrivacyMode] = useState<boolean>(() => {
+    return localStorage.getItem('privacy-mode') === 'true';
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -50,6 +55,10 @@ export default function App() {
   useEffect(() => {
     saveAppData(data);
   }, [data]);
+
+  useEffect(() => {
+    localStorage.setItem('privacy-mode', String(privacyMode));
+  }, [privacyMode]);
 
   // Load active month config values into inputs
   useEffect(() => {
@@ -362,7 +371,7 @@ export default function App() {
     : totalSpent;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center text-white">
+    <div className={`min-h-screen bg-[#0a0a0a] flex flex-col items-center text-white ${privacyMode ? 'privacy-mode-active' : ''}`}>
       
       {/* GLOWING NOTIFICATION TOAST */}
       {showNotification && (
@@ -422,6 +431,24 @@ export default function App() {
 
           {/* Ações de Dados e Backup */}
           <div className="flex flex-wrap items-center gap-2" id="action-controls-row">
+            {/* Olho - Modo Privacidade */}
+            <button
+              onClick={() => {
+                const nv = !privacyMode;
+                setPrivacyMode(nv);
+                triggerNotification(nv ? 'Modo de privacidade ativado! Os valores foram borrados para locais públicos.' : 'Modo de privacidade desativado. Valores visíveis.', 'info');
+              }}
+              className={`p-1.5 px-3 text-xs font-bold rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${
+                privacyMode 
+                  ? 'bg-amber-950/40 text-amber-400 border-amber-500/30 shadow-md shadow-amber-950/20' 
+                  : 'bg-[#1c1c1c] hover:bg-[#252525] text-slate-200 border-white/5'
+              }`}
+              title={privacyMode ? 'Mostrar valores (Modo público)' : 'Esconder valores (Modo privado)'}
+            >
+              {privacyMode ? <EyeOff className="w-3.5 h-3.5 text-amber-400" /> : <Eye className="w-3.5 h-3.5 text-slate-400" />}
+              <span>{privacyMode ? 'Modo Privado' : 'Esconder Valores'}</span>
+            </button>
+
             {/* Editar Salário e Metas */}
             <button
               onClick={() => setShowConfigPanel(prev => !prev)}

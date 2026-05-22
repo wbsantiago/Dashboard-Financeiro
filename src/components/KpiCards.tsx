@@ -57,7 +57,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
         <div className="flex justify-between items-start">
           <div>
             <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Salário Ideal (Fixo)</p>
-            <h3 className="text-2xl font-bold text-white mt-1 font-sans">
+            <h3 className="text-2xl font-bold text-white mt-1 font-sans privacy-blur">
               {formatCurrency(salary)}
             </h3>
           </div>
@@ -68,7 +68,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
         <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
           <span>Poupança Ideal: <strong className="text-indigo-400 font-mono font-bold">{targetSavingsPercentage}%</strong></span>
           <span className="text-slate-600">|</span>
-          <span>Guardar: <strong className="text-white font-mono font-bold">{formatCurrency(plannedSavings)}</strong></span>
+          <span>Guardar: <strong className="text-white font-mono font-bold privacy-blur">{formatCurrency(plannedSavings)}</strong></span>
         </div>
         <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500"></div>
       </div>
@@ -81,7 +81,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
         <div className="flex justify-between items-start">
           <div>
             <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Rendimento do Mês</p>
-            <h3 className="text-2xl font-bold text-white mt-1 font-sans">
+            <h3 className="text-2xl font-bold text-white mt-1 font-sans privacy-blur">
               {formatCurrency(totalRevenue)}
             </h3>
           </div>
@@ -95,11 +95,11 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
               <span className="text-slate-500 font-medium font-sans">Sem entradas cadastradas neste mês</span>
             ) : revenueVsIdealDiff < 0 ? (
               <span className="text-slate-400 font-sans leading-tight">
-                Faltam <strong className="text-amber-400 font-mono font-bold">{formatCurrency(Math.abs(revenueVsIdealDiff))}</strong> para atingir o salário ideal
+                Faltam <strong className="text-amber-400 font-mono font-bold privacy-blur">{formatCurrency(Math.abs(revenueVsIdealDiff))}</strong> para atingir o salário ideal
               </span>
             ) : (
               <span className="text-slate-400 font-sans leading-tight">
-                Receita real superou o ideal planejado em <strong className="text-emerald-400 font-mono font-bold">+{formatCurrency(revenueVsIdealDiff)}</strong>
+                Receita real superou o ideal planejado em <strong className="text-emerald-400 font-mono font-bold privacy-blur">+{formatCurrency(revenueVsIdealDiff)}</strong>
               </span>
             )}
           </div>
@@ -109,7 +109,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
               <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               Sobra (Poupar):
             </span>
-            <span className={`font-mono font-extrabold text-[13px] ${balance >= 0 ? 'text-emerald-400' : 'text-rose-450'}`}>
+            <span className={`font-mono font-extrabold text-[13px] privacy-blur ${balance >= 0 ? 'text-emerald-400' : 'text-rose-450'}`}>
               {formatCurrency(balance)}
             </span>
           </div>
@@ -125,7 +125,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
         <div className="flex justify-between items-start">
           <div>
             <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Gastos Mensais</p>
-            <h3 className="text-2xl font-bold text-white mt-1 font-sans">
+            <h3 className="text-2xl font-bold text-white mt-1 font-sans privacy-blur">
               {formatCurrency(totalSpent)}
             </h3>
           </div>
@@ -135,14 +135,14 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
         </div>
         <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
           <span>Teto Recomendado:</span>
-          <span className="font-semibold text-slate-300 font-mono">
+          <span className="font-semibold text-slate-300 font-mono privacy-blur">
             {formatCurrency(maxSpentAllowed)}
           </span>
         </div>
         {futureInstallmentsDebt > 0 && (
           <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-400">
             <span>Dívida Futura (Cartão):</span>
-            <span className="font-bold text-indigo-400 font-mono">
+            <span className="font-bold text-indigo-400 font-mono privacy-blur">
               {formatCurrency(futureInstallmentsDebt)}
             </span>
           </div>
@@ -191,7 +191,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
             <span className="text-slate-400 text-[10px]">
               {isOverBudget ? 'Orçamento estourado em:' : 'Margem de segurança:'}
             </span>
-            <span className={`font-mono font-bold text-xs ${isOverBudget ? 'text-rose-400' : 'text-emerald-400'}`}>
+            <span className={`font-mono font-bold text-xs privacy-blur ${isOverBudget ? 'text-rose-400' : 'text-emerald-400'}`}>
               {isOverBudget ? '' : '+'}{formatCurrency(budgetDiff)}
             </span>
           </div>
@@ -201,7 +201,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
               <Wallet className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               Sobra Real:
             </span>
-            <span className={`font-mono font-extrabold text-[13px] ${balance >= 0 ? 'text-emerald-400' : 'text-rose-400 font-bold'}`}>
+            <span className={`font-mono font-extrabold text-[13px] privacy-blur ${balance >= 0 ? 'text-emerald-400' : 'text-rose-400 font-bold'}`}>
               {formatCurrency(balance)}
             </span>
           </div>

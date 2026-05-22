@@ -33,3 +33,29 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
+/* Privacy Mode Blur Styles */
+.privacy-blur {
+  transition: filter 0.2s cubic-bezier(0.16, 1, 0.3, 1), text-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.privacy-mode-active .privacy-blur {
+  filter: blur(8px) !important;
+  user-select: none !important;
+}
+
+/* Also support blurring charts, labels, lists and inputs */
+.privacy-mode-active input.privacy-blur:not(:focus) {
+  filter: blur(6px) !important;
+  color: transparent !important;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.65) !important;
+}
+
+/* Blur the whole chart container or line/bar series when in privacy mode */
+.privacy-mode-active .recharts-responsive-container,
+.privacy-mode-active .recharts-wrapper {
+  filter: blur(8px) !important;
+  user-select: none !important;
+  pointer-events: none !important;
+}
+
+

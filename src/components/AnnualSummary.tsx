@@ -144,7 +144,7 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
             return (
               <div key={index} className="flex justify-between items-center gap-4 text-[10px] my-0.5">
                 <span className="text-slate-500 font-semibold">{item.name}:</span>
-                <span className={`font-mono font-bold ${valueColor}`}>
+                <span className={`font-mono font-bold privacy-blur ${valueColor}`}>
                   {formatCurrency(item.value)}
                 </span>
               </div>
@@ -198,11 +198,11 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
             </div>
           </div>
           <div className="mt-2.5">
-            <span className="text-base font-extrabold text-white font-sans tracking-tight">
+            <span className="text-base font-extrabold text-white font-sans tracking-tight privacy-blur">
               {formatCurrency(totalRevenues)}
             </span>
             <span className="text-[9px] text-slate-500 block mt-0.5 leading-none">
-              Média mensal recebida: <span className="font-mono text-slate-400 font-semibold">{formatCurrency(totalRevenues / 12)}</span>
+              Média mensal recebida: <span className="font-mono text-slate-400 font-semibold privacy-blur">{formatCurrency(totalRevenues / 12)}</span>
             </span>
           </div>
         </div>
@@ -216,11 +216,11 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
             </div>
           </div>
           <div className="mt-2.5">
-            <span className="text-base font-extrabold text-white font-sans tracking-tight">
+            <span className="text-base font-extrabold text-white font-sans tracking-tight privacy-blur">
               {formatCurrency(totalExpenses)}
             </span>
             <span className="text-[9px] text-slate-500 block mt-0.5 leading-none">
-              Comprometido anual: <span className="font-mono text-slate-400 font-semibold">{formatCurrency(avgMonthlyExpense)}/mês</span>
+              Comprometido anual: <span className="font-mono text-slate-400 font-semibold privacy-blur">{formatCurrency(avgMonthlyExpense)}/mês</span>
             </span>
           </div>
         </div>
@@ -234,7 +234,7 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
             </div>
           </div>
           <div className="mt-2.5">
-            <span className={`text-base font-extrabold font-sans tracking-tight ${netSavings >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+            <span className={`text-base font-extrabold font-sans tracking-tight privacy-blur ${netSavings >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
               {netSavings >= 0 ? '+' : ''}{formatCurrency(netSavings)}
             </span>
             <span className="text-[9px] text-slate-500 block mt-0.5 leading-none">
@@ -323,7 +323,7 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
                         <span className="truncate">{item.category}</span>
                       </div>
                       <div className="text-right font-mono text-[9px] text-slate-400">
-                        <span className="font-bold text-slate-300">{formatCurrency(item.value)}</span>
+                        <span className="font-bold text-slate-300 privacy-blur">{formatCurrency(item.value)}</span>
                         <span className="text-[8px] text-slate-500 ml-1">({percent}%)</span>
                       </div>
                     </div>
@@ -384,14 +384,14 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
                 return (
                   <tr key={dataRow.monthKey} className="hover:bg-white/2 transition-colors">
                     <td className="py-2 text-white font-bold">{dataRow.monthLabel}</td>
-                    <td className="py-2 text-right font-mono text-emerald-400 font-semibold">
-                      {dataRow.Entradas > 0 ? formatCurrency(dataRow.Entradas) : '-'}
+                    <td className="py-2 text-right font-mono text-emerald-400 font-semibold text-xs">
+                      {dataRow.Entradas > 0 ? <span className="privacy-blur">{formatCurrency(dataRow.Entradas)}</span> : '-'}
                     </td>
-                    <td className="py-2 text-right font-mono text-slate-300">
-                      {dataRow.Saídas > 0 ? formatCurrency(dataRow.Saídas) : '-'}
+                    <td className="py-2 text-right font-mono text-slate-300 text-xs">
+                      {dataRow.Saídas > 0 ? <span className="privacy-blur">{formatCurrency(dataRow.Saídas)}</span> : '-'}
                     </td>
-                    <td className={`py-2 text-right font-mono ${balanceColor}`}>
-                      {isZero ? '-' : formatCurrency(dataRow.Saldo)}
+                    <td className={`py-2 text-right font-mono text-xs ${balanceColor}`}>
+                      {isZero ? '-' : <span className="privacy-blur">{formatCurrency(dataRow.Saldo)}</span>}
                     </td>
                     <td className="py-2 text-right font-mono font-bold">
                       {isZero ? '-' : `${dataRow.TaxaPoupanca}%`}

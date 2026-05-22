@@ -303,7 +303,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                           placeholder="250.00"
                           value={value}
                           onChange={(e) => setValue(e.target.value)}
-                          className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors placeholder:text-zinc-650"
+                          className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors placeholder:text-zinc-650 privacy-blur"
                           required
                           min="0"
                         />
@@ -444,14 +444,14 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                               {installmentValueType === 'single' ? (
                                 <p className="leading-relaxed">
                                   Serão geradas <span className="text-white font-bold">{totalInstallments}</span> parcelas de{' '}
-                                  <span className="text-indigo-400 font-extrabold">{formatCurrency(parseFloat(value))}</span> cada uma.{' '}
-                                  (Total: {formatCurrency(parseFloat(value) * parseInt(totalInstallments || '1'))})
+                                  <span className="text-indigo-400 font-extrabold privacy-blur">{formatCurrency(parseFloat(value))}</span> cada uma.{' '}
+                                  (Total: <span className="privacy-blur">{formatCurrency(parseFloat(value) * parseInt(totalInstallments || '1'))}</span>)
                                 </p>
                               ) : (
                                 <p className="leading-relaxed">
-                                  Um total de <span className="text-white font-bold">{formatCurrency(parseFloat(value))}</span> será dividido em{' '}
+                                  Um total de <span className="text-white font-bold privacy-blur">{formatCurrency(parseFloat(value))}</span> será dividido em{' '}
                                   <span className="text-white font-bold">{totalInstallments}</span> parcelas de{' '}
-                                  <span className="text-amber-400 font-extrabold">
+                                  <span className="text-amber-400 font-extrabold privacy-blur">
                                     {formatCurrency(parseFloat(value) / parseInt(totalInstallments || '1', 10))}
                                   </span>{' '}
                                   cada uma.
@@ -518,7 +518,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                       <h3 className="text-xs font-bold text-white uppercase tracking-wider">Histórico de Saídas</h3>
                       <p className="text-[10px] text-slate-400 mt-0.5 leading-none">
                         Comprometido no Mês:{' '}
-                        <span className="font-extrabold text-indigo-400 font-mono">
+                        <span className="font-extrabold text-indigo-400 font-mono privacy-blur">
                           {formatCurrency(totalFilteredValue)}
                         </span>
                       </p>
@@ -588,7 +588,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                       <div className="grid grid-cols-2 gap-2 w-full sm:w-auto font-mono text-right text-[11px]">
                         <div className="bg-zinc-950/45 px-2.5 py-1 rounded-lg border border-white/5">
                           <span className="text-[8px] text-slate-550 block uppercase font-sans font-semibold mb-0.5">Dívida Futura</span>
-                          <span className="font-extrabold text-indigo-400 text-xs">
+                          <span className="font-extrabold text-indigo-400 text-xs privacy-blur">
                             {formatCurrency(
                               installmentExpenses.reduce((sum, exp) => {
                                 const info = getInstallmentInfo(exp);
@@ -656,7 +656,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                                     <>
                                       <span>•</span>
                                       <span className="text-indigo-400 font-bold font-mono text-[8.5px] bg-indigo-500/5 px-1.5 py-0.5 rounded border border-indigo-500/10 shrink-0">
-                                        Restam {instInfo.remaining}x (Total restante: {formatCurrency(exp.value * instInfo.remaining)})
+                                        Restam {instInfo.remaining}x (Total restante: <span className="privacy-blur">{formatCurrency(exp.value * instInfo.remaining)}</span>)
                                       </span>
                                     </>
                                   )}
@@ -666,7 +666,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
 
                             <div className="flex items-center gap-3 shrink-0">
                               <div className="text-right">
-                                <span className="font-extrabold text-white text-xs block font-mono">
+                                <span className="font-extrabold text-white text-xs block font-mono privacy-blur">
                                   {formatCurrency(exp.value)}
                                 </span>
                               </div>
@@ -735,7 +735,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                           placeholder="Ex: 1500.00"
                           value={revValue}
                           onChange={(e) => setRevValue(e.target.value)}
-                          className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-colors placeholder:text-zinc-650"
+                          className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-colors placeholder:text-zinc-650 privacy-blur"
                           required
                           min="0"
                         />
@@ -822,7 +822,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                       <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Histórico de Entradas</h3>
                       <p className="text-[10px] text-slate-300 mt-0.5 leading-none">
                         Total Recebido no Mês:{' '}
-                        <span className="font-extrabold text-emerald-400 font-mono">
+                        <span className="font-extrabold text-emerald-400 font-mono privacy-blur">
                           {formatCurrency(totalFilteredRevenues)}
                         </span>
                       </p>
@@ -898,7 +898,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
 
                             <div className="flex items-center gap-3 shrink-0">
                               <div className="text-right">
-                                <span className="font-extrabold text-emerald-400 text-xs block font-mono">
+                                <span className="font-extrabold text-emerald-400 text-xs block font-mono privacy-blur">
                                   +{formatCurrency(rev.value)}
                                 </span>
                               </div>

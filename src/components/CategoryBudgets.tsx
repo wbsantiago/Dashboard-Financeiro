@@ -131,10 +131,10 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
                     <div className="flex items-center gap-1.5">
                       <div className="text-right">
                         <div className="text-[10px] font-medium text-slate-500">
-                          Meta: <span className="font-semibold text-slate-300">{formatCurrency(limit)}</span>
+                          Meta: <span className="font-semibold text-slate-300 privacy-blur">{formatCurrency(limit)}</span>
                         </div>
                         <div className="text-[10px] font-semibold text-slate-200">
-                          Gasto: {formatCurrency(spent)}
+                          Gasto: <span className="privacy-blur">{formatCurrency(spent)}</span>
                         </div>
                       </div>
                       <button
@@ -160,7 +160,7 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
                   </div>
                   <div className="flex justify-between text-[8px] text-slate-500 mt-0.5">
                     <span>{percent}% comprometido</span>
-                    <span>Restante: {formatCurrency(Math.max(0, limit - spent))}</span>
+                    <span>Restante: <span className="privacy-blur">{formatCurrency(Math.max(0, limit - spent))}</span></span>
                   </div>
                 </div>
               ) : (
