@@ -103,168 +103,26 @@ export const REVENUE_CATEGORY_BG_COLORS: Record<string, string> = {
 
 // Mock Initial Data
 const INITIAL_MOCK_DATA: AppData = {
-  expenses: [
-    // May 2026 (Current Month matching image)
-    {
-      id: 'mock-exp-1',
-      title: 'Supermercado Assaí',
-      value: 500.00,
-      category: 'Alimentação',
-      month: '2026-05',
-      isInstallment: false,
-      date: '2026-05-05',
-      createdAt: Date.now() - 5 * 86400000
-    },
-    {
-      id: 'mock-exp-2',
-      title: 'Consulta Dermatologista',
-      value: 123.00,
-      category: 'Saúde',
-      month: '2026-05',
-      isInstallment: false,
-      date: '2026-05-10',
-      createdAt: Date.now() - 4 * 86400000
-    },
-    {
-      id: 'mock-exp-3',
-      title: 'Manutenção do Carro',
-      value: 425.00,
-      category: 'Transporte',
-      month: '2026-05',
-      isInstallment: false,
-      date: '2026-05-12',
-      createdAt: Date.now() - 3 * 86400000
-    },
-    {
-      id: 'mock-exp-4',
-      title: 'Combustível Posto',
-      value: 300.00,
-      category: 'Transporte',
-      month: '2026-05',
-      isInstallment: false,
-      date: '2026-05-12',
-      createdAt: Date.now() - 3 * 86450000
-    },
-    {
-      id: 'mock-exp-5',
-      title: 'Roupas Novas Shopee',
-      value: 72.00,
-      category: 'Vestuário',
-      month: '2026-05',
-      isInstallment: false,
-      date: '2026-05-15',
-      createdAt: Date.now() - 2 * 86400000
-    },
-    {
-      id: 'mock-exp-6',
-      title: 'Hospedagem & Passagem',
-      value: 1271.00,
-      category: 'Viagens',
-      month: '2026-05',
-      isInstallment: false,
-      date: '2026-05-18',
-      createdAt: Date.now() - 1 * 86400000
-    },
-    {
-      id: 'mock-exp-7',
-      title: 'Upgrade Computador',
-      value: 941.00,
-      category: 'Tecnologia & Eletrônicos',
-      month: '2026-05',
-      isInstallment: false,
-      date: '2026-05-20',
-      createdAt: Date.now() - 1 * 86400000
-    },
-    {
-      id: 'mock-exp-8',
-      title: 'Salão & Barbearia',
-      value: 210.00,
-      category: 'Cuidados Pessoais',
-      month: '2026-05',
-      isInstallment: false,
-      date: '2026-05-21',
-      createdAt: Date.now() - 1 * 86400000
-    },
-    {
-      id: 'mock-exp-9',
-      title: 'Assinaturas Streaming',
-      value: 95.00,
-      category: 'Assinaturas',
-      month: '2026-05',
-      isInstallment: false,
-      date: '2026-05-22',
-      createdAt: Date.now()
-    },
-    {
-      id: 'mock-exp-10',
-      title: 'Cursos & Livros',
-      value: 217.00,
-      category: 'Educação & Profissional',
-      month: '2026-05',
-      isInstallment: false,
-      date: '2026-05-22',
-      createdAt: Date.now()
-    }
-  ],
-  revenues: [
-    {
-      id: 'mock-rev-1',
-      title: 'Salário CLT Principal',
-      value: 4798.00,
-      category: 'Pagamento',
-      month: '2026-05',
-      date: '2026-05-05',
-      createdAt: Date.now() - 10 * 86400000
-    },
-    {
-      id: 'mock-rev-2',
-      title: 'Freelance Layout Consultoria',
-      value: 300.00,
-      category: 'FreeLancer',
-      month: '2026-05',
-      date: '2026-05-12',
-      createdAt: Date.now() - 4 * 86400000
-    },
-    {
-      id: 'mock-rev-3',
-      title: 'Vale Alimentação Sodexo',
-      value: 1000.00,
-      category: 'VA',
-      month: '2026-05',
-      date: '2026-05-15',
-      createdAt: Date.now() - 1 * 86400000
-    },
-    {
-      id: 'mock-rev-4',
-      title: 'Vendas Separadas',
-      value: 580.00,
-      category: 'Outros',
-      month: '2026-05',
-      date: '2026-05-22',
-      createdAt: Date.now()
-    }
-  ],
+  expenses: [],
+  revenues: [],
   categoryBudgets: [
-    { category: 'Alimentação', idealLimit: 650.00 },
-    { category: 'Presentes', idealLimit: 100.00 },
-    { category: 'Saúde', idealLimit: 250.00 },
+    { category: 'Alimentação', idealLimit: 0.00 },
+    { category: 'Presentes', idealLimit: 0.00 },
+    { category: 'Saúde', idealLimit: 0.00 },
     { category: 'Moradia', idealLimit: 0.00 },
-    { category: 'Transporte', idealLimit: 450.00 },
-    { category: 'Vestuário', idealLimit: 200.00 },
-    { category: 'Lazer & Entretenimento', idealLimit: 250.00 },
+    { category: 'Transporte', idealLimit: 0.00 },
+    { category: 'Vestuário', idealLimit: 0.00 },
+    { category: 'Lazer & Entretenimento', idealLimit: 0.00 },
     { category: 'Serviços de utilidade pública', idealLimit: 0.00 },
-    { category: 'Viagens', idealLimit: 200.00 },
-    { category: 'Tecnologia & Eletrônicos', idealLimit: 300.00 },
-    { category: 'Cuidados Pessoais', idealLimit: 270.00 },
-    { category: 'Assinaturas', idealLimit: 150.00 },
-    { category: 'Educação & Profissional', idealLimit: 170.00 },
+    { category: 'Viagens', idealLimit: 0.00 },
+    { category: 'Tecnologia & Eletrônicos', idealLimit: 0.00 },
+    { category: 'Cuidados Pessoais', idealLimit: 0.00 },
+    { category: 'Assinaturas', idealLimit: 0.00 },
+    { category: 'Educação & Profissional', idealLimit: 0.00 },
     { category: 'Outros', idealLimit: 0.00 }
   ],
-  monthlyBudgets: [
-    { month: '2026-05', salary: 5798.00, targetSavingsPercentage: 20 },
-    { month: '2026-04', salary: 5000.00, targetSavingsPercentage: 20 }
-  ],
-  defaultMonthlySalary: 5798.00,
+  monthlyBudgets: [],
+  defaultMonthlySalary: 0.00,
   defaultTargetSavingsPercentage: 20
 };
 

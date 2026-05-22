@@ -288,9 +288,41 @@ export default function App() {
       'Tem certeza de que deseja apagar todos os dados registrados do cache do seu navegador? Essa ação é irreversível.'
     );
     if (confirmReset) {
+      const emptyData: AppData = {
+        expenses: [],
+        revenues: [],
+        categoryBudgets: [
+          { category: 'Alimentação', idealLimit: 0.00 },
+          { category: 'Presentes', idealLimit: 0.00 },
+          { category: 'Saúde', idealLimit: 0.00 },
+          { category: 'Moradia', idealLimit: 0.00 },
+          { category: 'Transporte', idealLimit: 0.00 },
+          { category: 'Vestuário', idealLimit: 0.00 },
+          { category: 'Lazer & Entretenimento', idealLimit: 0.00 },
+          { category: 'Serviços de utilidade pública', idealLimit: 0.00 },
+          { category: 'Viagens', idealLimit: 0.00 },
+          { category: 'Tecnologia & Eletrônicos', idealLimit: 0.00 },
+          { category: 'Cuidados Pessoais', idealLimit: 0.00 },
+          { category: 'Assinaturas', idealLimit: 0.00 },
+          { category: 'Educação & Profissional', idealLimit: 0.00 },
+          { category: 'Outros', idealLimit: 0.00 }
+        ],
+        monthlyBudgets: [],
+        defaultMonthlySalary: 0.00,
+        defaultTargetSavingsPercentage: 20
+      };
+
+      // Limpeza completa em todos os níveis
       localStorage.clear();
-      // Reload page to bootstrap clean default structures
-      window.location.reload();
+      saveAppData(emptyData);
+      setData(emptyData);
+
+      triggerNotification('Todos os dados foram completamente limpos!', 'success');
+
+      // Forçar o recarregamento total da página para resetar todos os estados de componentes internos e campos de input
+      setTimeout(() => {
+        window.location.reload();
+      }, 150);
     }
   };
 
