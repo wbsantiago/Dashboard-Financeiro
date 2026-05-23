@@ -36,13 +36,25 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
   const totalRevenue = extraIncome; // O rendimento do mês é estritamente a somatória de todas as entradas reais cadastradas
   const balance = totalRevenue - totalSpent;
 
-  // O Teto Base de Gastos é calculado estritamente a partir do salário ideal definido (rendimento fixo planejado)
-  const maxSpentAllowed = salary * (1 - targetSavingsPercentage / 100);
-  const plannedSavings = salary * (targetSavingsPercentage / 100);
+  // O que está previsto no mês (rendimento fixo planejado)
+  const previstoNoMes = salary;
+
+  // O quanto será guardado (poupança programada em valor real)
+  const planejadoGuardar = previstoNoMes * (targetSavingsPercentage / 100);
+
+  // Receita que superou o salário ideal no mês (se houver)
+  const receitaExcedente = Math.max(0, totalRevenue - salary);
+
+  // O Teto Base de Gastos é calculado a partir do que está previsto menos o quanto será guardado
+  const maxSpentAllowed = previstoNoMes - planejadoGuardar;
+  const plannedSavings = planejadoGuardar;
   
-  // Diferença do gasto com relação ao planejado
-  const budgetDiff = maxSpentAllowed - totalSpent;
-  const isOverBudget = totalSpent > maxSpentAllowed;
+  // O teto é acrescido do excedente de receita, mantendo a poupança ideal absoluta pretendida
+  const adjustedMaxSpentAllowed = maxSpentAllowed + receitaExcedente;
+
+  // Diferença do gasto com relação ao planejado ajustado (estouro ou margem)
+  const budgetDiff = adjustedMaxSpentAllowed - totalSpent;
+  const isOverBudget = totalSpent > adjustedMaxSpentAllowed;
 
   // Diferença entre entradas reais e projeção de salário ideal
   const revenueVsIdealDiff = totalRevenue - salary;

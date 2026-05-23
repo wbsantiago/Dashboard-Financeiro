@@ -182,11 +182,26 @@ export default function App() {
 
   const handleDeleteExpense = (id: string) => {
     const item = data.expenses.find(e => e.id === id);
-    setData(prev => ({
-      ...prev,
-      expenses: prev.expenses.filter(e => e.id !== id)
-    }));
-    if (item) {
+    if (!item) return;
+
+    setData(prev => {
+      let finalExpenses = prev.expenses;
+      if (item.isInstallment && item.createdAt) {
+        // Remove all installments generated in this same batch/purchase (matching isInstallment and createdAt)
+        finalExpenses = prev.expenses.filter(e => !(e.isInstallment && e.createdAt === item.createdAt));
+      } else {
+        finalExpenses = prev.expenses.filter(e => e.id !== id);
+      }
+      return {
+        ...prev,
+        expenses: finalExpenses
+      };
+    });
+
+    if (item.isInstallment && item.createdAt) {
+      const cleanTitle = item.title.replace(/\s*\d+\s*[\/／]\s*\d+\s*$/, '').trim();
+      triggerNotification(`Lançamento parcelado "${cleanTitle}" e todas as suas parcelas foram excluídos.`);
+    } else {
       triggerNotification(`Lançamento "${item.title}" removido com sucesso.`);
     }
   };
@@ -663,7 +678,7 @@ export default function App() {
               </div>
 
               {/* Planejamento de Metas Limites por Categoria (4 colunas) */}
-              <div className={`lg:col-span-4 lg:h-[550px] ${hideMobileBudgets ? 'hidden lg:block' : ''}`}>
+              <div className={`lg:col-span-4 lg:h-[590px] ${hideMobileBudgets ? 'hidden lg:block' : ''}`}>
                 <CategoryBudgets 
                   categoryBudgets={data.categoryBudgets}
                   expensesByCategory={expensesByCategory}

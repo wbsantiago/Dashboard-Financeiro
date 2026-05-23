@@ -10,7 +10,8 @@ import {
   PiggyBank,
   ArrowUpRight,
   TrendingDown,
-  Pencil
+  Pencil,
+  AlertTriangle
 } from 'lucide-react';
 import { Expense, Revenue } from '../types';
 import { formatCurrency, formatDate, getInstallmentInfo } from '../utils/format';
@@ -44,6 +45,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
 }) => {
   // Navigation Tabs at top: expenses (Saídas) or revenues (Entradas)
   const [activeTab, setActiveTab] = useState<'expenses' | 'revenues'>('expenses');
+
+  // State to handle delete confirmation modal
+  const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'expense' | 'revenue'; title: string; isInstallment?: boolean } | null>(null);
 
   // FILTERS (Expenses)
   const [filterType, setFilterType] = useState<'all' | 'one-time' | 'installment'>('all');
@@ -736,7 +740,12 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
                               <button
-                                onClick={() => onDeleteExpense(exp.id)}
+                                onClick={() => setItemToDelete({ 
+                                  id: exp.id, 
+                                  type: 'expense', 
+                                  title: exp.title, 
+                                  isInstallment: exp.isInstallment || instInfo.hasInfo 
+                                })}
                                 className="p-1.5 text-slate-500 hover:text-rose-455 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-rose-500/10"
                                 title="Remover Gasto"
                               >
@@ -968,7 +977,11 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                                 </span>
                               </div>
                               <button
-                                onClick={() => onDeleteRevenue(rev.id)}
+                                onClick={() => setItemToDelete({ 
+                                  id: rev.id, 
+                                  type: 'revenue', 
+                                  title: rev.title 
+                                })}
                                 className="p-1.5 text-slate-600 hover:text-rose-450 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-rose-500/10"
                                 title="Remover Rendimento"
                               >
@@ -1110,6 +1123,63 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* FULLSCREEN DELETE CONFIRMATION MODAL */}
+      {itemToDelete && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-55 flex items-center justify-center p-4">
+          <div className="bg-[#141414] border border-white/10 max-w-sm w-full rounded-2xl p-6 shadow-2xl flex flex-col gap-4 animate-fadeIn" id="delete-confirmation-modal">
+            <div className="flex items-center gap-3 text-rose-500">
+              <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20">
+                <Trash2 className="w-5 h-5 text-rose-400" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider">Confirmar Exclusão</h4>
+                <p className="text-[10px] text-slate-400 font-medium">Esta ação é permanente</p>
+              </div>
+            </div>
+            
+            <div className="py-1">
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Tem certeza de que deseja excluir o lançamento <span className="text-white font-extrabold">"{itemToDelete.title}"</span>?
+              </p>
+              
+              {itemToDelete.type === 'expense' && itemToDelete.isInstallment && (
+                <div className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/10 p-3 rounded-xl mt-3 flex gap-2 animate-fadeIn">
+                  <AlertTriangle className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
+                  <div className="leading-snug">
+                    <strong className="block text-[11px] font-black uppercase tracking-wider mb-0.5">Aviso de Compra Parcelada!</strong>
+                    Como este lançamento foi parcelado, <span className="underline font-bold">todas as outras parcelas</span> vinculadas a esta mesma compra serão removidas automaticamente de todos os meses.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/5">
+              <button
+                type="button"
+                onClick={() => setItemToDelete(null)}
+                className="px-4 py-2 text-xs font-bold text-slate-450 hover:text-white bg-zinc-900/40 hover:bg-zinc-900 rounded-xl border border-white/5 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (itemToDelete.type === 'expense') {
+                    onDeleteExpense(itemToDelete.id);
+                  } else {
+                    onDeleteRevenue(itemToDelete.id);
+                  }
+                  setItemToDelete(null);
+                }}
+                className="px-4 py-2 text-xs font-black text-white bg-rose-600 hover:bg-rose-500 rounded-xl transition-all cursor-pointer shadow-md shadow-rose-600/10"
+              >
+                Confirmar e Excluir
+              </button>
+            </div>
           </div>
         </div>
       )}
