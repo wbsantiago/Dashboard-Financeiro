@@ -732,6 +732,7 @@ export default function App() {
               extraIncome={totalRevenues}
               selectedMonth={selectedMonth}
               futureInstallmentsDebt={futureInstallmentsDebt}
+              expenses={data.expenses}
             />
 
             {/* ROW 2: GRÁFICOS INTERATIVOS E TETOS POR CATEGORIA */}

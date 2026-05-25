@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   TrendingUp, 
   PiggyBank, 
@@ -12,9 +12,11 @@ import {
   Sparkles,
   Info,
   CheckCircle,
-  AlertTriangle 
+  AlertTriangle,
+  X
 } from 'lucide-react';
-import { formatCurrency } from '../utils/format';
+import { formatCurrency, getInstallmentInfo, formatMonthName } from '../utils/format';
+import { Expense } from '../types';
 
 interface KpiCardsProps {
   totalSpent: number;
@@ -23,6 +25,7 @@ interface KpiCardsProps {
   extraIncome: number; // Freelance / Outros adicionais
   selectedMonth: string;
   futureInstallmentsDebt?: number;
+  expenses?: Expense[];
 }
 
 export const KpiCards: React.FC<KpiCardsProps> = ({
@@ -32,7 +35,9 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
   extraIncome,
   selectedMonth,
   futureInstallmentsDebt = 0,
+  expenses = [],
 }) => {
+  const [showDebtDetails, setShowDebtDetails] = useState(false);
   const totalRevenue = extraIncome; // O rendimento do mês é estritamente a somatória de todas as entradas reais cadastradas
   const balance = totalRevenue - totalSpent;
 
@@ -58,6 +63,28 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
 
   // Diferença entre entradas reais e projeção de salário ideal
   const revenueVsIdealDiff = totalRevenue - salary;
+
+  // Filtra as despesas do mês selecionado que contribuem para a dívida futura
+  const expensesInMonth = expenses.filter(e => e.month === selectedMonth);
+
+  const debtBreakdown = expensesInMonth.map(exp => {
+    const info = getInstallmentInfo(exp);
+    const isInst = info.hasInfo || exp.isInstallment;
+    if (isInst && info.remaining > 0) {
+      return {
+        id: exp.id,
+        title: exp.title,
+        value: exp.value,
+        remaining: info.remaining,
+        total: info.total,
+        current: info.current,
+        totalRemainingDebt: exp.value * info.remaining,
+        date: exp.date,
+        category: exp.category
+      };
+    }
+    return null;
+  }).filter((item): item is NonNullable<typeof item> => item !== null);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5" id="kpi-cards-grid">
@@ -153,8 +180,22 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
         </div>
         {futureInstallmentsDebt > 0 && (
           <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-400">
-            <span>Dívida Futura (Cartão):</span>
-            <span className="font-bold text-indigo-400 font-mono privacy-blur">
+            <div className="flex items-center gap-1">
+              <span>Dívida Futura (Cartão):</span>
+              <button
+                type="button"
+                onClick={() => setShowDebtDetails(true)}
+                className="text-slate-500 hover:text-indigo-400 transition-colors p-0.5 rounded cursor-pointer"
+                title="Clique para ver detalhamento das parcelas"
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <span 
+              onClick={() => setShowDebtDetails(true)}
+              className="font-bold text-indigo-400 font-mono privacy-blur hover:underline cursor-pointer"
+              title="Clique para ver detalhamento das parcelas"
+            >
               {formatCurrency(futureInstallmentsDebt)}
             </span>
           </div>
@@ -220,6 +261,95 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
         </div>
         <div className={`absolute top-0 left-0 w-1.5 h-full ${isOverBudget ? 'bg-rose-500' : 'bg-emerald-400'}`}></div>
       </div>
+
+      {/* MODAL DE DETALHAMENTO DA DÍVIDA FUTURA */}
+      {showDebtDetails && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-[#141414] border border-white/5 max-w-2xl w-full rounded-2xl p-6 shadow-2xl flex flex-col gap-4 max-h-[85vh]">
+            <div className="flex justify-between items-center pb-3 border-b border-white/5">
+              <div className="flex items-center gap-2">
+                <Calculator className="w-5 h-5 text-indigo-400" />
+                <h3 className="text-base font-bold text-white">
+                  Detalhamento da Dívida Futura (Cartão)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDebtDetails(false)}
+                className="p-1 hover:bg-white/5 text-slate-450 hover:text-white rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="text-xs text-slate-400 leading-relaxed bg-[#1c1c1c] p-3 rounded-xl border border-white/5">
+              <p>
+                <strong>Como funciona o cálculo?</strong> Para cada despesa parcelada ativa observada neste mês de <strong>{formatMonthName(selectedMonth)}</strong>, calculamos o valor restante somando as prestações dos meses subsequentes.
+              </p>
+              <p className="mt-1">
+                Fórmula: <code className="bg-[#0a0a0a] px-1.5 py-0.5 rounded font-mono text-indigo-400">Valor da Parcela × Parcelas Restantes</code>. 
+                Isso representa o montante total de dívida que já foi assumido no cartão para os próximos meses mas ainda não foi pago.
+              </p>
+            </div>
+
+            <div className="overflow-y-auto flex-1 min-h-[150px] max-h-[300px] border border-white/5 rounded-xl bg-zinc-950">
+              {debtBreakdown.length === 0 ? (
+                <div className="p-8 text-center text-xs text-slate-550">
+                  Nenhuma despesa parcelada ativa com parcelas restantes identificada neste mês.
+                </div>
+              ) : (
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-white/5 bg-[#121212] text-slate-300 font-bold">
+                      <th className="py-2.5 px-3">Lançamento</th>
+                      <th className="py-2.5 px-3">Categoria</th>
+                      <th className="py-2.5 px-3 text-right">Prestação</th>
+                      <th className="py-2.5 px-3 text-center">Progresso</th>
+                      <th className="py-2.5 px-3 text-center">Restam</th>
+                      <th className="py-2.5 px-3 text-right">Dívida Futura</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {debtBreakdown.map((item) => (
+                      <tr key={item.id} className="border-b border-white/5 hover:bg-white/2 transition-colors">
+                        <td className="py-2 px-3 font-semibold text-white">{item.title}</td>
+                        <td className="py-2 px-3 text-slate-400">{item.category}</td>
+                        <td className="py-2 px-3 text-right text-slate-300 font-mono">{formatCurrency(item.value)}</td>
+                        <td className="py-2 px-3 text-center text-[10px] text-slate-500 font-mono">
+                          {item.current}/{item.total}
+                        </td>
+                        <td className="py-2 px-3 text-center text-indigo-300 font-semibold font-mono">
+                          {item.remaining}
+                        </td>
+                        <td className="py-2 px-3 text-right text-indigo-400 font-bold font-mono">
+                          {formatCurrency(item.totalRemainingDebt)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="flex justify-between items-center pt-3 border-t border-white/5 text-xs">
+              <span className="text-slate-400">Total acumulado de parcelas subsequentes:</span>
+              <span className="text-base font-extrabold text-indigo-400 font-mono">
+                {formatCurrency(futureInstallmentsDebt)}
+              </span>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-1">
+              <button
+                type="button"
+                onClick={() => setShowDebtDetails(false)}
+                className="px-4 py-2 bg-[#1c1c1c] hover:bg-[#252525] text-slate-200 text-xs font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Fechar Detalhes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

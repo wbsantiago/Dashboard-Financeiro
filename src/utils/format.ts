@@ -73,13 +73,21 @@ export function getInstallmentInfo(exp: {
     };
   }
   
-  // Tenta extrair padrões tipo "9/12", "9 / 12", "9 de 12" no título
-  const regex = /(?:^|\s)\(?(\d+)\s*[\/／]\s*(\d+)\)?(?:$|\s)/i;
+  // Tenta extrair padrões tipo "9/12", "9 / 12", "9 de 12" no final do título
+  const regex = /(?:parcela|parc|prestação|x)?\s*\(?(\d+)\s*[\/／]\s*(\d+)\)?$/i;
   const match = exp.title.match(regex);
   if (match) {
     const current = parseInt(match[1], 10);
     const total = parseInt(match[2], 10);
-    if (current > 0 && total >= current) {
+    
+    // Se não for explicitamente marcado como parcelamento, exige que haja termos de parcelamento no título ou que venha explicitamente como x/y
+    const hasParcelaTerm = /parcela|parc|prestação|x|x\s*\d/i.test(exp.title);
+    
+    // Evita confundir datas como DD/MM ou MM/DD se não hover indicação explícita de parcela no título
+    // Uma data comum tem o primeiro número <= 31 e o segundo número <= 12
+    const looksLikeDate = !hasParcelaTerm && current <= 31 && total <= 12;
+    
+    if (current > 0 && total >= current && !looksLikeDate) {
       return {
         current,
         total,
