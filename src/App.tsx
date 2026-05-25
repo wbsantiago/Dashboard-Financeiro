@@ -436,12 +436,80 @@ export default function App() {
           
           {/* Logo e Nome */}
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-gradient-to-tr from-cyan-500 to-indigo-600 rounded-xl shadow-lg shadow-cyan-500/20">
-              <Coins className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 select-none shrink-0" id="main-brand-logo">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="w-full h-full">
+                <defs>
+                  {/* Gradiente de Fundo Premium (Efeito Espacial Profundo) */}
+                  <radialGradient id="bgGlow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                    <stop offset="0%" stopColor="#0f172a" />
+                    <stop offset="100%" stopColor="#030712" />
+                  </radialGradient>
+                  
+                  {/* Gradiente Principal Fintech (Esmeralda para Turquesa) */}
+                  <linearGradient id="fintechGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#10B981" />
+                    <stop offset="50%" stopColor="#059669" />
+                    <stop offset="100%" stopColor="#2DD4BF" />
+                  </linearGradient>
+
+                  {/* Gradiente para a Borda com Efeito de Vidro (Glassmorphism) */}
+                  <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#ffffff" stopOpacity={0.18} />
+                    <stop offset="100%" stopColor="#ffffff" stopOpacity={0.02} />
+                  </linearGradient>
+
+                  {/* Filtro de Brilho Neon para o Ponto de Convergência */}
+                  <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="8" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
+                </defs>
+
+                {/* Base do Ícone: Cantos Arredondados com Borda Subtil */}
+                <rect x="16" y="16" width="480" height="480" rx="120" fill="url(#bgGlow)" />
+                <rect x="16" y="16" width="480" height="480" rx="120" fill="none" stroke="url(#borderGrad)" strokeWidth="4" />
+
+                {/* Símbolo Centralizado (Área Útil de 280x280px) */}
+                <g transform="translate(116, 116)">
+                  
+                  {/* Linhas de Grelha de Fundo (Simula Análise e Precisão) */}
+                  <line x1="30" y1="200" x2="250" y2="200" stroke="#ffffff" strokeOpacity={0.04} strokeWidth="2" strokeDasharray="6 6" />
+                  <line x1="30" y1="140" x2="250" y2="140" stroke="#ffffff" strokeOpacity={0.04} strokeWidth="2" strokeDasharray="6 6" />
+                  <line x1="30" y1="80" x2="250" y2="80" stroke="#ffffff" strokeOpacity={0.04} strokeWidth="2" strokeDasharray="6 6" />
+
+                  {/* Barra 1 (Crescimento Inicial - Baixa Opacidade) */}
+                  <rect x="40" y="145" width="32" height="55" rx="8" fill="url(#fintechGrad)" opacity={0.3} />
+
+                  {/* Barra 2 (Consolidação de Capital - Média Opacidade) */}
+                  <rect x="96" y="95" width="32" height="105" rx="8" fill="url(#fintechGrad)" opacity={0.6} />
+
+                  {/* Barra 3 (Performance de Topo e Sucesso - Opacidade Máxima) */}
+                  <rect x="152" y="35" width="32" height="165" rx="8" fill="url(#fintechGrad)" />
+
+                  {/* Curva Dinâmica de Fluxo de Caixa (Seta Ascendente) */}
+                  <path d="M 20,175 C 60,170 100,145 136,95 C 166,55 205,30 225,10" 
+                        fill="none" 
+                        stroke="url(#fintechGrad)" 
+                        strokeWidth="14" 
+                        strokeLinecap="round" />
+                        
+                  {/* Cabeça da Seta (Aceleração de Mercado) */}
+                  <path d="M 180,10 L 227,8 L 225,55" 
+                        fill="none" 
+                        stroke="url(#fintechGrad)" 
+                        strokeWidth="14" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" />
+                        
+                  {/* Ponto de Brilho Ativo (Sucesso e Alvo Financeiro Alcançado) */}
+                  <circle cx="225" cy="10" r="14" fill="#ffffff" filter="url(#neonGlow)" />
+                  <circle cx="225" cy="10" r="6" fill="#2DD4BF" />
+                </g>
+              </svg>
             </div>
             <div>
-              <h1 className="text-lg font-bold font-sans tracking-tight">Finanças Pessoais</h1>
-              <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">Dashboard de Controle</p>
+              <h1 className="text-lg font-bold font-sans tracking-tight">Dashboard de Finanças Pessoais</h1>
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">Planejamento & Controle</p>
             </div>
           </div>
 
