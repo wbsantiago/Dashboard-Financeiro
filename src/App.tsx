@@ -469,8 +469,8 @@ export default function App() {
                 <rect x="16" y="16" width="480" height="480" rx="120" fill="url(#bgGlow)" />
                 <rect x="16" y="16" width="480" height="480" rx="120" fill="none" stroke="url(#borderGrad)" strokeWidth="4" />
 
-                {/* Símbolo Centralizado (Área Útil de 280x280px) */}
-                <g transform="translate(116, 116)">
+                {/* Símbolo Centralizado Otimizado (Preenche melhor com scale 1.65x) */}
+                <g transform="translate(41, 95) scale(1.65)">
                   
                   {/* Linhas de Grelha de Fundo (Simula Análise e Precisão) */}
                   <line x1="30" y1="200" x2="250" y2="200" stroke="#ffffff" strokeOpacity={0.04} strokeWidth="2" strokeDasharray="6 6" />
