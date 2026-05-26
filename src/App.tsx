@@ -20,12 +20,31 @@ import {
   Settings,
   Eye,
   EyeOff,
-  Sliders
+  Sliders,
+  LogIn,
+  LogOut,
+  Cloud,
+  CloudOff,
+  FolderHeart,
+  Database,
+  Chrome
 } from 'lucide-react';
 
 import { AppData, Expense, Revenue, CategoryBudget, MonthlyBudget } from './types';
 import { loadAppData, saveAppData, exportDataAsJSON, importDataFromJSON, DEFAULT_CATEGORIES } from './utils/storage';
 import { formatCurrency, formatMonthName, getCurrentMonthStr, getInstallmentInfo } from './utils/format';
+
+import { 
+  db, 
+  auth, 
+  isFirebaseConfigured, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signOut,
+  OperationType,
+  handleFirestoreError
+} from './utils/firebase';
+import { collection, doc, setDoc, onSnapshot, writeBatch, deleteDoc } from 'firebase/firestore';
 
 // import components
 import { KpiCards } from './components/KpiCards';
@@ -35,6 +54,13 @@ import { ChartsView } from './components/ChartsView';
 import { AnnualSummary } from './components/AnnualSummary';
 
 export default function App() {
+  // Cloud Sync or Client-Side Local Storage toggle
+  const [storageType, setStorageType] = useState<'local' | 'cloud'>(() => {
+    return (localStorage.getItem('storage-type') || 'local') as 'local' | 'cloud';
+  });
+  const [user, setUser] = useState<any>(null);
+  const [showMergeAlert, setShowMergeAlert] = useState<boolean>(false);
+
   // Load initial state
   const [data, setData] = useState<AppData>(() => loadAppData());
   const [selectedMonth, setSelectedMonth] = useState<string>(() => getCurrentMonthStr()); // "2026-05"
@@ -54,11 +80,153 @@ export default function App() {
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showDataMenu, setShowDataMenu] = useState<boolean>(false);
+  const dataMenuRef = useRef<HTMLDivElement>(null);
 
-  // Sync state changes with localStorage
+  // Click outside to close Data Menu Dropdown
   useEffect(() => {
-    saveAppData(data);
-  }, [data]);
+    function handleClickOutside(event: MouseEvent) {
+      if (dataMenuRef.current && !dataMenuRef.current.contains(event.target as Node)) {
+        setShowDataMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // 1. Dynamic sync with Firebase cloud database OR LocalStorage fallback
+  useEffect(() => {
+    if (!isFirebaseConfigured || !auth || !db) {
+      setUser(null);
+      setStorageType('local');
+      return;
+    }
+
+    const unsubscribeAuth = auth.onAuthStateChanged((currentUser) => {
+      setUser(currentUser);
+      if (currentUser && storageType === 'cloud') {
+        const userDocRef = doc(db!, 'users', currentUser.uid);
+        
+        // Listen to configuration and budgets
+        const unsubProfile = onSnapshot(userDocRef, (snapshot) => {
+          if (snapshot.exists()) {
+            const profileData = snapshot.data();
+            setData(prev => ({
+              ...prev,
+              categoryBudgets: profileData.categoryBudgets || prev.categoryBudgets,
+              monthlyBudgets: profileData.monthlyBudgets || prev.monthlyBudgets,
+              defaultMonthlySalary: profileData.defaultMonthlySalary ?? prev.defaultMonthlySalary,
+              defaultTargetSavingsPercentage: profileData.defaultTargetSavingsPercentage ?? prev.defaultTargetSavingsPercentage,
+            }));
+          } else {
+            // Bootstrap default budgets in Firebase User document
+            const defaultData = loadAppData();
+            setDoc(userDocRef, {
+              uid: currentUser.uid,
+              categoryBudgets: defaultData.categoryBudgets,
+              monthlyBudgets: defaultData.monthlyBudgets,
+              defaultMonthlySalary: defaultData.defaultMonthlySalary,
+              defaultTargetSavingsPercentage: defaultData.defaultTargetSavingsPercentage
+            }, { merge: true }).catch(err => {
+              console.error("Erro ao criar perfil:", err);
+            });
+          }
+        }, (err) => handleFirestoreError(err, OperationType.GET, `users/${currentUser.uid}`));
+
+        // Listen to expenses list
+        const expensesColRef = collection(db!, 'users', currentUser.uid, 'expenses');
+        const unsubExpenses = onSnapshot(expensesColRef, (snapshot) => {
+          const expensesList: Expense[] = [];
+          snapshot.forEach((doc) => {
+            expensesList.push({ id: doc.id, ...doc.data() } as Expense);
+          });
+          expensesList.sort((a, b) => b.createdAt - a.createdAt);
+          setData(prev => ({
+            ...prev,
+            expenses: expensesList
+          }));
+        }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${currentUser.uid}/expenses`));
+
+        // Listen to revenues list
+        const revenuesColRef = collection(db!, 'users', currentUser.uid, 'revenues');
+        const unsubRevenues = onSnapshot(revenuesColRef, (snapshot) => {
+          const revenuesList: Revenue[] = [];
+          snapshot.forEach((doc) => {
+            revenuesList.push({ id: doc.id, ...doc.data() } as Revenue);
+          });
+          revenuesList.sort((a, b) => b.createdAt - a.createdAt);
+          setData(prev => ({
+            ...prev,
+            revenues: revenuesList
+          }));
+        }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${currentUser.uid}/revenues`));
+
+        return () => {
+          unsubProfile();
+          unsubExpenses();
+          unsubRevenues();
+        };
+      } else {
+        // Fallback or Local offline mode
+        const localData = loadAppData();
+        setData(localData);
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+    };
+  }, [storageType]);
+
+  // Sync state changes with localStorage only under local mode
+  useEffect(() => {
+    if (storageType === 'local') {
+      saveAppData(data);
+    }
+  }, [data, storageType]);
+
+  // Bulk merge helper from local localStorage context state to Cloud FireStore standard
+  const handleMergeLocalDataToCloud = async (uid: string) => {
+    if (!db) return;
+    try {
+      const localData = loadAppData();
+      
+      // Upload configuration profile
+      await setDoc(doc(db, 'users', uid), {
+        uid: uid,
+        categoryBudgets: localData.categoryBudgets,
+        monthlyBudgets: localData.monthlyBudgets,
+        defaultMonthlySalary: localData.defaultMonthlySalary,
+        defaultTargetSavingsPercentage: localData.defaultTargetSavingsPercentage
+      }, { merge: true });
+
+      // Upload expenses
+      if (localData.expenses.length > 0) {
+        const batchExp = writeBatch(db);
+        localData.expenses.forEach(exp => {
+          batchExp.set(doc(db, 'users', uid, 'expenses', exp.id), exp);
+        });
+        await batchExp.commit();
+      }
+
+      // Upload revenues
+      if (localData.revenues && localData.revenues.length > 0) {
+        const batchRev = writeBatch(db);
+        localData.revenues.forEach(rev => {
+          batchRev.set(doc(db, 'users', uid, 'revenues', rev.id), rev);
+        });
+        await batchRev.commit();
+      }
+
+      triggerNotification('Sincronização realizada! Seus dados foram salvos com segurança na nuvem! ☁️');
+    } catch (err) {
+      console.error('Erro ao mesclar dados:', err);
+      triggerNotification('Erro ao sincronizar dados locais para a nuvem.', 'error');
+    }
+  };
+
 
   useEffect(() => {
     localStorage.setItem('privacy-mode', String(privacyMode));
@@ -114,157 +282,455 @@ export default function App() {
   };
 
   // Add / Delete core items
-  const handleAddExpense = (expenseData: Omit<Expense, 'id' | 'createdAt'>) => {
-    if (expenseData.isInstallment && expenseData.totalInstallments && expenseData.currentInstallment) {
-      const startInstallment = expenseData.currentInstallment;
-      const totalInst = expenseData.totalInstallments;
-      const baseMonth = expenseData.month; // e.g., "2026-05"
-      const baseDate = expenseData.date; // e.g., "2026-05-15"
-      
-      const generatedExpenses: Expense[] = [];
-      const now = Date.now();
-      const shift = expenseData.firstInstallmentInNextMonth ? 1 : 0;
-      
-      for (let i = startInstallment; i <= totalInst; i++) {
-        const offset = (i - startInstallment) + shift;
+  const handleAddExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>) => {
+    if (storageType === 'cloud' && auth?.currentUser?.uid) {
+      const uid = auth.currentUser.uid;
+      if (expenseData.isInstallment && expenseData.totalInstallments && expenseData.currentInstallment) {
+        const startInstallment = expenseData.currentInstallment;
+        const totalInst = expenseData.totalInstallments;
+        const baseMonth = expenseData.month; // e.g., "2026-05"
+        const baseDate = expenseData.date; // e.g., "2026-05-15"
         
-        // Compute future month
-        const [y, m] = baseMonth.split('-').map(Number);
-        const futDateObj = new Date(y, m - 1 + offset, 1);
-        const futY = futDateObj.getFullYear();
-        const futM = String(futDateObj.getMonth() + 1).padStart(2, '0');
-        const futureMonth = `${futY}-${futM}`;
+        const generatedExpenses: Expense[] = [];
+        const now = Date.now();
+        const shift = expenseData.firstInstallmentInNextMonth ? 1 : 0;
         
-        // Compute future date
-        const [, , d] = baseDate.split('-').map(Number);
-        const dateObj = new Date(y, m - 1 + offset, d);
-        // Fallback checks for leap years/month end variations
-        const finalY = dateObj.getFullYear();
-        const finalM = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const finalD = String(dateObj.getDate()).padStart(2, '0');
-        const futureDate = `${finalY}-${finalM}-${finalD}`;
+        for (let i = startInstallment; i <= totalInst; i++) {
+          const offset = (i - startInstallment) + shift;
+          const [y, m] = baseMonth.split('-').map(Number);
+          const futDateObj = new Date(y, m - 1 + offset, 1);
+          const futureMonth = `${futDateObj.getFullYear()}-${String(futDateObj.getMonth() + 1).padStart(2, '0')}`;
+          
+          const [, , d] = baseDate.split('-').map(Number);
+          const dateObj = new Date(y, m - 1 + offset, d);
+          const futureDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+          
+          const parsedTitle = expenseData.title.trim();
+          const hasInstallmentSuffix = /(?:\d+)\s*[\/／]\s*(?:\d+)$/.test(parsedTitle);
+          const finalTitle = hasInstallmentSuffix ? parsedTitle : `${parsedTitle} ${i}/${totalInst}`;
+          
+          generatedExpenses.push({
+            ...expenseData,
+            id: `exp-${now}-${i}-${Math.random().toString(36).substr(2, 5)}`,
+            title: finalTitle,
+            currentInstallment: i,
+            month: futureMonth,
+            date: futureDate,
+            createdAt: now
+          });
+        }
         
-        const parsedTitle = expenseData.title.trim();
-        const hasInstallmentSuffix = /(?:\d+)\s*[\/／]\s*(?:\d+)$/.test(parsedTitle);
-        const finalTitle = hasInstallmentSuffix ? parsedTitle : `${parsedTitle} ${i}/${totalInst}`;
-
-        generatedExpenses.push({
-          ...expenseData,
-          id: `exp-${now}-${i}-${Math.random().toString(36).substr(2, 5)}`,
-          title: finalTitle,
-          currentInstallment: i,
-          month: futureMonth,
-          date: futureDate,
-          createdAt: now
+        const batch = writeBatch(db!);
+        generatedExpenses.forEach(exp => {
+          batch.set(doc(db!, 'users', uid, 'expenses', exp.id), exp);
         });
+        await batch.commit().catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${uid}/expenses`));
+        triggerNotification(`Lançadas automaticamente ${generatedExpenses.length} parcelas na nuvem!`);
+        
+      } else {
+        const newId = `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const newExpense: Expense = {
+          ...expenseData,
+          id: newId,
+          createdAt: Date.now()
+        };
+        await setDoc(doc(db!, 'users', uid, 'expenses', newId), newExpense)
+          .catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${uid}/expenses/${newId}`));
+        triggerNotification(`Lançamento "${expenseData.title}" adicionado na nuvem!`);
       }
-      
-      setData(prev => ({
-        ...prev,
-        expenses: [...generatedExpenses, ...prev.expenses]
-      }));
-      triggerNotification(`Lançadas automaticamente ${generatedExpenses.length} parcelas para "${expenseData.title}"!`);
-      
     } else {
-      const newExpense: Expense = {
-        ...expenseData,
-        id: `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      // Local Storage Offline
+      if (expenseData.isInstallment && expenseData.totalInstallments && expenseData.currentInstallment) {
+        const startInstallment = expenseData.currentInstallment;
+        const totalInst = expenseData.totalInstallments;
+        const baseMonth = expenseData.month; // e.g., "2026-05"
+        const baseDate = expenseData.date; // e.g., "2026-05-15"
+        
+        const generatedExpenses: Expense[] = [];
+        const now = Date.now();
+        const shift = expenseData.firstInstallmentInNextMonth ? 1 : 0;
+        
+        for (let i = startInstallment; i <= totalInst; i++) {
+          const offset = (i - startInstallment) + shift;
+          const [y, m] = baseMonth.split('-').map(Number);
+          const futDateObj = new Date(y, m - 1 + offset, 1);
+          const futureMonth = `${futDateObj.getFullYear()}-${String(futDateObj.getMonth() + 1).padStart(2, '0')}`;
+          
+          const [, , d] = baseDate.split('-').map(Number);
+          const dateObj = new Date(y, m - 1 + offset, d);
+          const futureDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+          
+          const parsedTitle = expenseData.title.trim();
+          const hasInstallmentSuffix = /(?:\d+)\s*[\/／]\s*(?:\d+)$/.test(parsedTitle);
+          const finalTitle = hasInstallmentSuffix ? parsedTitle : `${parsedTitle} ${i}/${totalInst}`;
+
+          generatedExpenses.push({
+            ...expenseData,
+            id: `exp-${now}-${i}-${Math.random().toString(36).substr(2, 5)}`,
+            title: finalTitle,
+            currentInstallment: i,
+            month: futureMonth,
+            date: futureDate,
+            createdAt: now
+          });
+        }
+        
+        setData(prev => ({
+          ...prev,
+          expenses: [...generatedExpenses, ...prev.expenses]
+        }));
+        triggerNotification(`Lançadas automaticamente ${generatedExpenses.length} parcelas para "${expenseData.title}"!`);
+        
+      } else {
+        const newExpense: Expense = {
+          ...expenseData,
+          id: `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          createdAt: Date.now()
+        };
+
+        setData(prev => ({
+          ...prev,
+          expenses: [newExpense, ...prev.expenses]
+        }));
+        triggerNotification(`Lançamento "${expenseData.title}" adicionado!`);
+      }
+    }
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    const item = data.expenses.find(e => e.id === id);
+    if (!item) return;
+
+    if (storageType === 'cloud' && auth?.currentUser?.uid) {
+      const uid = auth.currentUser.uid;
+      if (item.isInstallment && item.createdAt) {
+        const batch = writeBatch(db!);
+        const related = data.expenses.filter(e => e.isInstallment && e.createdAt === item.createdAt);
+        related.forEach(exp => {
+          batch.delete(doc(db!, 'users', uid, 'expenses', exp.id));
+        });
+        await batch.commit().catch(err => handleFirestoreError(err, OperationType.DELETE, `users/${uid}/expenses`));
+        const cleanTitle = item.title.replace(/\s*\d+\s*[\/／]\s*\d+\s*$/, '').trim();
+        triggerNotification(`Lançamento parcelado "${cleanTitle}" e todas as suas parcelas foram excluídos da nuvem.`);
+      } else {
+        await deleteDoc(doc(db!, 'users', uid, 'expenses', id))
+          .catch(err => handleFirestoreError(err, OperationType.DELETE, `users/${uid}/expenses/${id}`));
+        triggerNotification(`Lançamento "${item.title}" removido da nuvem.`);
+      }
+    } else {
+      // Local Storage Offline
+      setData(prev => {
+        let finalExpenses = prev.expenses;
+        if (item.isInstallment && item.createdAt) {
+          finalExpenses = prev.expenses.filter(e => !(e.isInstallment && e.createdAt === item.createdAt));
+        } else {
+          finalExpenses = prev.expenses.filter(e => e.id !== id);
+        }
+        return {
+          ...prev,
+          expenses: finalExpenses
+        };
+      });
+
+      if (item.isInstallment && item.createdAt) {
+        const cleanTitle = item.title.replace(/\s*\d+\s*[\/／]\s*\d+\s*$/, '').trim();
+        triggerNotification(`Lançamento parcelado "${cleanTitle}" e todas as suas parcelas foram excluídos.`);
+      } else {
+        triggerNotification(`Lançamento "${item.title}" removido com sucesso.`);
+      }
+    }
+  };
+
+  const handleUpdateExpense = async (
+    id: string, 
+    updatedFields: Partial<Omit<Expense, 'id' | 'createdAt'>>,
+    scope: 'single' | 'all' | 'rebuild' = 'single',
+    rebuildParams?: {
+      totalInstallments: number;
+      firstInstallmentInNextMonth: boolean;
+      installmentValueType: 'total' | 'single';
+      rawValue: number;
+    }
+  ) => {
+    const originalExpense = data.expenses.find(e => e.id === id);
+    if (!originalExpense) return;
+
+    if (storageType === 'cloud' && auth?.currentUser?.uid) {
+      const uid = auth.currentUser.uid;
+
+      if (scope === 'single') {
+        const merged = { ...originalExpense, ...updatedFields };
+        if (updatedFields.date) {
+          merged.month = updatedFields.date.substring(0, 7);
+        }
+        await setDoc(doc(db!, 'users', uid, 'expenses', id), merged)
+          .catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}/expenses/${id}`));
+      } 
+      else if (scope === 'all') {
+        const batch = writeBatch(db!);
+        const related = data.expenses.filter(e => e.isInstallment && e.createdAt === originalExpense.createdAt);
+        
+        related.forEach(exp => {
+          let finalTitle = updatedFields.title || exp.title;
+          const rootTitle = finalTitle.replace(/\s*\d+\s*[\/／]\s*\d+\s*$/, '').trim();
+          if (exp.currentInstallment && exp.totalInstallments) {
+            finalTitle = `${rootTitle} ${exp.currentInstallment}/${exp.totalInstallments}`;
+          }
+
+          const merged = { 
+            ...exp, 
+            title: finalTitle,
+            category: updatedFields.category ?? exp.category,
+            value: updatedFields.value ?? exp.value
+          };
+          
+          batch.set(doc(db!, 'users', uid, 'expenses', exp.id), merged);
+        });
+
+        await batch.commit().catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}/expenses`));
+      } 
+      else if (scope === 'rebuild' && rebuildParams) {
+        const batch = writeBatch(db!);
+        const related = data.expenses.filter(e => e.isInstallment && e.createdAt === originalExpense.createdAt);
+        related.forEach(exp => {
+          batch.delete(doc(db!, 'users', uid, 'expenses', exp.id));
+        });
+
+        const startInstallment = 1;
+        const totalInst = rebuildParams.totalInstallments;
+        const baseMonth = updatedFields.date ? updatedFields.date.substring(0, 7) : originalExpense.month;
+        const baseDate = updatedFields.date || originalExpense.date;
+        const singlePrice = rebuildParams.installmentValueType === 'total' 
+          ? rebuildParams.rawValue / totalInst 
+          : rebuildParams.rawValue;
+
+        const now = Date.now();
+        const shift = rebuildParams.firstInstallmentInNextMonth ? 1 : 0;
+
+        for (let i = startInstallment; i <= totalInst; i++) {
+          const offset = (i - startInstallment) + shift;
+
+          const [y, m] = baseMonth.split('-').map(Number);
+          const futDateObj = new Date(y, m - 1 + offset, 1);
+          const futureMonth = `${futDateObj.getFullYear()}-${String(futDateObj.getMonth() + 1).padStart(2, '0')}`;
+
+          const [, , d] = baseDate.split('-').map(Number);
+          const dateObj = new Date(y, m - 1 + offset, d);
+          const futureDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+
+          const rootTitle = (updatedFields.title || originalExpense.title).replace(/\s*\d+\s*[\/／]\s*\d+\s*$/, '').trim();
+          const finalTitle = `${rootTitle} ${i}/${totalInst}`;
+
+          const expData = {
+            id: `exp-${now}-${i}-${Math.random().toString(36).substr(2, 5)}`,
+            title: finalTitle,
+            value: Number(singlePrice.toFixed(2)),
+            category: updatedFields.category || originalExpense.category,
+            month: futureMonth,
+            isInstallment: true,
+            totalInstallments: totalInst,
+            currentInstallment: i,
+            firstInstallmentInNextMonth: rebuildParams.firstInstallmentInNextMonth,
+            date: futureDate,
+            createdAt: now
+          };
+
+          batch.set(doc(db!, 'users', uid, 'expenses', expData.id), expData);
+        }
+
+        await batch.commit().catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}/expenses`));
+      }
+    } else {
+      // Local state update
+      setData(prev => {
+        let finalExpenses = [...prev.expenses];
+
+        if (scope === 'single') {
+          finalExpenses = prev.expenses.map(exp => {
+            if (exp.id === id) {
+              const merged = { ...exp, ...updatedFields };
+              if (updatedFields.date) {
+                merged.month = updatedFields.date.substring(0, 7);
+              }
+              return merged;
+            }
+            return exp;
+          });
+        } 
+        else if (scope === 'all') {
+          const related = prev.expenses.filter(e => e.isInstallment && e.createdAt === originalExpense.createdAt);
+          const relatedIds = related.map(e => e.id);
+          
+          finalExpenses = prev.expenses.map(exp => {
+            if (relatedIds.includes(exp.id)) {
+              let finalTitle = updatedFields.title || exp.title;
+              const rootTitle = finalTitle.replace(/\s*\d+\s*[\/／]\s*\d+\s*$/, '').trim();
+              if (exp.currentInstallment && exp.totalInstallments) {
+                finalTitle = `${rootTitle} ${exp.currentInstallment}/${exp.totalInstallments}`;
+              }
+
+              return {
+                ...exp,
+                title: finalTitle,
+                category: updatedFields.category ?? exp.category,
+                value: updatedFields.value ?? exp.value
+              };
+            }
+            return exp;
+          });
+        } 
+        else if (scope === 'rebuild' && rebuildParams) {
+          const otherLeftovers = prev.expenses.filter(e => !(e.isInstallment && e.createdAt === originalExpense.createdAt));
+          
+          const startInstallment = 1;
+          const totalInst = rebuildParams.totalInstallments;
+          const baseMonth = updatedFields.date ? updatedFields.date.substring(0, 7) : originalExpense.month;
+          const baseDate = updatedFields.date || originalExpense.date;
+          const singlePrice = rebuildParams.installmentValueType === 'total' 
+            ? rebuildParams.rawValue / totalInst 
+            : rebuildParams.rawValue;
+
+          const now = Date.now();
+          const shift = rebuildParams.firstInstallmentInNextMonth ? 1 : 0;
+          const generatedExpenses: Expense[] = [];
+
+          for (let i = startInstallment; i <= totalInst; i++) {
+            const offset = (i - startInstallment) + shift;
+
+            const [y, m] = baseMonth.split('-').map(Number);
+            const futDateObj = new Date(y, m - 1 + offset, 1);
+            const futureMonth = `${futDateObj.getFullYear()}-${String(futDateObj.getMonth() + 1).padStart(2, '0')}`;
+
+            const [, , d] = baseDate.split('-').map(Number);
+            const dateObj = new Date(y, m - 1 + offset, d);
+            const futureDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+
+            const rootTitle = (updatedFields.title || originalExpense.title).replace(/\s*\d+\s*[\/／]\s*\d+\s*$/, '').trim();
+            const finalTitle = `${rootTitle} ${i}/${totalInst}`;
+
+            generatedExpenses.push({
+              id: `exp-${now}-${i}-${Math.random().toString(36).substr(2, 5)}`,
+              title: finalTitle,
+              value: Number(singlePrice.toFixed(2)),
+              category: updatedFields.category || originalExpense.category,
+              month: futureMonth,
+              isInstallment: true,
+              totalInstallments: totalInst,
+              currentInstallment: i,
+              firstInstallmentInNextMonth: rebuildParams.firstInstallmentInNextMonth,
+              date: futureDate,
+              createdAt: now
+            });
+          }
+
+          finalExpenses = [...generatedExpenses, ...otherLeftovers];
+        }
+
+        return { ...prev, expenses: finalExpenses };
+      });
+    }
+    triggerNotification('Lançamento de saída atualizado com sucesso!');
+  };
+
+  const handleAddRevenue = async (revenueData: Omit<Revenue, 'id' | 'createdAt'>) => {
+    if (storageType === 'cloud' && auth?.currentUser?.uid) {
+      const uid = auth.currentUser.uid;
+      const newId = `rev-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const newRevenue: Revenue = {
+        ...revenueData,
+        id: newId,
+        createdAt: Date.now()
+      };
+      await setDoc(doc(db!, 'users', uid, 'revenues', newId), newRevenue)
+        .catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${uid}/revenues/${newId}`));
+      triggerNotification(`Rendimento "${revenueData.title}" adicionado na nuvem!`);
+    } else {
+      const newRevenue: Revenue = {
+        ...revenueData,
+        id: `rev-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         createdAt: Date.now()
       };
 
       setData(prev => ({
         ...prev,
-        expenses: [newExpense, ...prev.expenses]
+        revenues: [newRevenue, ...(prev.revenues || [])]
       }));
-      triggerNotification(`Lançamento "${expenseData.title}" adicionado!`);
+      triggerNotification(`Rendimento "${revenueData.title}" adicionado!`);
     }
   };
 
-  const handleDeleteExpense = (id: string) => {
-    const item = data.expenses.find(e => e.id === id);
+  const handleDeleteRevenue = async (id: string) => {
+    const item = (data.revenues || []).find(r => r.id === id);
     if (!item) return;
 
-    setData(prev => {
-      let finalExpenses = prev.expenses;
-      if (item.isInstallment && item.createdAt) {
-        // Remove all installments generated in this same batch/purchase (matching isInstallment and createdAt)
-        finalExpenses = prev.expenses.filter(e => !(e.isInstallment && e.createdAt === item.createdAt));
-      } else {
-        finalExpenses = prev.expenses.filter(e => e.id !== id);
-      }
-      return {
-        ...prev,
-        expenses: finalExpenses
-      };
-    });
-
-    if (item.isInstallment && item.createdAt) {
-      const cleanTitle = item.title.replace(/\s*\d+\s*[\/／]\s*\d+\s*$/, '').trim();
-      triggerNotification(`Lançamento parcelado "${cleanTitle}" e todas as suas parcelas foram excluídos.`);
+    if (storageType === 'cloud' && auth?.currentUser?.uid) {
+      const uid = auth.currentUser.uid;
+      await deleteDoc(doc(db!, 'users', uid, 'revenues', id))
+        .catch(err => handleFirestoreError(err, OperationType.DELETE, `users/${uid}/revenues/${id}`));
+      triggerNotification(`Rendimento "${item.title}" removido da nuvem.`);
     } else {
-      triggerNotification(`Lançamento "${item.title}" removido com sucesso.`);
-    }
-  };
-
-  const handleUpdateExpense = (id: string, updatedFields: Partial<Omit<Expense, 'id' | 'createdAt'>>) => {
-    setData(prev => {
-      const expenses = prev.expenses.map(exp => {
-        if (exp.id === id) {
-          const merged = { ...exp, ...updatedFields };
-          if (updatedFields.date) {
-            merged.month = updatedFields.date.substring(0, 7);
-          }
-          return merged;
-        }
-        return exp;
-      });
-      return { ...prev, expenses };
-    });
-    triggerNotification('Lançamento de saída atualizado com sucesso!');
-  };
-
-  const handleAddRevenue = (revenueData: Omit<Revenue, 'id' | 'createdAt'>) => {
-    const newRevenue: Revenue = {
-      ...revenueData,
-      id: `rev-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      createdAt: Date.now()
-    };
-
-    setData(prev => ({
-      ...prev,
-      revenues: [newRevenue, ...(prev.revenues || [])]
-    }));
-    triggerNotification(`Rendimento "${revenueData.title}" adicionado!`);
-  };
-
-  const handleDeleteRevenue = (id: string) => {
-    const item = (data.revenues || []).find(r => r.id === id);
-    setData(prev => ({
-      ...prev,
-      revenues: (prev.revenues || []).filter(r => r.id !== id)
-    }));
-    if (item) {
+      setData(prev => ({
+        ...prev,
+        revenues: (prev.revenues || []).filter(r => r.id !== id)
+      }));
       triggerNotification(`Rendimento "${item.title}" removido com sucesso.`);
     }
   };
 
-  // Update ideal category limits
-  const handleUpdateCategoryBudget = (category: string, idealLimit: number) => {
-    setData(prev => {
-      const idx = prev.categoryBudgets.findIndex(b => b.category === category);
-      const budgetsCopy = [...prev.categoryBudgets];
-      if (idx !== -1) {
-        budgetsCopy[idx] = { category, idealLimit };
-      } else {
-        budgetsCopy.push({ category, idealLimit });
+  const handleUpdateRevenue = async (id: string, updatedFields: Partial<Omit<Revenue, 'id' | 'createdAt'>>) => {
+    const originalRev = (data.revenues || []).find(r => r.id === id);
+    if (!originalRev) return;
+
+    if (storageType === 'cloud' && auth?.currentUser?.uid) {
+      const uid = auth.currentUser.uid;
+      const merged = { ...originalRev, ...updatedFields };
+      if (updatedFields.date) {
+        merged.month = updatedFields.date.substring(0, 7);
       }
-      return { ...prev, categoryBudgets: budgetsCopy };
-    });
+      await setDoc(doc(db!, 'users', uid, 'revenues', id), merged)
+        .catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}/revenues/${id}`));
+    } else {
+      setData(prev => {
+        const revenues = (prev.revenues || []).map(rev => {
+          if (rev.id === id) {
+            const merged = { ...rev, ...updatedFields };
+            if (updatedFields.date) {
+              merged.month = updatedFields.date.substring(0, 7);
+            }
+            return merged;
+          }
+          return rev;
+        });
+        return { ...prev, revenues };
+      });
+    }
+    triggerNotification('Rendimento atualizado com sucesso!');
+  };
+
+  // Update ideal category limits
+  const handleUpdateCategoryBudget = async (category: string, idealLimit: number) => {
+    const budgetsCopy = [...data.categoryBudgets];
+    const idx = budgetsCopy.findIndex(b => b.category === category);
+    
+    if (idx !== -1) {
+      budgetsCopy[idx] = { category, idealLimit };
+    } else {
+      budgetsCopy.push({ category, idealLimit });
+    }
+
+    if (storageType === 'cloud' && auth?.currentUser?.uid) {
+      const uid = auth.currentUser.uid;
+      await setDoc(doc(db!, 'users', uid), {
+        categoryBudgets: budgetsCopy
+      }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`));
+    } else {
+      setData(prev => ({ ...prev, categoryBudgets: budgetsCopy }));
+    }
     triggerNotification(`Meta limite de ${category} reajustada.`);
   };
 
   // Save current month's configuration adjustments
-  const handleSaveMonthConfig = (e: React.FormEvent) => {
+  const handleSaveMonthConfig = async (e: React.FormEvent) => {
     e.preventDefault();
     const sal = parseFloat(salaryInput);
     if (isNaN(sal) || sal < 0) {
@@ -272,30 +738,35 @@ export default function App() {
       return;
     }
 
-    setData(prev => {
-      const idx = prev.monthlyBudgets.findIndex(b => b.month === selectedMonth);
-      const budgetsCopy = [...prev.monthlyBudgets];
-      
-      const newBudget: MonthlyBudget = {
-        month: selectedMonth,
-        salary: sal,
-        targetSavingsPercentage: savingsInput
-      };
+    const budgetsCopy = [...data.monthlyBudgets];
+    const idx = budgetsCopy.findIndex(b => b.month === selectedMonth);
+    const newBudget: MonthlyBudget = {
+      month: selectedMonth,
+      salary: sal,
+      targetSavingsPercentage: savingsInput
+    };
 
-      if (idx !== -1) {
-        budgetsCopy[idx] = newBudget;
-      } else {
-        budgetsCopy.push(newBudget);
-      }
+    if (idx !== -1) {
+      budgetsCopy[idx] = newBudget;
+    } else {
+      budgetsCopy.push(newBudget);
+    }
 
-      return {
-        ...prev,
+    if (storageType === 'cloud' && auth?.currentUser?.uid) {
+      const uid = auth.currentUser.uid;
+      await setDoc(doc(db!, 'users', uid), {
         monthlyBudgets: budgetsCopy,
-        // Update default values to match latest configured inputs
         defaultMonthlySalary: sal,
         defaultTargetSavingsPercentage: savingsInput
-      };
-    });
+      }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`));
+    } else {
+      setData(prev => ({
+        ...prev,
+        monthlyBudgets: budgetsCopy,
+        defaultMonthlySalary: sal,
+        defaultTargetSavingsPercentage: savingsInput
+      }));
+    }
 
     setShowConfigPanel(false);
     triggerNotification(`Planejamento de ${formatMonthName(selectedMonth)} foi atualizado.`);
@@ -587,17 +1058,7 @@ export default function App() {
               Configurar Mês
             </button>
 
-            {/* Exportar */}
-            <button
-              onClick={handleExportData}
-              className="px-3 py-1.5 bg-[#1c1c1c] hover:bg-[#252525] text-slate-200 border border-white/5 hover:text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-              title="Exportar dados para um arquivo JSON local"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Backup JSON
-            </button>
-
-            {/* Importar */}
+            {/* Input de arquivo invisível para importação */}
             <input 
               type="file" 
               ref={fileInputRef} 
@@ -605,22 +1066,177 @@ export default function App() {
               accept=".json" 
               className="hidden" 
             />
-            <button
-              onClick={handleImportButtonClick}
-              className="px-3 py-1.5 bg-[#1c1c1c] hover:bg-[#252525] text-slate-200 border border-white/5 hover:text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-              title="Importar dados de um backup anterior"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              Recuperar
-            </button>
 
-            <button
-              onClick={handleClearData}
-              className="p-2 bg-[#1c1c1c] hover:bg-rose-950/20 text-slate-400 hover:text-rose-450 border border-white/5 rounded-xl transition-all cursor-pointer"
-              title="Remover Registros do Navegador"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+            {/* Menu Dropdown de Gerenciamento de Dados Locais */}
+            <div className="relative" ref={dataMenuRef} id="local-storage-menu-container">
+              <button
+                onClick={() => setShowDataMenu(prev => !prev)}
+                className={`w-8 h-8 flex items-center justify-center text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                  showDataMenu 
+                    ? 'bg-zinc-900 text-white border-white/10 shadow-lg' 
+                    : 'bg-[#1c1c1c] hover:bg-[#252525] text-slate-200 border-white/5'
+                }`}
+                title="Ações de Backup e Armazenamento Local"
+              >
+                <Database className="w-4 h-4 text-zinc-400" />
+              </button>
+
+              {showDataMenu && (
+                <div className="absolute right-0 mt-2 w-64 bg-[#141414] border border-white/10 rounded-2xl shadow-2xl p-2.5 z-50 flex flex-col gap-1.5 animate-fade-in text-left">
+                  <div className="px-2 py-1.5 border-b border-white/5 mb-1">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 block">Armazenamento Local</span>
+                    <span className="text-[11px] text-slate-400 mt-0.5 block">Gerencie backups e integridade física de seus lançamentos.</span>
+                  </div>
+
+                  {/* Opção Exportar */}
+                  <button
+                    onClick={() => {
+                      handleExportData();
+                      setShowDataMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-white/5 text-slate-200 hover:text-white rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group"
+                  >
+                    <Download className="w-4 h-4 text-emerald-400 mt-0.5 group-hover:scale-110 transition-transform" />
+                    <div>
+                      <span className="text-xs font-bold block">Fazer Backup JSON</span>
+                      <span className="text-[9px] text-slate-500">Exportar todos os dados salvos localmente.</span>
+                    </div>
+                  </button>
+
+                  {/* Opção Importar */}
+                  <button
+                    onClick={() => {
+                      handleImportButtonClick();
+                      setShowDataMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-white/5 text-slate-200 hover:text-white rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group"
+                  >
+                    <Upload className="w-4 h-4 text-indigo-400 mt-0.5 group-hover:scale-110 transition-transform" />
+                    <div>
+                      <span className="text-xs font-bold block">Recuperar Backup</span>
+                      <span className="text-[9px] text-slate-500">Restaurar arquivo de backup no navegador.</span>
+                    </div>
+                  </button>
+
+                  <div className="h-px bg-white/5 my-1" />
+
+                  {/* Opção Destrutiva: Limpar */}
+                  <button
+                    onClick={() => {
+                      handleClearData();
+                      setShowDataMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-rose-950/20 text-rose-350 hover:text-rose-200 rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group"
+                  >
+                    <Trash2 className="w-4 h-4 text-rose-400 mt-0.5 group-hover:scale-110 transition-transform" />
+                    <div>
+                      <span className="text-xs font-bold block text-rose-400">Limpar Banco de Dados</span>
+                      <span className="text-[9px] text-rose-500/80">Apagar todos os registros do navegador local.</span>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Firebase Google Cloud Sync controller (SEMPRE POR ÚLTIMO) */}
+            {isFirebaseConfigured ? (
+              <div id="firebase-cloud-sync-widget">
+                {user ? (
+                  <div className="flex items-center gap-1.5 bg-[#1c1c1c] border border-white/5 p-1 px-2.5 rounded-xl shrink-0">
+                    <img 
+                      src={user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.displayName}`} 
+                      alt={user.displayName || 'Avatar'} 
+                      className="w-4 h-4 rounded-full border border-indigo-500 shrink-0" 
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="hidden sm:flex flex-col items-start leading-none max-w-[80px]">
+                      <span className="text-[9px] font-bold text-white truncate w-full">{user.displayName || 'Usuário'}</span>
+                    </div>
+                    <div className="h-3 w-px bg-white/10" />
+                    <div className="flex bg-[#111111] p-0.5 rounded-lg border border-white/5 text-[9px] font-bold">
+                      <button
+                        onClick={() => {
+                          setStorageType('local');
+                          localStorage.setItem('storage-type', 'local');
+                          triggerNotification('Modo de armazenamento alterado para Local.', 'info');
+                        }}
+                        className={`px-1 rounded cursor-pointer transition-colors ${
+                          storageType === 'local' 
+                            ? 'bg-amber-500/15 text-amber-400' 
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                        title="Salva seus dados localmente no navegador"
+                      >
+                        Local
+                      </button>
+                      <button
+                        onClick={() => {
+                          setStorageType('cloud');
+                          localStorage.setItem('storage-type', 'cloud');
+                          triggerNotification('Modo de armazenamento alterado para Nuvem ☁️.', 'success');
+                        }}
+                        className={`px-1 rounded cursor-pointer transition-colors ${
+                          storageType === 'cloud' 
+                            ? 'bg-indigo-500/15 text-indigo-400' 
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                        title="Sincroniza seus dados com a Nuvem"
+                      >
+                        Nuvem
+                      </button>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (signOut && auth) {
+                          await signOut(auth).catch(err => console.error(err));
+                        }
+                        setUser(null);
+                        setStorageType('local');
+                        localStorage.setItem('storage-type', 'local');
+                        triggerNotification('Desconectado com sucesso.', 'info');
+                      }}
+                      className="p-1 hover:bg-[#252525] hover:text-rose-400 rounded-lg transition-colors cursor-pointer shrink-0"
+                      title="Sair da conta Google"
+                    >
+                      <LogOut className="w-3 h-3 text-slate-400" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      try {
+                        if (signInWithPopup && auth) {
+                          const provider = new GoogleAuthProvider();
+                          const result = await signInWithPopup(auth, provider);
+                          setUser(result.user);
+                          
+                          // Enable Cloud sync immediately
+                          setStorageType('cloud');
+                          localStorage.setItem('storage-type', 'cloud');
+                          
+                          // Trigger merge confirm alert
+                          setShowMergeAlert(true);
+                          triggerNotification(`Conectado como ${result.user.displayName}!`, 'success');
+                        }
+                      } catch (err) {
+                        console.error('Erro de Login Google:', err);
+                        triggerNotification('Erro ao autenticar com Google.', 'error');
+                      }
+                    }}
+                    className="px-3 py-1.5 flex items-center justify-center gap-2 bg-[#1c1c1c] hover:bg-[#252525] text-slate-300 hover:text-white border border-white/5 rounded-xl transition-all cursor-pointer shrink-0 hover:border-indigo-500/30 shadow-sm text-xs font-bold"
+                    title="Conectar com o Google"
+                  >
+                    <svg className="w-3.5 h-3.5 shrink-0 animate-pulse" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                      <path d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.08H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.92l2.85-2.22.81-.6z" fill="#FBBC05"/>
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.08l3.66 2.84c.87-2.6 3.3-4.54 6.16-4.54z" fill="#EA4335"/>
+                    </svg>
+                    <span>Conectar</span>
+                  </button>
+                )}
+              </div>
+            ) : null}
           </div>
 
         </div>
@@ -766,6 +1382,7 @@ export default function App() {
                 revenues={data.revenues || []}
                 onAddRevenue={handleAddRevenue}
                 onDeleteRevenue={handleDeleteRevenue}
+                onUpdateRevenue={handleUpdateRevenue}
                 selectedMonth={selectedMonth}
               />
             </div>
@@ -784,7 +1401,7 @@ export default function App() {
       <footer className="w-full bg-[#111111] border-t border-white/5 text-slate-400 py-6 text-center mt-12 text-xs shrink-0 font-medium">
         <div className="w-full max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-3">
           <p>
-            Controle de Orçamento Pessoal • Todos os dados permanecem salvos em cache local (<code className="bg-zinc-900 px-1 rounded text-rose-450 font-mono">localStorage</code>).
+            Controle de Orçamento Pessoal • {storageType === 'cloud' && user ? 'Sincronizado na Nuvem de forma segura' : 'Todos os dados permanecem salvos localmente'} (<code className="bg-zinc-900 px-1 rounded text-rose-450 font-mono">{storageType === 'cloud' && user ? 'Firebase Firestore' : 'localStorage'}</code>).
           </p>
           <p className="text-[10px] text-slate-500 uppercase tracking-wider">
             Desenvolvido sob medida em Português (Brasil)
@@ -819,6 +1436,45 @@ export default function App() {
                 className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-rose-600/20 cursor-pointer"
               >
                 Confirmar Limpeza
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DIALOG DE CONFIRMAÇÃO DE MESCLAGEM COM A NUVEM */}
+      {showMergeAlert && user && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="merge-cloud-alert">
+          <div className="bg-[#141414] border border-white/5 max-w-md w-full rounded-2xl p-6 shadow-2xl flex flex-col gap-4">
+            <div className="w-12 h-12 rounded-full bg-indigo-950/40 text-indigo-400 flex items-center justify-center shrink-0">
+              <Cloud className="w-6 h-6 animate-bounce" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white mb-1">
+                Sincronizar dados locais com a Nuvem?
+              </h3>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Você acabou de se conectar com o Google! Deseja enviar seus lançamentos e orçamentos atuais do navegador para sua conta na nuvem, ou prefere ler os dados já salvos anteriormente na nuvem?
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 justify-end mt-2 col-span-2">
+              <button
+                onClick={() => {
+                  setShowMergeAlert(false);
+                  triggerNotification('Utilizando dados existentes na Nuvem.', 'info');
+                }}
+                className="px-4 py-2 bg-[#1c1c1c] hover:bg-[#252525] text-slate-200 text-xs font-bold rounded-xl transition-all cursor-pointer text-center"
+              >
+                Manter Nuvem
+              </button>
+              <button
+                onClick={async () => {
+                  setShowMergeAlert(false);
+                  await handleMergeLocalDataToCloud(user.uid);
+                }}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/20 cursor-pointer text-center"
+              >
+                Enviar Dados para Nuvem
               </button>
             </div>
           </div>

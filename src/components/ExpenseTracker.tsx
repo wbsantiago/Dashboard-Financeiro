@@ -26,10 +26,21 @@ interface ExpenseTrackerProps {
   expenses: Expense[];
   onAddExpense: (expenseData: Omit<Expense, 'id' | 'createdAt'>) => void;
   onDeleteExpense: (id: string) => void;
-  onUpdateExpense: (id: string, updatedData: Partial<Omit<Expense, 'id' | 'createdAt'>>) => void;
+  onUpdateExpense: (
+    id: string, 
+    updatedData: Partial<Omit<Expense, 'id' | 'createdAt'>>,
+    scope?: 'single' | 'all' | 'rebuild',
+    rebuildParams?: {
+      totalInstallments: number;
+      firstInstallmentInNextMonth: boolean;
+      installmentValueType: 'total' | 'single';
+      rawValue: number;
+    }
+  ) => void;
   revenues: Revenue[];
   onAddRevenue: (revenueData: Omit<Revenue, 'id' | 'createdAt'>) => void;
   onDeleteRevenue: (id: string) => void;
+  onUpdateRevenue: (id: string, updatedData: Partial<Omit<Revenue, 'id' | 'createdAt'>>) => void;
   selectedMonth: string;
 }
 
@@ -41,6 +52,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   revenues,
   onAddRevenue,
   onDeleteRevenue,
+  onUpdateRevenue,
   selectedMonth,
 }) => {
   // Navigation Tabs at top: expenses (Saídas) or revenues (Entradas)
@@ -108,10 +120,19 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   const [editCustomCategory, setEditCustomCategory] = useState('');
   const [isEditCustomCategory, setIsEditCustomCategory] = useState(false);
   const [editDate, setEditDate] = useState('');
+  const [editScope, setEditScope] = useState<'single' | 'all' | 'rebuild'>('single');
+  const [editTotalInstallments, setEditTotalInstallments] = useState('12');
+  const [editFirstInstallmentInNextMonth, setEditFirstInstallmentInNextMonth] = useState(false);
+  const [editInstallmentValueType, setEditInstallmentValueType] = useState<'total' | 'single'>('single');
 
   const handleStartEditExpense = (exp: Expense) => {
     setEditingExpense(exp);
-    setEditTitle(exp.title);
+    const instInfo = getInstallmentInfo(exp);
+    const isInst = exp.isInstallment || instInfo.hasInfo;
+    
+    // clean title for editing
+    const cleanTitle = isInst ? exp.title.replace(/\s*\d+\s*[\/／]\s*\d+\s*$/, '').trim() : exp.title;
+    setEditTitle(cleanTitle);
     setEditValue(exp.value.toString());
     setEditDate(exp.date);
     if (DEFAULT_CATEGORIES.includes(exp.category)) {
@@ -121,6 +142,15 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
       setEditCategory('CUSTOM');
       setEditCustomCategory(exp.category);
       setIsEditCustomCategory(true);
+    }
+    
+    if (isInst) {
+      setEditScope('all');
+      setEditTotalInstallments((instInfo.total || exp.totalInstallments || 12).toString());
+      setEditFirstInstallmentInNextMonth(exp.firstInstallmentInNextMonth || false);
+      setEditInstallmentValueType('single');
+    } else {
+      setEditScope('single');
     }
   };
 
@@ -145,14 +175,97 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
       return;
     }
 
-    onUpdateExpense(editingExpense.id, {
-      title: editTitle.trim(),
-      value: parsedValue,
-      category: finalCategory,
-      date: editDate,
-    });
+    const instInfo = getInstallmentInfo(editingExpense);
+    const isCurrentlyInstallment = editingExpense.isInstallment || instInfo.hasInfo;
+
+    if (isCurrentlyInstallment && editScope === 'rebuild') {
+      const totalInsts = parseInt(editTotalInstallments, 10);
+      if (isNaN(totalInsts) || totalInsts < 1) {
+        alert('Por favor, insira uma quantidade de parcelas válida.');
+        return;
+      }
+      onUpdateExpense(editingExpense.id, {
+        title: editTitle.trim(),
+        category: finalCategory,
+        date: editDate,
+      }, 'rebuild', {
+        totalInstallments: totalInsts,
+        firstInstallmentInNextMonth: editFirstInstallmentInNextMonth,
+        installmentValueType: editInstallmentValueType,
+        rawValue: parsedValue,
+      });
+    } else if (isCurrentlyInstallment && editScope === 'all') {
+      onUpdateExpense(editingExpense.id, {
+        title: editTitle.trim(),
+        value: parsedValue,
+        category: finalCategory,
+        date: editDate,
+      }, 'all');
+    } else {
+      onUpdateExpense(editingExpense.id, {
+        title: editTitle.trim(),
+        value: parsedValue,
+        category: finalCategory,
+        date: editDate,
+      }, 'single');
+    }
 
     setEditingExpense(null);
+  };
+
+  // EDIT STATE (Revenues)
+  const [editingRevenue, setEditingRevenue] = useState<Revenue | null>(null);
+  const [editRevTitle, setEditRevTitle] = useState('');
+  const [editRevValue, setEditRevValue] = useState('');
+  const [editRevCategory, setEditRevCategory] = useState('');
+  const [editCustomRevCategory, setEditCustomRevCategory] = useState('');
+  const [isEditCustomRevCategory, setIsEditCustomRevCategory] = useState(false);
+  const [editRevDate, setEditRevDate] = useState('');
+
+  const handleStartEditRevenue = (rev: Revenue) => {
+    setEditingRevenue(rev);
+    setEditRevTitle(rev.title);
+    setEditRevValue(rev.value.toString());
+    setEditRevDate(rev.date);
+    if (DEFAULT_REVENUE_CATEGORIES.includes(rev.category)) {
+      setEditRevCategory(rev.category);
+      setIsEditCustomRevCategory(false);
+    } else {
+      setEditRevCategory('CUSTOM');
+      setEditCustomRevCategory(rev.category);
+      setIsEditCustomRevCategory(true);
+    }
+  };
+
+  const handleSaveEditRevenue = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRevenue) return;
+
+    const parsedValue = parseFloat(editRevValue);
+    if (isNaN(parsedValue) || parsedValue <= 0) {
+      alert('Por favor, informe um valor de rendimento maior que zero.');
+      return;
+    }
+
+    if (!editRevTitle.trim()) {
+      alert('Por favor, informe uma descrição de rendimento.');
+      return;
+    }
+
+    const finalCategory = isEditCustomRevCategory ? editCustomRevCategory.trim() : editRevCategory;
+    if (!finalCategory) {
+      alert('Por favor, informe a origem / categoria de rendimento.');
+      return;
+    }
+
+    onUpdateRevenue(editingRevenue.id, {
+      title: editRevTitle.trim(),
+      value: parsedValue,
+      category: finalCategory,
+      date: editRevDate,
+    });
+
+    setEditingRevenue(null);
   };
 
   // FORM STATE (Revenues)
@@ -970,19 +1083,26 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-3 shrink-0">
-                              <div className="text-right">
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <div className="text-right mr-1.5">
                                 <span className="font-extrabold text-emerald-400 text-xs block font-mono privacy-blur">
                                   +{formatCurrency(rev.value)}
                                 </span>
                               </div>
+                              <button
+                                onClick={() => handleStartEditRevenue(rev)}
+                                className="p-1.5 text-slate-505 hover:text-emerald-450 hover:bg-emerald-500/10 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-emerald-500/10"
+                                title="Editar Rendimento"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
                               <button
                                 onClick={() => setItemToDelete({ 
                                   id: rev.id, 
                                   type: 'revenue', 
                                   title: rev.title 
                                 })}
-                                className="p-1.5 text-slate-600 hover:text-rose-450 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-rose-500/10"
+                                className="p-1.5 text-slate-505 hover:text-rose-455 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-rose-500/10"
                                 title="Remover Rendimento"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1004,18 +1124,24 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
       {/* MODAL DE EDIÇÃO DE DESPESA */}
       {editingExpense && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-[#141414] border border-white/10 max-w-sm w-full rounded-2xl p-5 shadow-2xl flex flex-col gap-4 animate-scaleUp">
+          <div className={`bg-[#141414] border border-white/10 w-full rounded-2xl p-5 shadow-2xl flex flex-col gap-4 animate-scaleUp transition-all ${
+            editingExpense.isInstallment || getInstallmentInfo(editingExpense).hasInfo ? 'max-w-md' : 'max-w-sm'
+          }`}>
             <div className="flex items-center gap-2 pb-2 border-b border-white/5">
               <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400">
                 <Pencil className="w-4 h-4" />
               </div>
               <div>
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider">Editar Saída / Despesa</h3>
-                <p className="text-[10px] text-slate-400">Altere as informações abaixo</p>
+                <p className="text-[10px] text-slate-400 font-medium">
+                  {editingExpense.isInstallment || getInstallmentInfo(editingExpense).hasInfo 
+                    ? 'Lançamento Parcelado Ativo' 
+                    : 'Altere as informações abaixo'}
+                </p>
               </div>
             </div>
 
-            <form onSubmit={handleSaveEditExpense} className="space-y-3.5">
+            <form onSubmit={handleSaveEditExpense} className="space-y-4">
               {/* Descrição */}
               <div>
                 <label className="block text-[9px] font-bold text-slate-450 uppercase mb-1">
@@ -1034,8 +1160,10 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
               {/* Valor e Data */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-[9px] font-bold text-slate-450 uppercase mb-1">
-                    Valor (R$)
+                  <label className="block text-[9px] font-bold text-slate-450 uppercase mb-1 font-sans">
+                    {getInstallmentInfo(editingExpense).hasInfo && editScope === 'rebuild' && editInstallmentValueType === 'total' 
+                      ? 'Valor Total (R$)' 
+                      : 'Valor (R$)'}
                   </label>
                   <input
                     type="number"
@@ -1049,7 +1177,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                 </div>
                 <div>
                   <label className="block text-[9px] font-bold text-slate-450 uppercase mb-1">
-                    Data do Vencimento / Compra
+                    Data do Vencedor / Compra
                   </label>
                   <input
                     type="date"
@@ -1107,7 +1235,160 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                 )}
               </div>
 
-              <div className="flex items-center gap-2 pt-3 border-t border-white/5 justify-end">
+              {/* Se for uma compra originalmente parcelada, exibe o painel de planos de parcelamento */}
+              {(editingExpense.isInstallment || getInstallmentInfo(editingExpense).hasInfo) && (
+                <div className="bg-zinc-950/40 p-3 rounded-2xl border border-white/5 space-y-3.5 mt-2 animate-fadeIn">
+                  <div>
+                    <label className="block text-[9px] font-extrabold text-indigo-400 uppercase mb-1.5 tracking-wider">
+                      Modo de Edição da Compra Parcelada
+                    </label>
+                    <div className="grid grid-cols-3 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditScope('single')}
+                        className={`py-1 rounded-lg text-[9px] font-black border transition-all text-center cursor-pointer ${
+                          editScope === 'single'
+                            ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 font-extrabold'
+                            : 'bg-zinc-900/40 text-slate-400 border-white/5 hover:border-white/10'
+                        }`}
+                      >
+                        Apenas esta
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditScope('all')}
+                        className={`py-1 rounded-lg text-[9px] font-black border transition-all text-center cursor-pointer ${
+                          editScope === 'all'
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 font-extrabold'
+                            : 'bg-zinc-900/40 text-slate-400 border-white/5 hover:border-white/10'
+                        }`}
+                      >
+                        Todas (Básico)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditScope('rebuild')}
+                        className={`py-1 rounded-lg text-[9px] font-black border transition-all text-center cursor-pointer ${
+                          editScope === 'rebuild'
+                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 font-extrabold'
+                            : 'bg-zinc-900/40 text-slate-400 border-white/5 hover:border-white/10'
+                        }`}
+                      >
+                        Refazer Plano
+                      </button>
+                    </div>
+                    <p className="text-[8.5px] text-slate-500 mt-1 leading-normal">
+                      {editScope === 'single' && '• Edita somente o registro deste mês específico. Não afeta as outras parcelas.'}
+                      {editScope === 'all' && '• Atualiza nome, categoria e valor em todos os meses em que existirem outras parcelas.'}
+                      {editScope === 'rebuild' && '• Substitui e recria toda o plano de parcelamento futuro a partir da data de compra escolhida.'}
+                    </p>
+                  </div>
+
+                  {editScope === 'rebuild' && (
+                    <div className="space-y-3.5 pt-2 border-t border-white/5 animate-slideDown">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[8px] font-bold text-slate-450 uppercase mb-1">
+                            Total de Parcelas
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="120"
+                            value={editTotalInstallments}
+                            onChange={(e) => setEditTotalInstallments(e.target.value)}
+                            className="w-full px-2 py-1 text-[10px] border border-white/10 rounded focus:border-indigo-500 outline-none transition-colors bg-zinc-900 text-white font-bold"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] font-bold text-slate-450 uppercase mb-1">
+                            Fatura já Fechou?
+                          </label>
+                          <div className="grid grid-cols-2 gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setEditFirstInstallmentInNextMonth(false)}
+                              className={`py-1.5 text-[9px] font-bold border rounded-lg transition-all text-center cursor-pointer ${
+                                !editFirstInstallmentInNextMonth
+                                  ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30'
+                                  : 'bg-zinc-900/40 text-slate-400 border-white/5 hover:border-white/10'
+                              }`}
+                            >
+                              Não
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditFirstInstallmentInNextMonth(true)}
+                              className={`py-1.5 text-[9px] font-bold border rounded-lg transition-all text-center cursor-pointer ${
+                                editFirstInstallmentInNextMonth
+                                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                                  : 'bg-zinc-900/40 text-slate-400 border-white/5 hover:border-white/10'
+                              }`}
+                            >
+                              Sim
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[8px] font-bold text-slate-440 uppercase mb-1">
+                          O valor informado é:
+                        </label>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setEditInstallmentValueType('single')}
+                            className={`py-1 rounded-lg text-[9px] font-bold border transition-all text-center cursor-pointer ${
+                              editInstallmentValueType === 'single'
+                                ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 font-bold'
+                                : 'bg-zinc-900/40 text-slate-400 border-white/5 hover:border-white/10'
+                            }`}
+                          >
+                            Valor da Parcela
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditInstallmentValueType('total')}
+                            className={`py-1 rounded-lg text-[9px] font-bold border transition-all text-center cursor-pointer ${
+                              editInstallmentValueType === 'total'
+                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 font-bold'
+                                : 'bg-zinc-900/40 text-slate-400 border-white/5 hover:border-white/10'
+                            }`}
+                          >
+                            Valor Total
+                          </button>
+                        </div>
+                      </div>
+
+                      {editValue && parseFloat(editValue) > 0 && (
+                        <div className="bg-zinc-950 border border-white/5 rounded-lg p-2.5 text-[9px] text-slate-400 font-mono leading-normal">
+                          <span className="text-[7.5px] text-slate-500 block uppercase font-sans font-semibold mb-0.5">Nova Projeção do Plano:</span>
+                          {editInstallmentValueType === 'single' ? (
+                            <p>
+                              Serão geradas <span className="text-white font-bold">{editTotalInstallments}</span> parcelas de{' '}
+                              <span className="text-indigo-400 font-extrabold">{formatCurrency(parseFloat(editValue))}</span> cada.{' '}
+                              (Total: {formatCurrency(parseFloat(editValue) * parseInt(editTotalInstallments || '1'))})
+                            </p>
+                          ) : (
+                            <p>
+                              Total de <span className="text-white font-bold">{formatCurrency(parseFloat(editValue))}</span> dividido em{' '}
+                              <span className="text-white font-bold">{editTotalInstallments}</span> parcelas de{' '}
+                              <span className="text-amber-400 font-extrabold">
+                                {formatCurrency(parseFloat(editValue) / parseInt(editTotalInstallments || '1', 10))}
+                              </span>{' '}
+                              cada uma.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 pt-3 border-t border-white/5 justify-end text-xs">
                 <button
                   type="button"
                   onClick={() => setEditingExpense(null)}
@@ -1118,6 +1399,132 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                 <button
                   type="submit"
                   className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all cursor-pointer shadow-md shadow-indigo-600/10"
+                >
+                  Salvar Alterações
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE EDIÇÃO DE RENDIMENTO */}
+      {editingRevenue && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-[#141414] border border-white/10 max-w-sm w-full rounded-2xl p-5 shadow-2xl flex flex-col gap-4 animate-scaleUp">
+            <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+              <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-450">
+                <Pencil className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Editar Entrada / Rendimento</h3>
+                <p className="text-[10px] text-slate-400">Altere as informações do recebimento abaixo</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveEditRevenue} className="space-y-3.5">
+              {/* Descrição */}
+              <div>
+                <label className="block text-[9px] font-bold text-slate-450 uppercase mb-1">
+                  Descrição do Rendimento
+                </label>
+                <input
+                  type="text"
+                  value={editRevTitle}
+                  onChange={(e) => setEditRevTitle(e.target.value)}
+                  className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-colors"
+                  maxLength={55}
+                  required
+                />
+              </div>
+
+              {/* Valor e Data */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-450 uppercase mb-1">
+                    Valor Recebido (R$)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editRevValue}
+                    onChange={(e) => setEditRevValue(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-colors"
+                    required
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-450 uppercase mb-1">
+                    Data do Recebimento
+                  </label>
+                  <input
+                    type="date"
+                    value={editRevDate}
+                    onChange={(e) => setEditRevDate(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-emerald-500 outline-none transition-colors font-sans"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Selecionar Categoria */}
+              <div>
+                <label className="block text-[9px] font-bold text-slate-450 uppercase mb-1">
+                  Origem / Categoria de Renda
+                </label>
+                {!isEditCustomRevCategory ? (
+                  <select
+                    value={editRevCategory}
+                    onChange={(e) => {
+                      if (e.target.value === 'CUSTOM') {
+                        setIsEditCustomRevCategory(true);
+                      } else {
+                        setIsEditCustomRevCategory(false);
+                        setEditRevCategory(e.target.value);
+                      }
+                    }}
+                    className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-emerald-500 outline-none transition-all cursor-pointer"
+                  >
+                    {DEFAULT_REVENUE_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat} className="bg-zinc-900">
+                        {cat}
+                      </option>
+                    ))}
+                    <option value="CUSTOM" className="bg-zinc-900 text-emerald-400">☀️ + Criar Outra Categ. Origem</option>
+                  </select>
+                ) : (
+                  <div className="flex gap-1.5 animate-fade-in">
+                    <input
+                      type="text"
+                      placeholder="Ex: Restituição IR"
+                      value={editCustomRevCategory}
+                      onChange={(e) => setEditCustomRevCategory(e.target.value)}
+                      className="flex-1 px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-emerald-500 outline-none transition-colors"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIsEditCustomRevCategory(false)}
+                      className="px-2.5 py-1.5 text-[9px] uppercase font-bold border border-white/10 text-slate-350 hover:bg-white/5 rounded-xl transition-colors shrink-0"
+                    >
+                      Voltar
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 pt-3 border-t border-white/5 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setEditingRevenue(null)}
+                  className="px-4 py-2 text-xs font-bold text-slate-450 hover:text-white bg-zinc-900/40 hover:bg-zinc-900 rounded-xl border border-white/5 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl transition-all cursor-pointer shadow-md shadow-emerald-600/10"
                 >
                   Salvar
                 </button>
