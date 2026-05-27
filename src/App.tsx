@@ -101,7 +101,7 @@ export default function App() {
     };
   }, []);
 
-  // 1. Dynamic sync with Firebase cloud database OR LocalStorage fallback
+  // 1. Decoupled Authentication State Listener
   useEffect(() => {
     if (!isFirebaseConfigured || !auth || !db) {
       setUser(null);
@@ -112,84 +112,88 @@ export default function App() {
     const unsubscribeAuth = auth.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        // Se houver um usuário autenticado, garante o modo 'cloud' imediatamente
         setStorageType('cloud');
         localStorage.setItem('storage-type', 'cloud');
-
-        const userDocRef = doc(db!, 'users', currentUser.uid);
-        
-        // Listen to configuration and budgets
-        const unsubProfile = onSnapshot(userDocRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const profileData = snapshot.data();
-            setData(prev => ({
-              ...prev,
-              categoryBudgets: profileData.categoryBudgets || prev.categoryBudgets,
-              monthlyBudgets: profileData.monthlyBudgets || prev.monthlyBudgets,
-              defaultMonthlySalary: profileData.defaultMonthlySalary ?? prev.defaultMonthlySalary,
-              defaultTargetSavingsPercentage: profileData.defaultTargetSavingsPercentage ?? prev.defaultTargetSavingsPercentage,
-            }));
-          } else {
-            // Bootstrap default budgets in Firebase User document (ignored Local Storage for pristine Cloud storage)
-            const defaultData = INITIAL_MOCK_DATA;
-            setDoc(userDocRef, {
-              uid: currentUser.uid,
-              categoryBudgets: defaultData.categoryBudgets,
-              monthlyBudgets: defaultData.monthlyBudgets,
-              defaultMonthlySalary: defaultData.defaultMonthlySalary,
-              defaultTargetSavingsPercentage: defaultData.defaultTargetSavingsPercentage
-            }, { merge: true }).catch(err => {
-              console.error("Erro ao criar perfil:", err);
-            });
-          }
-        }, (err) => handleFirestoreError(err, OperationType.GET, `users/${currentUser.uid}`));
-
-        // Listen to expenses list
-        const expensesColRef = collection(db!, 'users', currentUser.uid, 'expenses');
-        const unsubExpenses = onSnapshot(expensesColRef, (snapshot) => {
-          const expensesList: Expense[] = [];
-          snapshot.forEach((doc) => {
-            expensesList.push({ id: doc.id, ...doc.data() } as Expense);
-          });
-          expensesList.sort((a, b) => b.createdAt - a.createdAt);
-          setData(prev => ({
-            ...prev,
-            expenses: expensesList
-          }));
-        }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${currentUser.uid}/expenses`));
-
-        // Listen to revenues list
-        const revenuesColRef = collection(db!, 'users', currentUser.uid, 'revenues');
-        const unsubRevenues = onSnapshot(revenuesColRef, (snapshot) => {
-          const revenuesList: Revenue[] = [];
-          snapshot.forEach((doc) => {
-            revenuesList.push({ id: doc.id, ...doc.data() } as Revenue);
-          });
-          revenuesList.sort((a, b) => b.createdAt - a.createdAt);
-          setData(prev => ({
-            ...prev,
-            revenues: revenuesList
-          }));
-        }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${currentUser.uid}/revenues`));
-
-        return () => {
-          unsubProfile();
-          unsubExpenses();
-          unsubRevenues();
-        };
       } else {
-        // Fallback or Local offline mode when logged out
         setStorageType('local');
         localStorage.setItem('storage-type', 'local');
-        const localData = loadAppData();
-        setData(localData);
       }
     });
 
     return () => {
       unsubscribeAuth();
     };
-  }, [storageType]);
+  }, []);
+
+  // 2. Separate Dynamic Sync listening hooks with strict unsubscriptions
+  useEffect(() => {
+    if (storageType === 'cloud' && user && db) {
+      const userDocRef = doc(db, 'users', user.uid);
+      
+      const unsubProfile = onSnapshot(userDocRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const profileData = snapshot.data();
+          setData(prev => ({
+            ...prev,
+            categoryBudgets: profileData.categoryBudgets || prev.categoryBudgets,
+            monthlyBudgets: profileData.monthlyBudgets || prev.monthlyBudgets,
+            defaultMonthlySalary: profileData.defaultMonthlySalary ?? prev.defaultMonthlySalary,
+            defaultTargetSavingsPercentage: profileData.defaultTargetSavingsPercentage ?? prev.defaultTargetSavingsPercentage,
+          }));
+        } else {
+          // Bootstrap default budgets in Firebase User document (ignored Local Storage for pristine Cloud storage)
+          const defaultData = INITIAL_MOCK_DATA;
+          setDoc(userDocRef, {
+            uid: user.uid,
+            categoryBudgets: defaultData.categoryBudgets,
+            monthlyBudgets: defaultData.monthlyBudgets,
+            defaultMonthlySalary: defaultData.defaultMonthlySalary,
+            defaultTargetSavingsPercentage: defaultData.defaultTargetSavingsPercentage
+          }, { merge: true }).catch(err => {
+            console.error("Erro ao criar perfil:", err);
+          });
+        }
+      }, (err) => handleFirestoreError(err, OperationType.GET, `users/${user.uid}`));
+
+      // Listen to expenses list
+      const expensesColRef = collection(db, 'users', user.uid, 'expenses');
+      const unsubExpenses = onSnapshot(expensesColRef, (snapshot) => {
+        const expensesList: Expense[] = [];
+        snapshot.forEach((doc) => {
+          expensesList.push({ id: doc.id, ...doc.data() } as Expense);
+        });
+        expensesList.sort((a, b) => b.createdAt - a.createdAt);
+        setData(prev => ({
+          ...prev,
+          expenses: expensesList
+        }));
+      }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${user.uid}/expenses`));
+
+      // Listen to revenues list
+      const revenuesColRef = collection(db, 'users', user.uid, 'revenues');
+      const unsubRevenues = onSnapshot(revenuesColRef, (snapshot) => {
+        const revenuesList: Revenue[] = [];
+        snapshot.forEach((doc) => {
+          revenuesList.push({ id: doc.id, ...doc.data() } as Revenue);
+        });
+        revenuesList.sort((a, b) => b.createdAt - a.createdAt);
+        setData(prev => ({
+          ...prev,
+          revenues: revenuesList
+        }));
+      }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${user.uid}/revenues`));
+
+      return () => {
+        unsubProfile();
+        unsubExpenses();
+        unsubRevenues();
+      };
+    } else if (storageType === 'local') {
+      // Fallback or Local offline mode when logged out
+      const localData = loadAppData();
+      setData(localData);
+    }
+  }, [storageType, user]);
 
   // Sync state changes with localStorage only under local mode
   useEffect(() => {
@@ -210,6 +214,42 @@ export default function App() {
           }
         });
         return cleaned;
+      };
+
+      const sanitizeExpense = (exp: any): any => {
+        const nowStr = new Date().toISOString();
+        const fallbackMonth = nowStr.substring(0, 7);
+        const fallbackDate = nowStr.split('T')[0];
+        
+        return {
+          id: String(exp.id || `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`),
+          title: String(exp.title || 'Despesa').substring(0, 150),
+          value: Number(exp.value || 0),
+          category: String(exp.category || 'Outros').substring(0, 80),
+          month: String(exp.month || exp.date?.substring(0, 7) || fallbackMonth).substring(0, 10),
+          date: String(exp.date || fallbackDate).substring(0, 12),
+          isInstallment: Boolean(exp.isInstallment),
+          createdAt: Number(exp.createdAt || Date.now()),
+          ...(exp.totalInstallments !== undefined ? { totalInstallments: Number(exp.totalInstallments) } : {}),
+          ...(exp.currentInstallment !== undefined ? { currentInstallment: Number(exp.currentInstallment) } : {}),
+          ...(exp.firstInstallmentInNextMonth !== undefined ? { firstInstallmentInNextMonth: Boolean(exp.firstInstallmentInNextMonth) } : {}),
+        };
+      };
+
+      const sanitizeRevenue = (rev: any): any => {
+        const nowStr = new Date().toISOString();
+        const fallbackMonth = nowStr.substring(0, 7);
+        const fallbackDate = nowStr.split('T')[0];
+        
+        return {
+          id: String(rev.id || `rev-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`),
+          title: String(rev.title || 'Rendimento').substring(0, 150),
+          value: Number(rev.value || 0),
+          category: String(rev.category || 'Outros').substring(0, 80),
+          month: String(rev.month || rev.date?.substring(0, 7) || fallbackMonth).substring(0, 10),
+          date: String(rev.date || fallbackDate).substring(0, 12),
+          createdAt: Number(rev.createdAt || Date.now())
+        };
       };
       
       // Upload configuration profile
@@ -237,7 +277,8 @@ export default function App() {
         for (const chunk of expenseChunks) {
           const batchExp = writeBatch(db);
           chunk.forEach(exp => {
-            batchExp.set(doc(db, 'users', uid, 'expenses', exp.id), cleanObject(exp));
+            const sanitized = sanitizeExpense(exp);
+            batchExp.set(doc(db, 'users', uid, 'expenses', sanitized.id), cleanObject(sanitized));
           });
           await batchExp.commit();
         }
@@ -249,7 +290,8 @@ export default function App() {
         for (const chunk of revenueChunks) {
           const batchRev = writeBatch(db);
           chunk.forEach(rev => {
-            batchRev.set(doc(db, 'users', uid, 'revenues', rev.id), cleanObject(rev));
+            const sanitized = sanitizeRevenue(rev);
+            batchRev.set(doc(db, 'users', uid, 'revenues', sanitized.id), cleanObject(sanitized));
           });
           await batchRev.commit();
         }
@@ -794,6 +836,7 @@ export default function App() {
     if (storageType === 'cloud' && auth?.currentUser?.uid) {
       const uid = auth.currentUser.uid;
       await setDoc(doc(db!, 'users', uid), {
+        uid: uid,
         categoryBudgets: budgetsCopy
       }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`));
     } else {
@@ -828,6 +871,7 @@ export default function App() {
     if (storageType === 'cloud' && auth?.currentUser?.uid) {
       const uid = auth.currentUser.uid;
       await setDoc(doc(db!, 'users', uid), {
+        uid: uid,
         monthlyBudgets: budgetsCopy,
         defaultMonthlySalary: sal,
         defaultTargetSavingsPercentage: savingsInput
@@ -860,13 +904,21 @@ export default function App() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const fileContent = event.target?.result as string;
         const importedData = importDataFromJSON(fileContent);
         
-        setData(importedData);
-        triggerNotification('Seus dados foram importados com sucesso!');
+        if (storageType === 'cloud' && auth?.currentUser?.uid) {
+          await uploadDataToCloud(
+            auth.currentUser.uid,
+            importedData,
+            'Backup importado e gravado com sucesso no seu banco na Nuvem! ☁️'
+          );
+        } else {
+          setData(importedData);
+          triggerNotification('Seus dados foram importados com sucesso!');
+        }
       } catch (err: any) {
         alert(`Falha na importação: ${err.message || 'Formato incorreto'}`);
       }
