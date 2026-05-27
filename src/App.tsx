@@ -101,107 +101,6 @@ export default function App() {
     };
   }, []);
 
-  // 1. Decoupled Authentication State Listener
-  useEffect(() => {
-    if (!isFirebaseConfigured || !auth || !db) {
-      setUser(null);
-      setStorageType('local');
-      return;
-    }
-
-    const unsubscribeAuth = auth.onAuthStateChanged((currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        setStorageType('cloud');
-        localStorage.setItem('storage-type', 'cloud');
-      } else {
-        setStorageType('local');
-        localStorage.setItem('storage-type', 'local');
-      }
-    });
-
-    return () => {
-      unsubscribeAuth();
-    };
-  }, []);
-
-  // 2. Separate Dynamic Sync listening hooks with strict unsubscriptions
-  useEffect(() => {
-    if (storageType === 'cloud' && user && db) {
-      const userDocRef = doc(db, 'users', user.uid);
-      
-      const unsubProfile = onSnapshot(userDocRef, (snapshot) => {
-        if (snapshot.exists()) {
-          const profileData = snapshot.data();
-          setData(prev => ({
-            ...prev,
-            categoryBudgets: profileData.categoryBudgets || prev.categoryBudgets,
-            monthlyBudgets: profileData.monthlyBudgets || prev.monthlyBudgets,
-            defaultMonthlySalary: profileData.defaultMonthlySalary ?? prev.defaultMonthlySalary,
-            defaultTargetSavingsPercentage: profileData.defaultTargetSavingsPercentage ?? prev.defaultTargetSavingsPercentage,
-          }));
-        } else {
-          // Bootstrap default budgets in Firebase User document (ignored Local Storage for pristine Cloud storage)
-          const defaultData = INITIAL_MOCK_DATA;
-          setDoc(userDocRef, {
-            uid: user.uid,
-            categoryBudgets: defaultData.categoryBudgets,
-            monthlyBudgets: defaultData.monthlyBudgets,
-            defaultMonthlySalary: defaultData.defaultMonthlySalary,
-            defaultTargetSavingsPercentage: defaultData.defaultTargetSavingsPercentage
-          }, { merge: true }).catch(err => {
-            console.error("Erro ao criar perfil:", err);
-          });
-        }
-      }, (err) => handleFirestoreError(err, OperationType.GET, `users/${user.uid}`));
-
-      // Listen to expenses list
-      const expensesColRef = collection(db, 'users', user.uid, 'expenses');
-      const unsubExpenses = onSnapshot(expensesColRef, (snapshot) => {
-        const expensesList: Expense[] = [];
-        snapshot.forEach((doc) => {
-          expensesList.push({ id: doc.id, ...doc.data() } as Expense);
-        });
-        expensesList.sort((a, b) => b.createdAt - a.createdAt);
-        setData(prev => ({
-          ...prev,
-          expenses: expensesList
-        }));
-      }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${user.uid}/expenses`));
-
-      // Listen to revenues list
-      const revenuesColRef = collection(db, 'users', user.uid, 'revenues');
-      const unsubRevenues = onSnapshot(revenuesColRef, (snapshot) => {
-        const revenuesList: Revenue[] = [];
-        snapshot.forEach((doc) => {
-          revenuesList.push({ id: doc.id, ...doc.data() } as Revenue);
-        });
-        revenuesList.sort((a, b) => b.createdAt - a.createdAt);
-        setData(prev => ({
-          ...prev,
-          revenues: revenuesList
-        }));
-      }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${user.uid}/revenues`));
-
-      return () => {
-        unsubProfile();
-        unsubExpenses();
-        unsubRevenues();
-      };
-    } else if (storageType === 'local') {
-      // Fallback or Local offline mode when logged out
-      const localData = loadAppData();
-      setData(localData);
-    }
-  }, [storageType, user]);
-
-  // Sync state changes with localStorage only under local mode
-  useEffect(() => {
-    if (storageType === 'local') {
-      saveAppData(data);
-    }
-  }, [data, storageType]);
-
   // General-purpose data uploader to Cloud Firestore
   const uploadDataToCloud = async (uid: string, targetData: AppData, successMessage: string) => {
     if (!db) return;
@@ -216,13 +115,19 @@ export default function App() {
         return cleaned;
       };
 
+      const cleanId = (rawId: any): string => {
+        const strId = String(rawId || '');
+        const cleaned = strId.replace(/[^a-zA-Z0-9_\-]/g, '-');
+        return cleaned || `item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+      };
+
       const sanitizeExpense = (exp: any): any => {
         const nowStr = new Date().toISOString();
         const fallbackMonth = nowStr.substring(0, 7);
         const fallbackDate = nowStr.split('T')[0];
         
         return {
-          id: String(exp.id || `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`),
+          id: cleanId(exp.id || `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`),
           title: String(exp.title || 'Despesa').substring(0, 150),
           value: Number(exp.value || 0),
           category: String(exp.category || 'Outros').substring(0, 80),
@@ -242,7 +147,7 @@ export default function App() {
         const fallbackDate = nowStr.split('T')[0];
         
         return {
-          id: String(rev.id || `rev-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`),
+          id: cleanId(rev.id || `rev-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`),
           title: String(rev.title || 'Rendimento').substring(0, 150),
           value: Number(rev.value || 0),
           category: String(rev.category || 'Outros').substring(0, 80),
@@ -262,7 +167,6 @@ export default function App() {
       }), { merge: true });
 
       // Firestore batches are limited to 500 documents per batch.
-      // We partition documents into chunks of 400 to make the write transaction extremely safe.
       const chunkArray = (arr: any[], size: number): any[][] => {
         const chunks: any[][] = [];
         for (let i = 0; i < arr.length; i += size) {
@@ -313,6 +217,122 @@ export default function App() {
       'Sincronização realizada! Seus dados locais foram enviados para a nuvem! ☁️'
     );
   };
+
+  // 1. Decoupled Authentication State Listener
+  useEffect(() => {
+    if (!isFirebaseConfigured || !auth || !db) {
+      setUser(null);
+      setStorageType('local');
+      return;
+    }
+
+    const unsubscribeAuth = auth.onAuthStateChanged((currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        setStorageType('cloud');
+        localStorage.setItem('storage-type', 'cloud');
+      } else {
+        setStorageType('local');
+        localStorage.setItem('storage-type', 'local');
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+    };
+  }, []);
+
+  // 2. Separate Dynamic Sync listening hooks with strict unsubscriptions
+  useEffect(() => {
+    if (storageType === 'cloud' && user && db) {
+      const userDocRef = doc(db, 'users', user.uid);
+      
+      const unsubProfile = onSnapshot(userDocRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const profileData = snapshot.data();
+          setData(prev => ({
+            ...prev,
+            categoryBudgets: profileData.categoryBudgets || prev.categoryBudgets,
+            monthlyBudgets: profileData.monthlyBudgets || prev.monthlyBudgets,
+            defaultMonthlySalary: profileData.defaultMonthlySalary ?? prev.defaultMonthlySalary,
+            defaultTargetSavingsPercentage: profileData.defaultTargetSavingsPercentage ?? prev.defaultTargetSavingsPercentage,
+          }));
+        } else {
+          // Check if there is existing offline data in this browser to migrate/synchronize
+          const localData = loadAppData();
+          const hasLocalData = (localData.expenses && localData.expenses.length > 0) || 
+                               (localData.revenues && localData.revenues.length > 0);
+          
+          if (hasLocalData) {
+            uploadDataToCloud(
+              user.uid,
+              localData,
+              'Seu perfil na Nuvem foi configurado! Todos os dados que você possuía localmente neste navegador foram sincronizados automaticamente. ☁️'
+            );
+          } else {
+            // Bootstrap pristine defaults
+            const defaultData = INITIAL_MOCK_DATA;
+            setDoc(userDocRef, {
+              uid: user.uid,
+              categoryBudgets: defaultData.categoryBudgets,
+              monthlyBudgets: defaultData.monthlyBudgets,
+              defaultMonthlySalary: defaultData.defaultMonthlySalary,
+              defaultTargetSavingsPercentage: defaultData.defaultTargetSavingsPercentage
+            }, { merge: true }).catch(err => {
+              console.error("Erro ao configurar perfil padrão na nuvem:", err);
+            });
+          }
+        }
+      }, (err) => handleFirestoreError(err, OperationType.GET, `users/${user.uid}`));
+
+      // Listen to expenses list
+      const expensesColRef = collection(db, 'users', user.uid, 'expenses');
+      const unsubExpenses = onSnapshot(expensesColRef, (snapshot) => {
+        const expensesList: Expense[] = [];
+        snapshot.forEach((doc) => {
+          expensesList.push({ id: doc.id, ...doc.data() } as Expense);
+        });
+        expensesList.sort((a, b) => b.createdAt - a.createdAt);
+        setData(prev => ({
+          ...prev,
+          expenses: expensesList
+        }));
+      }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${user.uid}/expenses`));
+
+      // Listen to revenues list
+      const revenuesColRef = collection(db, 'users', user.uid, 'revenues');
+      const unsubRevenues = onSnapshot(revenuesColRef, (snapshot) => {
+        const revenuesList: Revenue[] = [];
+        snapshot.forEach((doc) => {
+          revenuesList.push({ id: doc.id, ...doc.data() } as Revenue);
+        });
+        revenuesList.sort((a, b) => b.createdAt - a.createdAt);
+        setData(prev => ({
+          ...prev,
+          revenues: revenuesList
+        }));
+      }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${user.uid}/revenues`));
+
+      return () => {
+        unsubProfile();
+        unsubExpenses();
+        unsubRevenues();
+      };
+    } else if (storageType === 'local') {
+      // Fallback or Local offline mode when logged out
+      const localData = loadAppData();
+      setData(localData);
+    }
+  }, [storageType, user]);
+
+  // Sync state changes with localStorage only under local mode
+  useEffect(() => {
+    if (storageType === 'local') {
+      saveAppData(data);
+    }
+  }, [data, storageType]);
+
+  // uploadDataToCloud and handleMergeLocalDataToCloud have been relocated above the listening effects.
 
   const handleCloudImportButtonClick = () => {
     cloudFileInputRef.current?.click();
@@ -1309,6 +1329,21 @@ export default function App() {
                           <span className="text-[10px] uppercase tracking-wider font-bold text-indigo-400 block">Sincronização ☁️</span>
                           <span className="text-[9px] text-slate-500 block leading-tight mt-0.5">Seus dados estão sincronizados na nuvem de forma privada e segura.</span>
                         </div>
+
+                        {/* Opção Manual de Sincronização de Dados do Navegador para Nuvem */}
+                        <button
+                          onClick={async () => {
+                            setShowProfileMenu(false);
+                            await handleMergeLocalDataToCloud(user.uid);
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-white/5 text-slate-200 hover:text-white rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group border border-transparent hover:border-white/10"
+                        >
+                          <Database className="w-4 h-4 text-emerald-400 mt-0.5 group-hover:scale-110 transition-transform shrink-0" />
+                          <div>
+                            <span className="text-xs font-bold block text-emerald-300">Enviar Dados do Navegador</span>
+                            <span className="text-[9px] text-slate-500">Enviar os lançamentos salvos neste navegador para a Nuvem.</span>
+                          </div>
+                        </button>
 
                         {/* Opção Importar Backup para Nuvem via Arquivo */}
                         <button
