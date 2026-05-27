@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 
 import { AppData, Expense, Revenue, CategoryBudget, MonthlyBudget } from './types';
-import { loadAppData, saveAppData, exportDataAsJSON, importDataFromJSON, DEFAULT_CATEGORIES } from './utils/storage';
+import { loadAppData, saveAppData, exportDataAsJSON, importDataFromJSON, DEFAULT_CATEGORIES, INITIAL_MOCK_DATA } from './utils/storage';
 import { formatCurrency, formatMonthName, getCurrentMonthStr, getInstallmentInfo } from './utils/format';
 
 import { 
@@ -59,7 +59,6 @@ export default function App() {
     return (localStorage.getItem('storage-type') || 'local') as 'local' | 'cloud';
   });
   const [user, setUser] = useState<any>(null);
-  const [showMergeAlert, setShowMergeAlert] = useState<boolean>(false);
 
   // Load initial state
   const [data, setData] = useState<AppData>(() => loadAppData());
@@ -82,12 +81,17 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showDataMenu, setShowDataMenu] = useState<boolean>(false);
   const dataMenuRef = useRef<HTMLDivElement>(null);
+  const [showProfileMenu, setShowProfileMenu] = useState<boolean>(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
-  // Click outside to close Data Menu Dropdown
+  // Click outside to close Data Menu and Profile Menu Dropdowns
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dataMenuRef.current && !dataMenuRef.current.contains(event.target as Node)) {
         setShowDataMenu(false);
+      }
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setShowProfileMenu(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -125,8 +129,8 @@ export default function App() {
               defaultTargetSavingsPercentage: profileData.defaultTargetSavingsPercentage ?? prev.defaultTargetSavingsPercentage,
             }));
           } else {
-            // Bootstrap default budgets in Firebase User document
-            const defaultData = loadAppData();
+            // Bootstrap default budgets in Firebase User document (ignored Local Storage for pristine Cloud storage)
+            const defaultData = INITIAL_MOCK_DATA;
             setDoc(userDocRef, {
               uid: currentUser.uid,
               categoryBudgets: defaultData.categoryBudgets,
@@ -1156,32 +1160,81 @@ export default function App() {
 
             {/* Firebase Google Cloud Sync controller */}
             {isFirebaseConfigured ? (
-              <div id="firebase-cloud-sync-widget">
+              <div id="firebase-cloud-sync-widget" className="relative shrink-0">
                 {user ? (
-                  <div className="flex items-center gap-2 bg-[#1c1c1c] border border-white/5 p-1 pl-1 pr-2.5 rounded-xl shrink-0">
-                    <img 
-                      src={user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.displayName}`} 
-                      alt={user.displayName || 'Avatar'} 
-                      className="w-8 h-8 rounded-full border border-indigo-500/80 shrink-0 shadow-sm object-cover" 
-                      referrerPolicy="no-referrer"
-                      title={user.displayName || 'Usuário'}
-                    />
-                    <div className="h-4 w-px bg-white/10" />
+                  <div className="relative" ref={profileMenuRef}>
                     <button
-                      onClick={async () => {
-                        if (signOut && auth) {
-                          await signOut(auth).catch(err => console.error(err));
-                        }
-                        setUser(null);
-                        setStorageType('local');
-                        localStorage.setItem('storage-type', 'local');
-                        triggerNotification('Desconectado com sucesso.', 'info');
-                      }}
-                      className="p-1.5 hover:bg-[#252525] hover:text-rose-450 rounded-lg transition-colors cursor-pointer shrink-0"
-                      title="Sair da conta Google"
+                      onClick={() => setShowProfileMenu(prev => !prev)}
+                      className="w-8 h-8 rounded-full border border-indigo-500/80 hover:border-indigo-400 transition-all focus:outline-none shrink-0 shadow-md flex items-center justify-center p-0 cursor-pointer overflow-hidden"
+                      title={`${user.displayName || 'Usuário'} (${user.email || ''})`}
                     >
-                      <LogOut className="w-3.5 h-3.5 text-slate-400" />
+                      <img 
+                        src={user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.displayName}`} 
+                        alt={user.displayName || 'Avatar'} 
+                        className="w-full h-full object-cover rounded-full" 
+                        referrerPolicy="no-referrer"
+                      />
                     </button>
+
+                    {showProfileMenu && (
+                      <div className="absolute right-0 mt-2 w-64 bg-[#141414] border border-white/10 rounded-2xl shadow-2xl p-2.5 z-50 flex flex-col gap-1.5 animate-fade-in text-left">
+                        <div className="px-2 py-1.5 border-b border-white/5 mb-1 flex items-center gap-2">
+                          <img 
+                            src={user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.displayName}`} 
+                            alt={user.displayName || 'Avatar'} 
+                            className="w-7 h-7 rounded-full object-cover shrink-0" 
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-xs font-bold text-white truncate">{user.displayName || 'Usuário'}</span>
+                            <span className="text-[10px] text-zinc-500 truncate">{user.email || ''}</span>
+                          </div>
+                        </div>
+
+                        <div className="px-2 py-0.5 mb-1">
+                          <span className="text-[10px] uppercase tracking-wider font-bold text-indigo-400 block">Sincronização ☁️</span>
+                          <span className="text-[9px] text-slate-500 block leading-tight mt-0.5">Seus dados estão sincronizados na nuvem de forma privada e segura.</span>
+                        </div>
+
+                        {/* Opção Importar Dados Locais para Nuvem */}
+                        <button
+                          onClick={async () => {
+                            setShowProfileMenu(false);
+                            await handleMergeLocalDataToCloud(user.uid);
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-white/5 text-slate-200 hover:text-white rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group border border-transparent hover:border-white/10"
+                        >
+                          <Upload className="w-4 h-4 text-indigo-400 mt-0.5 group-hover:scale-110 transition-transform shrink-0" />
+                          <div>
+                            <span className="text-xs font-bold block text-indigo-300">Importar Dados Locais</span>
+                            <span className="text-[9px] text-slate-500">Enviar lançamentos do navegador para a Nuvem.</span>
+                          </div>
+                        </button>
+
+                        <div className="h-px bg-white/5 my-1" />
+
+                        {/* Opção Sair */}
+                        <button
+                          onClick={async () => {
+                            setShowProfileMenu(false);
+                            if (signOut && auth) {
+                              await signOut(auth).catch(err => console.error(err));
+                            }
+                            setUser(null);
+                            setStorageType('local');
+                            localStorage.setItem('storage-type', 'local');
+                            triggerNotification('Desconectado com sucesso.', 'info');
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-rose-950/20 text-rose-350 hover:text-rose-200 rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group"
+                        >
+                          <LogOut className="w-4 h-4 text-rose-400 mt-0.5 group-hover:scale-110 transition-transform shrink-0" />
+                          <div>
+                            <span className="text-xs font-bold block text-rose-450">Sair da Conta Google</span>
+                            <span className="text-[9px] text-slate-500">Voltar ao armazenamento local offline.</span>
+                          </div>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <button
@@ -1196,8 +1249,6 @@ export default function App() {
                           setStorageType('cloud');
                           localStorage.setItem('storage-type', 'cloud');
                           
-                          // Trigger merge confirm alert
-                          setShowMergeAlert(true);
                           triggerNotification(`Conectado como ${result.user.displayName}!`, 'success');
                         }
                       } catch (err) {
@@ -1418,45 +1469,6 @@ export default function App() {
                 className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-rose-600/20 cursor-pointer"
               >
                 Confirmar Limpeza
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* DIALOG DE CONFIRMAÇÃO DE MESCLAGEM COM A NUVEM */}
-      {showMergeAlert && user && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="merge-cloud-alert">
-          <div className="bg-[#141414] border border-white/5 max-w-md w-full rounded-2xl p-6 shadow-2xl flex flex-col gap-4">
-            <div className="w-12 h-12 rounded-full bg-indigo-950/40 text-indigo-400 flex items-center justify-center shrink-0">
-              <Cloud className="w-6 h-6 animate-bounce" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-white mb-1">
-                Sincronizar dados locais com a Nuvem?
-              </h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
-                Você acabou de se conectar com o Google! Deseja enviar seus lançamentos e orçamentos atuais do navegador para sua conta na nuvem, ou prefere ler os dados já salvos anteriormente na nuvem?
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2 justify-end mt-2 col-span-2">
-              <button
-                onClick={() => {
-                  setShowMergeAlert(false);
-                  triggerNotification('Utilizando dados existentes na Nuvem.', 'info');
-                }}
-                className="px-4 py-2 bg-[#1c1c1c] hover:bg-[#252525] text-slate-200 text-xs font-bold rounded-xl transition-all cursor-pointer text-center"
-              >
-                Manter Nuvem
-              </button>
-              <button
-                onClick={async () => {
-                  setShowMergeAlert(false);
-                  await handleMergeLocalDataToCloud(user.uid);
-                }}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/20 cursor-pointer text-center"
-              >
-                Enviar Dados para Nuvem
               </button>
             </div>
           </div>

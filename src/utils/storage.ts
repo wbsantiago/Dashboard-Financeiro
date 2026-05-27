@@ -102,7 +102,7 @@ export const REVENUE_CATEGORY_BG_COLORS: Record<string, string> = {
 };
 
 // Mock Initial Data
-const INITIAL_MOCK_DATA: AppData = {
+export const INITIAL_MOCK_DATA: AppData = {
   expenses: [],
   revenues: [],
   categoryBudgets: [
