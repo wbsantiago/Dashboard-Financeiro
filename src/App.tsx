@@ -79,6 +79,7 @@ export default function App() {
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cloudFileInputRef = useRef<HTMLInputElement>(null);
   const [showDataMenu, setShowDataMenu] = useState<boolean>(false);
   const dataMenuRef = useRef<HTMLDivElement>(null);
   const [showProfileMenu, setShowProfileMenu] = useState<boolean>(false);
@@ -197,12 +198,10 @@ export default function App() {
     }
   }, [data, storageType]);
 
-  // Bulk merge helper from local localStorage context state to Cloud FireStore standard
-  const handleMergeLocalDataToCloud = async (uid: string) => {
+  // General-purpose data uploader to Cloud Firestore
+  const uploadDataToCloud = async (uid: string, targetData: AppData, successMessage: string) => {
     if (!db) return;
     try {
-      const localData = loadAppData();
-
       const cleanObject = (obj: any) => {
         const cleaned: any = {};
         Object.keys(obj).forEach((key) => {
@@ -216,35 +215,89 @@ export default function App() {
       // Upload configuration profile
       await setDoc(doc(db, 'users', uid), cleanObject({
         uid: uid,
-        categoryBudgets: localData.categoryBudgets,
-        monthlyBudgets: localData.monthlyBudgets || [],
-        defaultMonthlySalary: localData.defaultMonthlySalary,
-        defaultTargetSavingsPercentage: localData.defaultTargetSavingsPercentage
+        categoryBudgets: targetData.categoryBudgets,
+        monthlyBudgets: targetData.monthlyBudgets || [],
+        defaultMonthlySalary: targetData.defaultMonthlySalary,
+        defaultTargetSavingsPercentage: targetData.defaultTargetSavingsPercentage
       }), { merge: true });
 
+      // Firestore batches are limited to 500 documents per batch.
+      // We partition documents into chunks of 400 to make the write transaction extremely safe.
+      const chunkArray = (arr: any[], size: number): any[][] => {
+        const chunks: any[][] = [];
+        for (let i = 0; i < arr.length; i += size) {
+          chunks.push(arr.slice(i, i + size));
+        }
+        return chunks;
+      };
+
       // Upload expenses
-      if (localData.expenses.length > 0) {
-        const batchExp = writeBatch(db);
-        localData.expenses.forEach(exp => {
-          batchExp.set(doc(db, 'users', uid, 'expenses', exp.id), cleanObject(exp));
-        });
-        await batchExp.commit();
+      if (targetData.expenses && targetData.expenses.length > 0) {
+        const expenseChunks = chunkArray(targetData.expenses, 400);
+        for (const chunk of expenseChunks) {
+          const batchExp = writeBatch(db);
+          chunk.forEach(exp => {
+            batchExp.set(doc(db, 'users', uid, 'expenses', exp.id), cleanObject(exp));
+          });
+          await batchExp.commit();
+        }
       }
 
       // Upload revenues
-      if (localData.revenues && localData.revenues.length > 0) {
-        const batchRev = writeBatch(db);
-        localData.revenues.forEach(rev => {
-          batchRev.set(doc(db, 'users', uid, 'revenues', rev.id), cleanObject(rev));
-        });
-        await batchRev.commit();
+      if (targetData.revenues && targetData.revenues.length > 0) {
+        const revenueChunks = chunkArray(targetData.revenues, 400);
+        for (const chunk of revenueChunks) {
+          const batchRev = writeBatch(db);
+          chunk.forEach(rev => {
+            batchRev.set(doc(db, 'users', uid, 'revenues', rev.id), cleanObject(rev));
+          });
+          await batchRev.commit();
+        }
       }
 
-      triggerNotification('Sincronização realizada! Seus dados foram salvos com segurança na nuvem! ☁️');
+      triggerNotification(successMessage);
     } catch (err) {
-      console.error('Erro ao mesclar dados:', err);
-      triggerNotification('Erro ao sincronizar dados locais para a nuvem.', 'error');
+      console.error('Erro ao enviar dados para a nuvem:', err);
+      triggerNotification('Erro ao enviar dados para a nuvem.', 'error');
     }
+  };
+
+  // Bulk merge helper from local localStorage context state to Cloud FireStore standard
+  const handleMergeLocalDataToCloud = async (uid: string) => {
+    const localData = loadAppData();
+    await uploadDataToCloud(
+      uid, 
+      localData, 
+      'Sincronização realizada! Seus dados locais foram enviados para a nuvem! ☁️'
+    );
+  };
+
+  const handleCloudImportButtonClick = () => {
+    cloudFileInputRef.current?.click();
+  };
+
+  const handleCloudImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!user) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const fileContent = event.target?.result as string;
+        const importedData = importDataFromJSON(fileContent);
+        
+        await uploadDataToCloud(
+          user.uid, 
+          importedData, 
+          'Backup importado e gravado com sucesso no seu banco na Nuvem! ☁️'
+        );
+      } catch (err: any) {
+        alert(`Falha na importação na nuvem: ${err.message || 'Formato de arquivo incorreto'}`);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
 
@@ -1087,6 +1140,15 @@ export default function App() {
               className="hidden" 
             />
 
+            {/* Input de arquivo invisível para importação na nuvem */}
+            <input 
+              type="file" 
+              ref={cloudFileInputRef} 
+              onChange={handleCloudImportFile} 
+              accept=".json" 
+              className="hidden" 
+            />
+
             {/* Menu Dropdown de Gerenciamento de Dados Locais */}
             <div className="relative" ref={dataMenuRef} id="local-storage-menu-container">
               <button
@@ -1196,18 +1258,18 @@ export default function App() {
                           <span className="text-[9px] text-slate-500 block leading-tight mt-0.5">Seus dados estão sincronizados na nuvem de forma privada e segura.</span>
                         </div>
 
-                        {/* Opção Importar Dados Locais para Nuvem */}
+                        {/* Opção Importar Backup para Nuvem via Arquivo */}
                         <button
-                          onClick={async () => {
+                          onClick={() => {
                             setShowProfileMenu(false);
-                            await handleMergeLocalDataToCloud(user.uid);
+                            handleCloudImportButtonClick();
                           }}
                           className="w-full text-left px-3 py-2 hover:bg-white/5 text-slate-200 hover:text-white rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group border border-transparent hover:border-white/10"
                         >
                           <Upload className="w-4 h-4 text-indigo-400 mt-0.5 group-hover:scale-110 transition-transform shrink-0" />
                           <div>
-                            <span className="text-xs font-bold block text-indigo-300">Importar Dados Locais</span>
-                            <span className="text-[9px] text-slate-500">Enviar lançamentos do navegador para a Nuvem.</span>
+                            <span className="text-xs font-bold block text-indigo-300">Importar do Computador</span>
+                            <span className="text-[9px] text-slate-500">Enviar arquivo backup JSON para sua conta na Nuvem.</span>
                           </div>
                         </button>
 
