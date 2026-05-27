@@ -106,7 +106,11 @@ export default function App() {
 
     const unsubscribeAuth = auth.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
-      if (currentUser && storageType === 'cloud') {
+      if (currentUser) {
+        // Se houver um usuário autenticado, garante o modo 'cloud' imediatamente
+        setStorageType('cloud');
+        localStorage.setItem('storage-type', 'cloud');
+
         const userDocRef = doc(db!, 'users', currentUser.uid);
         
         // Listen to configuration and budgets
@@ -169,7 +173,9 @@ export default function App() {
           unsubRevenues();
         };
       } else {
-        // Fallback or Local offline mode
+        // Fallback or Local offline mode when logged out
+        setStorageType('local');
+        localStorage.setItem('storage-type', 'local');
         const localData = loadAppData();
         setData(localData);
       }
@@ -192,21 +198,31 @@ export default function App() {
     if (!db) return;
     try {
       const localData = loadAppData();
+
+      const cleanObject = (obj: any) => {
+        const cleaned: any = {};
+        Object.keys(obj).forEach((key) => {
+          if (obj[key] !== undefined && obj[key] !== null) {
+            cleaned[key] = obj[key];
+          }
+        });
+        return cleaned;
+      };
       
       // Upload configuration profile
-      await setDoc(doc(db, 'users', uid), {
+      await setDoc(doc(db, 'users', uid), cleanObject({
         uid: uid,
         categoryBudgets: localData.categoryBudgets,
-        monthlyBudgets: localData.monthlyBudgets,
+        monthlyBudgets: localData.monthlyBudgets || [],
         defaultMonthlySalary: localData.defaultMonthlySalary,
         defaultTargetSavingsPercentage: localData.defaultTargetSavingsPercentage
-      }, { merge: true });
+      }), { merge: true });
 
       // Upload expenses
       if (localData.expenses.length > 0) {
         const batchExp = writeBatch(db);
         localData.expenses.forEach(exp => {
-          batchExp.set(doc(db, 'users', uid, 'expenses', exp.id), exp);
+          batchExp.set(doc(db, 'users', uid, 'expenses', exp.id), cleanObject(exp));
         });
         await batchExp.commit();
       }
@@ -215,7 +231,7 @@ export default function App() {
       if (localData.revenues && localData.revenues.length > 0) {
         const batchRev = writeBatch(db);
         localData.revenues.forEach(rev => {
-          batchRev.set(doc(db, 'users', uid, 'revenues', rev.id), rev);
+          batchRev.set(doc(db, 'users', uid, 'revenues', rev.id), cleanObject(rev));
         });
         await batchRev.commit();
       }
@@ -1138,53 +1154,19 @@ export default function App() {
               )}
             </div>
 
-            {/* Firebase Google Cloud Sync controller (SEMPRE POR ÚLTIMO) */}
+            {/* Firebase Google Cloud Sync controller */}
             {isFirebaseConfigured ? (
               <div id="firebase-cloud-sync-widget">
                 {user ? (
-                  <div className="flex items-center gap-1.5 bg-[#1c1c1c] border border-white/5 p-1 px-2.5 rounded-xl shrink-0">
+                  <div className="flex items-center gap-2 bg-[#1c1c1c] border border-white/5 p-1 pl-1 pr-2.5 rounded-xl shrink-0">
                     <img 
                       src={user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.displayName}`} 
                       alt={user.displayName || 'Avatar'} 
-                      className="w-4 h-4 rounded-full border border-indigo-500 shrink-0" 
+                      className="w-8 h-8 rounded-full border border-indigo-500/80 shrink-0 shadow-sm object-cover" 
                       referrerPolicy="no-referrer"
+                      title={user.displayName || 'Usuário'}
                     />
-                    <div className="hidden sm:flex flex-col items-start leading-none max-w-[80px]">
-                      <span className="text-[9px] font-bold text-white truncate w-full">{user.displayName || 'Usuário'}</span>
-                    </div>
-                    <div className="h-3 w-px bg-white/10" />
-                    <div className="flex bg-[#111111] p-0.5 rounded-lg border border-white/5 text-[9px] font-bold">
-                      <button
-                        onClick={() => {
-                          setStorageType('local');
-                          localStorage.setItem('storage-type', 'local');
-                          triggerNotification('Modo de armazenamento alterado para Local.', 'info');
-                        }}
-                        className={`px-1 rounded cursor-pointer transition-colors ${
-                          storageType === 'local' 
-                            ? 'bg-amber-500/15 text-amber-400' 
-                            : 'text-slate-400 hover:text-white'
-                        }`}
-                        title="Salva seus dados localmente no navegador"
-                      >
-                        Local
-                      </button>
-                      <button
-                        onClick={() => {
-                          setStorageType('cloud');
-                          localStorage.setItem('storage-type', 'cloud');
-                          triggerNotification('Modo de armazenamento alterado para Nuvem ☁️.', 'success');
-                        }}
-                        className={`px-1 rounded cursor-pointer transition-colors ${
-                          storageType === 'cloud' 
-                            ? 'bg-indigo-500/15 text-indigo-400' 
-                            : 'text-slate-400 hover:text-white'
-                        }`}
-                        title="Sincroniza seus dados com a Nuvem"
-                      >
-                        Nuvem
-                      </button>
-                    </div>
+                    <div className="h-4 w-px bg-white/10" />
                     <button
                       onClick={async () => {
                         if (signOut && auth) {
@@ -1195,10 +1177,10 @@ export default function App() {
                         localStorage.setItem('storage-type', 'local');
                         triggerNotification('Desconectado com sucesso.', 'info');
                       }}
-                      className="p-1 hover:bg-[#252525] hover:text-rose-400 rounded-lg transition-colors cursor-pointer shrink-0"
+                      className="p-1.5 hover:bg-[#252525] hover:text-rose-450 rounded-lg transition-colors cursor-pointer shrink-0"
                       title="Sair da conta Google"
                     >
-                      <LogOut className="w-3 h-3 text-slate-400" />
+                      <LogOut className="w-3.5 h-3.5 text-slate-400" />
                     </button>
                   </div>
                 ) : (
