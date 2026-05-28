@@ -3,7 +3,7 @@
   "appId": "1:164999356070:web:9a211c6f63a3944b319e67",
   "apiKey": "AIzaSyCtPJDRn0AG3vkCbzCyy9OsPk1KKlVwIzw",
   "authDomain": "dashboard-de-financas-pessoais.firebaseapp.com",
-  "firestoreDatabaseId": "default",
+  "firestoreDatabaseId": "(default)",
   "storageBucket": "dashboard-de-financas-pessoais.firebasestorage.app",
   "messagingSenderId": "164999356070",
   "measurementId": "G-BLGYLMFDBY"
