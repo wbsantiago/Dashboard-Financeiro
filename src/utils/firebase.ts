@@ -18,7 +18,11 @@ let auth: Auth | null = null;
 if (isFirebaseConfigured) {
   try {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-    db = getFirestore(app, firebaseConfig.firestoreDatabaseId || undefined);
+    let dbId: string | undefined = firebaseConfig.firestoreDatabaseId || undefined;
+    if (dbId === 'default') {
+      dbId = '(default)';
+    }
+    db = getFirestore(app, dbId);
     auth = getAuth(app);
     
     // Test connection on startup per Firebase skill guidelines

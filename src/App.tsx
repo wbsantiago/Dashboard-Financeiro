@@ -216,6 +216,15 @@ export default function App() {
     if (diagnosticIsRunning) return;
     setDiagnosticIsRunning(true);
     
+    function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+      return Promise.race([
+        promise,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+        ),
+      ]);
+    }
+    
     const steps = [
       { id: 'config', name: 'Validação da Configuração do Firebase', status: 'pending' },
       { id: 'auth', name: 'Verificação do Login/Autenticação', status: 'pending' },
@@ -262,7 +271,7 @@ export default function App() {
     await new Promise(r => setTimeout(r, 600));
     const currentUser = auth.currentUser;
     if (!currentUser) {
-      updateStep(idx, 'error', 'Sem usuário conectado! For favor realize o Login com o Google antes de iniciar.');
+      updateStep(idx, 'error', 'Sem usuário conectado! Por favor realize o Login com o Google antes de iniciar.');
       setDiagnosticIsRunning(false);
       return;
     }
@@ -274,14 +283,18 @@ export default function App() {
     updateStep(idx, 'running');
     await new Promise(r => setTimeout(r, 600));
     try {
-      await setDoc(doc(db, 'users', uid), {
-        uid: uid,
-        lastDiagnosticAt: Date.now()
-      }, { merge: true });
+      await withTimeout(
+        setDoc(doc(db, 'users', uid), {
+          uid: uid,
+          lastDiagnosticAt: Date.now()
+        }, { merge: true }),
+        7000,
+        'Limite de tempo excedido (7 segundos) tentando gravar no seu perfil Firebase. \n\nIsso ocorre principalmente quando conexões com firestore.googleapis.com são restringidas, bloqueadas por extensões de navegador (como AdBlock, uBlock Origin ou Brave Shields) ou por estarem em uma rede corporativa/proxy com restrições de porta.'
+      );
       updateStep(idx, 'success', 'Gravação no documento do Perfil (/users/' + uid + ') bem-sucedida!');
     } catch (err: any) {
       const errMsg = err?.message || String(err);
-      updateStep(idx, 'error', `Falha de escrita no Perfil (regras bloqueadas?): ${errMsg}`);
+      updateStep(idx, 'error', `Falha de escrita no Perfil: ${errMsg}`);
       setDiagnosticIsRunning(false);
       return;
     }
@@ -302,7 +315,11 @@ export default function App() {
         isInstallment: false,
         createdAt: Date.now()
       });
-      await setDoc(doc(db, 'users', uid, 'expenses', expTestId), testExpense);
+      await withTimeout(
+        setDoc(doc(db, 'users', uid, 'expenses', expTestId), testExpense),
+        7000,
+        'Limite de tempo excedido (7s) ao gravar despesa teste no banco de dados. Conexão lenta ou bloqueada por extensões.'
+      );
       updateStep(idx, 'success', 'Gravação de despesa teste (/users/' + uid + '/expenses/' + expTestId + ') bem-sucedida!');
     } catch (err: any) {
       const errMsg = err?.message || String(err);
@@ -326,7 +343,11 @@ export default function App() {
         date: new Date().toISOString().substring(0, 10),
         createdAt: Date.now()
       });
-      await setDoc(doc(db, 'users', uid, 'revenues', revTestId), testRevenue);
+      await withTimeout(
+        setDoc(doc(db, 'users', uid, 'revenues', revTestId), testRevenue),
+        7000,
+        'Limite de tempo excedido (7s) ao gravar rendimento teste no banco de dados.'
+      );
       updateStep(idx, 'success', 'Gravação de rendimento teste (/users/' + uid + '/revenues/' + revTestId + ') bem-sucedida!');
     } catch (err: any) {
       const errMsg = err?.message || String(err);
@@ -346,8 +367,14 @@ export default function App() {
     updateStep(idx, 'running');
     await new Promise(r => setTimeout(r, 600));
     try {
-      await deleteDoc(doc(db, 'users', uid, 'expenses', 'diag-test-expense'));
-      await deleteDoc(doc(db, 'users', uid, 'revenues', 'diag-test-revenue'));
+      await withTimeout(
+        Promise.all([
+          deleteDoc(doc(db, 'users', uid, 'expenses', 'diag-test-expense')),
+          deleteDoc(doc(db, 'users', uid, 'revenues', 'diag-test-revenue'))
+        ]),
+        5000,
+        'Timeout na limpeza automática.'
+      );
       updateStep(idx, 'success', 'Limpeza concluída! Registros de teste removidos do seu banco com sucesso.');
     } catch (err: any) {
       updateStep(idx, 'success', 'Escrita passou! Erro leve de limpeza (ignorar): ' + (err?.message || String(err)));
