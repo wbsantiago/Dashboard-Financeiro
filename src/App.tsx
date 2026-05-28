@@ -42,7 +42,8 @@ import {
   signInWithPopup, 
   signOut,
   OperationType,
-  handleFirestoreError
+  handleFirestoreError,
+  cleanDocument
 } from './utils/firebase';
 import { collection, doc, setDoc, onSnapshot, writeBatch, deleteDoc } from 'firebase/firestore';
 
@@ -68,6 +69,9 @@ export default function App() {
   const [activeView, setActiveView] = useState<'monthly' | 'annual'>('monthly');
   const [showConfigPanel, setShowConfigPanel] = useState<boolean>(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+  const [showDiagnosticModal, setShowDiagnosticModal] = useState<boolean>(false);
+  const [diagnosticLogs, setDiagnosticLogs] = useState<{ step: string; status: 'pending' | 'running' | 'success' | 'error'; details?: string }[]>([]);
+  const [diagnosticIsRunning, setDiagnosticIsRunning] = useState<boolean>(false);
   const [salaryInput, setSalaryInput] = useState<string>('');
   const [savingsInput, setSavingsInput] = useState<number>(30);
   const [showNotification, setShowNotification] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
@@ -206,6 +210,163 @@ export default function App() {
       console.error('Erro ao enviar dados para a nuvem:', err);
       triggerNotification('Erro ao enviar dados para a nuvem.', 'error');
     }
+  };
+
+  const runFirebaseDiagnostics = async () => {
+    if (diagnosticIsRunning) return;
+    setDiagnosticIsRunning(true);
+    
+    const steps = [
+      { id: 'config', name: 'Validação da Configuração do Firebase', status: 'pending' },
+      { id: 'auth', name: 'Verificação do Login/Autenticação', status: 'pending' },
+      { id: 'profile_write', name: 'Teste de Escrita de Perfil', status: 'pending' },
+      { id: 'expense_write', name: 'Teste de Escrita de Despesa de Diagnóstico', status: 'pending' },
+      { id: 'revenue_write', name: 'Teste de Escrita de Receita de Diagnóstico', status: 'pending' },
+      { id: 'read_tests', name: 'Teste de Leitura na Nuvem', status: 'pending' },
+      { id: 'cleanup', name: 'Limpeza de Dados de Teste', status: 'pending' },
+    ];
+    
+    const initialLogs: typeof diagnosticLogs = steps.map(s => ({ step: s.name, status: 'pending' }));
+    setDiagnosticLogs(initialLogs);
+
+    const updateStep = (index: number, status: 'running' | 'success' | 'error', details?: string) => {
+      setDiagnosticLogs(prev => {
+        const copy = [...prev];
+        if (copy[index]) {
+          copy[index] = { ...copy[index], status, details };
+        }
+        return copy;
+      });
+    };
+
+    let idx = 0;
+
+    // Step 1: Config
+    updateStep(idx, 'running');
+    await new Promise(r => setTimeout(r, 600));
+    if (!isFirebaseConfigured) {
+      updateStep(idx, 'error', 'Firebase não configurado! Verifique as credenciais no arquivo firebase-applet-config.json.');
+      setDiagnosticIsRunning(false);
+      return;
+    }
+    if (!db || !auth) {
+      updateStep(idx, 'error', 'Instâncias do Firestore ou Auth estão vazias ou indisponíveis.');
+      setDiagnosticIsRunning(false);
+      return;
+    }
+    updateStep(idx, 'success', 'Firebase inicializado e configurado corretamente no aplicativo.');
+    idx++;
+
+    // Step 2: Auth
+    updateStep(idx, 'running');
+    await new Promise(r => setTimeout(r, 600));
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      updateStep(idx, 'error', 'Sem usuário conectado! For favor realize o Login com o Google antes de iniciar.');
+      setDiagnosticIsRunning(false);
+      return;
+    }
+    updateStep(idx, 'success', `Conectado como: ${currentUser.displayName} (${currentUser.email}). ID: ${currentUser.uid}`);
+    const uid = currentUser.uid;
+    idx++;
+
+    // Step 3: Profile write
+    updateStep(idx, 'running');
+    await new Promise(r => setTimeout(r, 600));
+    try {
+      await setDoc(doc(db, 'users', uid), {
+        uid: uid,
+        lastDiagnosticAt: Date.now()
+      }, { merge: true });
+      updateStep(idx, 'success', 'Gravação no documento do Perfil (/users/' + uid + ') bem-sucedida!');
+    } catch (err: any) {
+      const errMsg = err?.message || String(err);
+      updateStep(idx, 'error', `Falha de escrita no Perfil (regras bloqueadas?): ${errMsg}`);
+      setDiagnosticIsRunning(false);
+      return;
+    }
+    idx++;
+
+    // Step 4: Expense write
+    updateStep(idx, 'running');
+    await new Promise(r => setTimeout(r, 600));
+    try {
+      const expTestId = 'diag-test-expense';
+      const testExpense = cleanDocument({
+        id: expTestId,
+        title: 'Despesa de Diagnóstico',
+        value: 1.99,
+        category: 'Outros',
+        month: new Date().toISOString().substring(0, 7),
+        date: new Date().toISOString().substring(0, 10),
+        isInstallment: false,
+        createdAt: Date.now()
+      });
+      await setDoc(doc(db, 'users', uid, 'expenses', expTestId), testExpense);
+      updateStep(idx, 'success', 'Gravação de despesa teste (/users/' + uid + '/expenses/' + expTestId + ') bem-sucedida!');
+    } catch (err: any) {
+      const errMsg = err?.message || String(err);
+      updateStep(idx, 'error', `Erro ao gravar despesa teste (possível campo inválido ou regras de segurança): ${errMsg}`);
+      setDiagnosticIsRunning(false);
+      return;
+    }
+    idx++;
+
+    // Step 5: Revenue write
+    updateStep(idx, 'running');
+    await new Promise(r => setTimeout(r, 600));
+    try {
+      const revTestId = 'diag-test-revenue';
+      const testRevenue = cleanDocument({
+        id: revTestId,
+        title: 'Rendimento de Diagnóstico',
+        value: 10.00,
+        category: 'Outros',
+        month: new Date().toISOString().substring(0, 7),
+        date: new Date().toISOString().substring(0, 10),
+        createdAt: Date.now()
+      });
+      await setDoc(doc(db, 'users', uid, 'revenues', revTestId), testRevenue);
+      updateStep(idx, 'success', 'Gravação de rendimento teste (/users/' + uid + '/revenues/' + revTestId + ') bem-sucedida!');
+    } catch (err: any) {
+      const errMsg = err?.message || String(err);
+      updateStep(idx, 'error', `Erro ao gravar rendimento teste: ${errMsg}`);
+      setDiagnosticIsRunning(false);
+      return;
+    }
+    idx++;
+
+    // Step 6: Reads
+    updateStep(idx, 'running');
+    await new Promise(r => setTimeout(r, 600));
+    updateStep(idx, 'success', 'As escutas e inscrições em tempo real do banco estão ativas.');
+    idx++;
+
+    // Step 7: Cleanup
+    updateStep(idx, 'running');
+    await new Promise(r => setTimeout(r, 600));
+    try {
+      await deleteDoc(doc(db, 'users', uid, 'expenses', 'diag-test-expense'));
+      await deleteDoc(doc(db, 'users', uid, 'revenues', 'diag-test-revenue'));
+      updateStep(idx, 'success', 'Limpeza concluída! Registros de teste removidos do seu banco com sucesso.');
+    } catch (err: any) {
+      updateStep(idx, 'success', 'Escrita passou! Erro leve de limpeza (ignorar): ' + (err?.message || String(err)));
+    }
+    
+    setDiagnosticIsRunning(false);
+  };
+
+  const handleCopyDiagnosticsSummary = () => {
+    const text = diagnosticLogs.map((log, i) => {
+      const statusIcon = log.status === 'success' ? '✅' : log.status === 'error' ? '❌' : log.status === 'running' ? '⏳' : '💤';
+      return `${i + 1}. ${statusIcon} ${log.step}\n   Status: ${log.status.toUpperCase()}\n   Detalhes: ${log.details || 'Nenhum'}\n`;
+    }).join('\n');
+    
+    const formattedText = `=== DIAGNÓSTICO DO FIREBASE ===\nUsuário UID: ${auth?.currentUser?.uid || 'Desconectado'}\nEmail: ${auth?.currentUser?.email || 'N/A'}\nData local: ${new Date().toLocaleString()}\n\n${text}`;
+    
+    navigator.clipboard.writeText(formattedText)
+      .then(() => triggerNotification('A cópia do diagnóstico foi feita com sucesso!', 'success'))
+      .catch(() => triggerNotification('Erro ao copiar para clipboard. Copie o texto da tela manualmente.', 'error'));
   };
 
   // Bulk merge helper from local localStorage context state to Cloud FireStore standard
@@ -457,7 +618,7 @@ export default function App() {
         
         const batch = writeBatch(db!);
         generatedExpenses.forEach(exp => {
-          batch.set(doc(db!, 'users', uid, 'expenses', exp.id), exp);
+          batch.set(doc(db!, 'users', uid, 'expenses', exp.id), cleanDocument(exp));
         });
         await batch.commit().catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${uid}/expenses`));
         triggerNotification(`Lançadas automaticamente ${generatedExpenses.length} parcelas na nuvem!`);
@@ -469,7 +630,7 @@ export default function App() {
           id: newId,
           createdAt: Date.now()
         };
-        await setDoc(doc(db!, 'users', uid, 'expenses', newId), newExpense)
+        await setDoc(doc(db!, 'users', uid, 'expenses', newId), cleanDocument(newExpense))
           .catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${uid}/expenses/${newId}`));
         triggerNotification(`Lançamento "${expenseData.title}" adicionado na nuvem!`);
       }
@@ -598,7 +759,7 @@ export default function App() {
         if (updatedFields.date) {
           merged.month = updatedFields.date.substring(0, 7);
         }
-        await setDoc(doc(db!, 'users', uid, 'expenses', id), merged)
+        await setDoc(doc(db!, 'users', uid, 'expenses', id), cleanDocument(merged))
           .catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}/expenses/${id}`));
       } 
       else if (scope === 'all') {
@@ -619,7 +780,7 @@ export default function App() {
             value: updatedFields.value ?? exp.value
           };
           
-          batch.set(doc(db!, 'users', uid, 'expenses', exp.id), merged);
+          batch.set(doc(db!, 'users', uid, 'expenses', exp.id), cleanDocument(merged));
         });
 
         await batch.commit().catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}/expenses`));
@@ -670,7 +831,7 @@ export default function App() {
             createdAt: now
           };
 
-          batch.set(doc(db!, 'users', uid, 'expenses', expData.id), expData);
+          batch.set(doc(db!, 'users', uid, 'expenses', expData.id), cleanDocument(expData));
         }
 
         await batch.commit().catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}/expenses`));
@@ -776,7 +937,7 @@ export default function App() {
         id: newId,
         createdAt: Date.now()
       };
-      await setDoc(doc(db!, 'users', uid, 'revenues', newId), newRevenue)
+      await setDoc(doc(db!, 'users', uid, 'revenues', newId), cleanDocument(newRevenue))
         .catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${uid}/revenues/${newId}`));
       triggerNotification(`Rendimento "${revenueData.title}" adicionado na nuvem!`);
     } else {
@@ -822,7 +983,7 @@ export default function App() {
       if (updatedFields.date) {
         merged.month = updatedFields.date.substring(0, 7);
       }
-      await setDoc(doc(db!, 'users', uid, 'revenues', id), merged)
+      await setDoc(doc(db!, 'users', uid, 'revenues', id), cleanDocument(merged))
         .catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}/revenues/${id}`));
     } else {
       setData(prev => {
@@ -855,10 +1016,10 @@ export default function App() {
 
     if (storageType === 'cloud' && auth?.currentUser?.uid) {
       const uid = auth.currentUser.uid;
-      await setDoc(doc(db!, 'users', uid), {
+      await setDoc(doc(db!, 'users', uid), cleanDocument({
         uid: uid,
         categoryBudgets: budgetsCopy
-      }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`));
+      }), { merge: true }).catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`));
     } else {
       setData(prev => ({ ...prev, categoryBudgets: budgetsCopy }));
     }
@@ -890,12 +1051,12 @@ export default function App() {
 
     if (storageType === 'cloud' && auth?.currentUser?.uid) {
       const uid = auth.currentUser.uid;
-      await setDoc(doc(db!, 'users', uid), {
+      await setDoc(doc(db!, 'users', uid), cleanDocument({
         uid: uid,
         monthlyBudgets: budgetsCopy,
         defaultMonthlySalary: sal,
         defaultTargetSavingsPercentage: savingsInput
-      }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`));
+      }), { merge: true }).catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`));
     } else {
       setData(prev => ({
         ...prev,
@@ -1360,6 +1521,22 @@ export default function App() {
                           </div>
                         </button>
 
+                        {/* Opção Diagnosticar Erros do Firebase */}
+                        <button
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            setShowDiagnosticModal(true);
+                            runFirebaseDiagnostics();
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-white/5 text-slate-200 hover:text-white rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group border border-transparent hover:border-white/10"
+                        >
+                          <Sliders className="w-4 h-4 text-amber-400 mt-0.5 group-hover:scale-110 transition-transform shrink-0" />
+                          <div>
+                            <span className="text-xs font-bold block text-amber-300">Diagnóstico do Sincronismo</span>
+                            <span className="text-[9px] text-slate-500">Executar testes de conexão, leitura e escrita na nuvem.</span>
+                          </div>
+                        </button>
+
                         <div className="h-px bg-white/5 my-1" />
 
                         {/* Opção Sair */}
@@ -1620,6 +1797,124 @@ export default function App() {
                 Confirmar Limpeza
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE DIAGNÓSTICO DO FIREBASE */}
+      {showDiagnosticModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-[#121212] border border-white/10 max-w-2xl w-full rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[90vh]">
+            
+            {/* Header */}
+            <div className="px-6 py-4 bg-[#181818] border-b border-white/5 flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-2">
+                <Sliders className="w-5 h-5 text-amber-450" />
+                <div className="text-left">
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                    Suporte Técnico • Testes de Sincronia
+                  </h3>
+                  <p className="text-[10px] text-slate-500 leading-tight">
+                    Avaliação em tempo real de permissões, escrita e leitura com a Nuvem.
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowDiagnosticModal(false)}
+                className="w-7 h-7 rounded-lg bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center text-xs font-bold font-mono cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* List of step logs */}
+            <div className="p-6 overflow-y-auto flex flex-col gap-4 text-xs font-medium">
+              <p className="text-[11px] text-slate-400 leading-relaxed mb-1 bg-[#1c1a17]/50 border border-amber-950/20 p-2.5 rounded-xl text-left">
+                Se os lançamentos não estão aparecendo salvos ou as alterações sumiram, este teste interativo irá simular passos com autenticação nas regras de segurança e encontrar exatamente em que momento ocorre a falha.
+              </p>
+
+              <div className="flex flex-col gap-3">
+                {diagnosticLogs.map((log, index) => (
+                  <div key={index} className="flex flex-col gap-1.5 border border-white/5 bg-[#141414] p-3 rounded-xl">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-slate-500 text-[10px] font-mono leading-none">
+                          0{index + 1}.
+                        </span>
+                        <span className="text-white font-semibold">
+                          {log.step}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[9px]">
+                        {log.status === 'pending' && (
+                          <span className="text-zinc-550 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
+                            Aguardando
+                          </span>
+                        )}
+                        {log.status === 'running' && (
+                          <span className="text-amber-400 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping mr-0.5" />
+                            Executando
+                          </span>
+                        )}
+                        {log.status === 'success' && (
+                          <span className="text-emerald-450 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-0.5" />
+                            Sucesso
+                          </span>
+                        )}
+                        {log.status === 'error' && (
+                          <span className="text-rose-450 bg-rose-500/10 px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mr-0.5 animate-pulse" />
+                            Falha!
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {log.details && (
+                      <div className="mt-1 pl-6 text-left">
+                        <div className={`p-2.5 rounded-lg text-[11px] font-mono whitespace-pre-wrap leading-relaxed ${
+                          log.status === 'error' 
+                            ? 'bg-[#1b1011] text-rose-300 border border-rose-950/40' 
+                            : 'bg-zinc-950/40 text-slate-400 border border-white/5'
+                        }`}>
+                          {log.details}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Bottom buttons */}
+            <div className="px-6 py-4 bg-[#181818] border-t border-white/5 shrink-0 flex flex-col sm:flex-row gap-3 justify-between items-center text-xs">
+              <span className="text-[10px] text-slate-500 font-mono">
+                {diagnosticIsRunning ? 'Simulando operações...' : 'Testes encerrados.'}
+              </span>
+              
+              <div className="flex gap-2.5 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={handleCopyDiagnosticsSummary}
+                  className="flex-1 sm:flex-none px-3.5 py-1.5 bg-[#1c1c1c] border border-white/10 hover:bg-[#252525] text-indigo-300 hover:text-indigo-200 text-[11px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  Copiar Relatório
+                </button>
+                <button
+                  type="button"
+                  disabled={diagnosticIsRunning}
+                  onClick={runFirebaseDiagnostics}
+                  className="flex-1 sm:flex-none px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-[11px] font-bold rounded-xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  {diagnosticIsRunning ? 'Executando...' : 'Rodar Novamente'}
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}

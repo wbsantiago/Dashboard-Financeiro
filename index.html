@@ -5,6 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard de Finanças Pessoais</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script>
+      // Safeguard against browser extension conflicts (e.g., MetaMask provider injection) 
+      // throwing "Cannot redefine property: ethereum" inside sandboxed iframe previews.
+      (function() {
+        const originalDefineProperty = Object.defineProperty;
+        Object.defineProperty = function(obj, prop, descriptor) {
+          try {
+            return originalDefineProperty.apply(this, arguments);
+          } catch (e) {
+            if (prop === 'ethereum' || (e instanceof TypeError && e.message && e.message.includes('redefine property'))) {
+              console.warn(`[Safeguard] Prevented crash on redefining property "${prop}":`, e);
+              return obj;
+            }
+            throw e;
+          }
+        };
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
