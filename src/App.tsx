@@ -1420,75 +1420,77 @@ export default function App() {
             />
 
             {/* Menu Dropdown de Gerenciamento de Dados Locais */}
-            <div className="relative" ref={dataMenuRef} id="local-storage-menu-container">
-              <button
-                onClick={() => setShowDataMenu(prev => !prev)}
-                className={`w-8 h-8 flex items-center justify-center text-xs font-bold rounded-xl border transition-all cursor-pointer ${
-                  showDataMenu 
-                    ? 'bg-zinc-900 text-white border-white/10 shadow-lg' 
-                    : 'bg-[#1c1c1c] hover:bg-[#252525] text-slate-200 border-white/5'
-                }`}
-                title="Ações de Backup e Armazenamento Local"
-              >
-                <Database className="w-4 h-4 text-zinc-400" />
-              </button>
+            {!user && (
+              <div className="relative" ref={dataMenuRef} id="local-storage-menu-container">
+                <button
+                  onClick={() => setShowDataMenu(prev => !prev)}
+                  className={`w-8 h-8 flex items-center justify-center text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                    showDataMenu 
+                      ? 'bg-zinc-900 text-white border-white/10 shadow-lg' 
+                      : 'bg-[#1c1c1c] hover:bg-[#252525] text-slate-200 border-white/5'
+                  }`}
+                  title="Ações de Backup e Armazenamento Local"
+                >
+                  <Database className="w-4 h-4 text-zinc-400" />
+                </button>
 
-              {showDataMenu && (
-                <div className="absolute right-0 mt-2 w-64 bg-[#141414] border border-white/10 rounded-2xl shadow-2xl p-2.5 z-50 flex flex-col gap-1.5 animate-fade-in text-left">
-                  <div className="px-2 py-1.5 border-b border-white/5 mb-1">
-                    <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 block">Armazenamento Local</span>
-                    <span className="text-[11px] text-slate-400 mt-0.5 block">Gerencie backups e integridade física de seus lançamentos.</span>
+                {showDataMenu && (
+                  <div className="absolute right-0 mt-2 w-64 bg-[#141414] border border-white/10 rounded-2xl shadow-2xl p-2.5 z-50 flex flex-col gap-1.5 animate-fade-in text-left">
+                    <div className="px-2 py-1.5 border-b border-white/5 mb-1">
+                      <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 block">Armazenamento Local</span>
+                      <span className="text-[11px] text-slate-400 mt-0.5 block">Gerencie backups e integridade física de seus lançamentos.</span>
+                    </div>
+
+                    {/* Opção Exportar */}
+                    <button
+                      onClick={() => {
+                        handleExportData();
+                        setShowDataMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-white/5 text-slate-200 hover:text-white rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group"
+                    >
+                      <Download className="w-4 h-4 text-emerald-400 mt-0.5 group-hover:scale-110 transition-transform" />
+                      <div>
+                        <span className="text-xs font-bold block">Fazer Backup JSON</span>
+                        <span className="text-[9px] text-slate-500">Exportar todos os dados salvos localmente.</span>
+                      </div>
+                    </button>
+
+                    {/* Opção Importar */}
+                    <button
+                      onClick={() => {
+                        handleImportButtonClick();
+                        setShowDataMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-white/5 text-slate-200 hover:text-white rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group"
+                    >
+                      <Upload className="w-4 h-4 text-indigo-400 mt-0.5 group-hover:scale-110 transition-transform" />
+                      <div>
+                        <span className="text-xs font-bold block">Recuperar Backup</span>
+                        <span className="text-[9px] text-slate-500">Restaurar arquivo de backup no navegador.</span>
+                      </div>
+                    </button>
+
+                    <div className="h-px bg-white/5 my-1" />
+
+                    {/* Opção Destrutiva: Limpar */}
+                    <button
+                      onClick={() => {
+                        handleClearData();
+                        setShowDataMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-rose-950/20 text-rose-350 hover:text-rose-200 rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group"
+                    >
+                      <Trash2 className="w-4 h-4 text-rose-400 mt-0.5 group-hover:scale-110 transition-transform" />
+                      <div>
+                        <span className="text-xs font-bold block text-rose-400">Limpar Banco de Dados</span>
+                        <span className="text-[9px] text-rose-500/80">Apagar todos os registros do navegador local.</span>
+                      </div>
+                    </button>
                   </div>
-
-                  {/* Opção Exportar */}
-                  <button
-                    onClick={() => {
-                      handleExportData();
-                      setShowDataMenu(false);
-                    }}
-                    className="w-full text-left px-3 py-2 hover:bg-white/5 text-slate-200 hover:text-white rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group"
-                  >
-                    <Download className="w-4 h-4 text-emerald-400 mt-0.5 group-hover:scale-110 transition-transform" />
-                    <div>
-                      <span className="text-xs font-bold block">Fazer Backup JSON</span>
-                      <span className="text-[9px] text-slate-500">Exportar todos os dados salvos localmente.</span>
-                    </div>
-                  </button>
-
-                  {/* Opção Importar */}
-                  <button
-                    onClick={() => {
-                      handleImportButtonClick();
-                      setShowDataMenu(false);
-                    }}
-                    className="w-full text-left px-3 py-2 hover:bg-white/5 text-slate-200 hover:text-white rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group"
-                  >
-                    <Upload className="w-4 h-4 text-indigo-400 mt-0.5 group-hover:scale-110 transition-transform" />
-                    <div>
-                      <span className="text-xs font-bold block">Recuperar Backup</span>
-                      <span className="text-[9px] text-slate-500">Restaurar arquivo de backup no navegador.</span>
-                    </div>
-                  </button>
-
-                  <div className="h-px bg-white/5 my-1" />
-
-                  {/* Opção Destrutiva: Limpar */}
-                  <button
-                    onClick={() => {
-                      handleClearData();
-                      setShowDataMenu(false);
-                    }}
-                    className="w-full text-left px-3 py-2 hover:bg-rose-950/20 text-rose-350 hover:text-rose-200 rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group"
-                  >
-                    <Trash2 className="w-4 h-4 text-rose-400 mt-0.5 group-hover:scale-110 transition-transform" />
-                    <div>
-                      <span className="text-xs font-bold block text-rose-400">Limpar Banco de Dados</span>
-                      <span className="text-[9px] text-rose-500/80">Apagar todos os registros do navegador local.</span>
-                    </div>
-                  </button>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             {/* Firebase Google Cloud Sync controller */}
             {isFirebaseConfigured ? (
