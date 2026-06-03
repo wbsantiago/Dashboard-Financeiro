@@ -85,13 +85,26 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 }
 
 export function cleanDocument<T extends object>(obj: T): T {
+  if (obj === null || obj === undefined) return obj;
+
+  if (Array.isArray(obj)) {
+    return obj
+      .map(item => {
+        if (typeof item === 'object' && item !== null) {
+          return cleanDocument(item);
+        }
+        return item;
+      })
+      .filter(item => item !== undefined && item !== null) as any;
+  }
+
   const cleaned = {} as any;
   for (const key in obj) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
       const val = obj[key];
       if (val !== undefined && val !== null) {
-        // If nested object (not Array or Date), serialize or clean it too
-        if (typeof val === 'object' && val !== null && !Array.isArray(val) && !(val instanceof Date)) {
+        // If nested object (not Date), serialize or clean it too
+        if (typeof val === 'object' && val !== null && !(val instanceof Date)) {
           cleaned[key] = cleanDocument(val);
         } else {
           cleaned[key] = val;
