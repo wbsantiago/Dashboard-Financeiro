@@ -63,7 +63,12 @@ export default function App() {
 
   // Load initial state
   const [data, setData] = useState<AppData>(() => loadAppData());
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => getCurrentMonthStr()); // "2026-05"
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const initialData = loadAppData();
+    const d = new Date();
+    const currentDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return getCompetenceMonth(currentDateStr, initialData.monthlyBudgets, initialData.defaultCardClosingDay ?? 5);
+  });
   
   // UI States
   const [activeView, setActiveView] = useState<'monthly' | 'annual'>('monthly');
