@@ -1,10 +1,10 @@
 {
-  "projectId": "robotic-mesh-85xj8",
-  "appId": "1:874703881815:web:7b0f0228cfee19c738c512",
-  "apiKey": "AIzaSyDoYvg1FqH19UzkFhYKw6NUC_45qSycs-A",
-  "authDomain": "robotic-mesh-85xj8.firebaseapp.com",
+  "projectId": "dashboard-de-financas-pessoais",
+  "appId": "1:164999356070:web:9a211c6f63a3944b319e67",
+  "apiKey": "AIzaSyCtPJDRn0AG3vkCbzCyy9OsPk1KKlVwIzw",
+  "authDomain": "dashboard-de-financas-pessoais.firebaseapp.com",
   "firestoreDatabaseId": "(default)",
-  "storageBucket": "robotic-mesh-85xj8.firebasestorage.app",
-  "messagingSenderId": "874703881815",
-  "measurementId": ""
+  "storageBucket": "dashboard-de-financas-pessoais.firebasestorage.app",
+  "messagingSenderId": "164999356070",
+  "measurementId": "G-BLGYLMFDBY"
 }
