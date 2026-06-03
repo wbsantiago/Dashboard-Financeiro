@@ -36,6 +36,7 @@ export interface MonthlyBudget {
   month: string; // "YYYY-MM"
   salary: number; // Salário padrão do mês (servirá como base se não houver rendimentos lançados)
   targetSavingsPercentage: number; // Porcentagem que gostaria de poupar (ex: 30%)
+  cardClosingDay?: number; // Dia de fechamento/virada do cartão (ex: 5, use 0 para não aplicar)
 }
 
 export interface AppData {
@@ -45,4 +46,5 @@ export interface AppData {
   monthlyBudgets: MonthlyBudget[];
   defaultMonthlySalary: number;
   defaultTargetSavingsPercentage: number;
+  defaultCardClosingDay?: number; // Dia de fechamento padrão do cartão (ex: 5)
 }

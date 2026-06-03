@@ -13,8 +13,8 @@ import {
   Pencil,
   AlertTriangle
 } from 'lucide-react';
-import { Expense, Revenue } from '../types';
-import { formatCurrency, formatDate, getInstallmentInfo } from '../utils/format';
+import { Expense, Revenue, MonthlyBudget } from '../types';
+import { formatCurrency, formatDate, getInstallmentInfo, getCompetenceMonth } from '../utils/format';
 import { 
   DEFAULT_CATEGORIES, 
   CATEGORY_COLORS, 
@@ -42,6 +42,8 @@ interface ExpenseTrackerProps {
   onDeleteRevenue: (id: string) => void;
   onUpdateRevenue: (id: string, updatedData: Partial<Omit<Revenue, 'id' | 'createdAt'>>) => void;
   selectedMonth: string;
+  monthlyBudgets?: MonthlyBudget[];
+  defaultCardClosingDay?: number;
 }
 
 export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
@@ -54,6 +56,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   onDeleteRevenue,
   onUpdateRevenue,
   selectedMonth,
+  monthlyBudgets = [],
+  defaultCardClosingDay = 5,
 }) => {
   // Navigation Tabs at top: expenses (Saídas) or revenues (Entradas)
   const [activeTab, setActiveTab] = useState<'expenses' | 'revenues'>('expenses');
@@ -87,19 +91,21 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   const getMonthsLabels = () => {
     try {
       if (!date) return { current: 'Este mês', next: 'Próximo mês' };
-      const [yearStr, monthStr] = date.split('-');
-      const y = parseInt(yearStr, 10);
-      const m = parseInt(monthStr, 10);
+      
+      const currentComp = getCompetenceMonth(date, monthlyBudgets, defaultCardClosingDay);
+      const [cyStr, cmStr] = currentComp.split('-');
+      const cy = parseInt(cyStr, 10);
+      const cm = parseInt(cmStr, 10);
       
       const ptMonths = [
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
         'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
       ];
       
-      const currentName = ptMonths[m - 1] || 'Este mês';
-      const curLabel = `${currentName}/${yearStr}`;
+      const currentName = ptMonths[cm - 1] || 'Este mês';
+      const curLabel = `${currentName}/${cyStr}`;
       
-      const nextMonthDate = new Date(y, m, 1);
+      const nextMonthDate = new Date(cy, cm, 1);
       const nextName = ptMonths[nextMonthDate.getMonth()];
       const nextYear = nextMonthDate.getFullYear();
       const nexLabel = `${nextName}/${nextYear}`;

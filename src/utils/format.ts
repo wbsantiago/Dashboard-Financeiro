@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { MonthlyBudget } from '../types';
+
 // Formata valores numéricos para Real Brasileiro (R$)
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
@@ -102,4 +104,61 @@ export function getInstallmentInfo(exp: {
     remaining: 0,
     hasInfo: false
   };
+}
+
+// Retorna o dia de fechamento de cartão configurado para o mês ou o padrão
+export function getClosingDayForMonth(
+  monthStr: string,
+  monthlyBudgets: MonthlyBudget[],
+  defaultClosingDay: number = 5
+): number {
+  if (!monthlyBudgets) return defaultClosingDay;
+  const budget = monthlyBudgets.find(b => b.month === monthStr);
+  if (budget && budget.cardClosingDay !== undefined) {
+    return budget.cardClosingDay;
+  }
+  return defaultClosingDay;
+}
+
+// Retorna o mês de competência de uma transação com base na data e no dia de fechamento
+export function getCompetenceMonth(
+  dateStr: string,
+  monthlyBudgets: MonthlyBudget[],
+  defaultClosingDay: number = 5
+): string {
+  if (!dateStr || dateStr.length < 10) {
+    return dateStr ? dateStr.substring(0, 7) : '';
+  }
+  
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) {
+    return dateStr.substring(0, 7);
+  }
+  
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  const d = parseInt(parts[2], 10);
+  
+  if (isNaN(y) || isNaN(m) || isNaN(d)) {
+    return dateStr.substring(0, 7);
+  }
+  
+  const calendarMonthStr = `${parts[0]}-${parts[1]}`;
+  const closingDay = getClosingDayForMonth(calendarMonthStr, monthlyBudgets, defaultClosingDay);
+  
+  // Se o fechamento for 0, significa que não há virada/shift
+  if (closingDay === 0) {
+    return calendarMonthStr;
+  }
+  
+  if (d <= closingDay) {
+    // Pertence à competência do mês anterior
+    const prevMonthDate = new Date(y, m - 2, 15);
+    const prevY = prevMonthDate.getFullYear();
+    const prevM = String(prevMonthDate.getMonth() + 1).padStart(2, '0');
+    return `${prevY}-${prevM}`;
+  } else {
+    // Pertence à competência do mês atual
+    return calendarMonthStr;
+  }
 }

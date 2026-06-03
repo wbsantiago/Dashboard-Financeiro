@@ -123,7 +123,8 @@ export const INITIAL_MOCK_DATA: AppData = {
   ],
   monthlyBudgets: [],
   defaultMonthlySalary: 0.00,
-  defaultTargetSavingsPercentage: 20
+  defaultTargetSavingsPercentage: 20,
+  defaultCardClosingDay: 5
 };
 
 // Initialize or load data from LocalStorage
@@ -234,11 +235,13 @@ export function importDataFromJSON(jsonString: string): AppData {
       ? parsed.monthlyBudgets.map((m: any) => ({
           month: String(m.month),
           salary: Number(m.salary || 0),
-          targetSavingsPercentage: Number(m.targetSavingsPercentage || 30)
+          targetSavingsPercentage: Number(m.targetSavingsPercentage || 30),
+          cardClosingDay: m.cardClosingDay !== undefined ? Number(m.cardClosingDay) : undefined
         }))
       : [],
     defaultMonthlySalary: Number(parsed.defaultMonthlySalary || 4500.00),
-    defaultTargetSavingsPercentage: Number(parsed.defaultTargetSavingsPercentage || 30)
+    defaultTargetSavingsPercentage: Number(parsed.defaultTargetSavingsPercentage || 30),
+    defaultCardClosingDay: parsed.defaultCardClosingDay !== undefined ? Number(parsed.defaultCardClosingDay) : 5
   };
   
   return cleanData;

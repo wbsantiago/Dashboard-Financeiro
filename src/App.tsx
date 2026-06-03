@@ -32,7 +32,7 @@ import {
 
 import { AppData, Expense, Revenue, CategoryBudget, MonthlyBudget } from './types';
 import { loadAppData, saveAppData, exportDataAsJSON, importDataFromJSON, DEFAULT_CATEGORIES, INITIAL_MOCK_DATA } from './utils/storage';
-import { formatCurrency, formatMonthName, getCurrentMonthStr, getInstallmentInfo } from './utils/format';
+import { formatCurrency, formatMonthName, getCurrentMonthStr, getInstallmentInfo, getCompetenceMonth } from './utils/format';
 
 import { 
   db, 
@@ -74,6 +74,7 @@ export default function App() {
   const [diagnosticIsRunning, setDiagnosticIsRunning] = useState<boolean>(false);
   const [salaryInput, setSalaryInput] = useState<string>('');
   const [savingsInput, setSavingsInput] = useState<number>(30);
+  const [cardClosingDayInput, setCardClosingDayInput] = useState<number>(5);
   const [showNotification, setShowNotification] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
   const [privacyMode, setPrivacyMode] = useState<boolean>(() => {
     return localStorage.getItem('privacy-mode') === 'true';
@@ -444,6 +445,7 @@ export default function App() {
             monthlyBudgets: profileData.monthlyBudgets || prev.monthlyBudgets,
             defaultMonthlySalary: profileData.defaultMonthlySalary ?? prev.defaultMonthlySalary,
             defaultTargetSavingsPercentage: profileData.defaultTargetSavingsPercentage ?? prev.defaultTargetSavingsPercentage,
+            defaultCardClosingDay: profileData.defaultCardClosingDay ?? prev.defaultCardClosingDay,
           }));
         } else {
           // Check if there is existing offline data in this browser to migrate/synchronize
@@ -465,7 +467,8 @@ export default function App() {
               categoryBudgets: defaultData.categoryBudgets,
               monthlyBudgets: defaultData.monthlyBudgets,
               defaultMonthlySalary: defaultData.defaultMonthlySalary,
-              defaultTargetSavingsPercentage: defaultData.defaultTargetSavingsPercentage
+              defaultTargetSavingsPercentage: defaultData.defaultTargetSavingsPercentage,
+              defaultCardClosingDay: defaultData.defaultCardClosingDay ?? 5
             }, { merge: true }).catch(err => {
               console.error("Erro ao configurar perfil padrão na nuvem:", err);
             });
@@ -564,6 +567,7 @@ export default function App() {
     const activeBudget = getCurrentMonthBudget();
     setSalaryInput(activeBudget.salary.toString());
     setSavingsInput(activeBudget.targetSavingsPercentage);
+    setCardClosingDayInput(activeBudget.cardClosingDay ?? data.defaultCardClosingDay ?? 5);
   }, [selectedMonth, data]);
 
   // Helper toast notifier
@@ -583,7 +587,8 @@ export default function App() {
     return {
       month: selectedMonth,
       salary: data.defaultMonthlySalary,
-      targetSavingsPercentage: data.defaultTargetSavingsPercentage
+      targetSavingsPercentage: data.defaultTargetSavingsPercentage,
+      cardClosingDay: data.defaultCardClosingDay ?? 5
     };
   };
 
@@ -621,12 +626,11 @@ export default function App() {
         for (let i = startInstallment; i <= totalInst; i++) {
           const offset = (i - startInstallment) + shift;
           const [y, m] = baseMonth.split('-').map(Number);
-          const futDateObj = new Date(y, m - 1 + offset, 1);
-          const futureMonth = `${futDateObj.getFullYear()}-${String(futDateObj.getMonth() + 1).padStart(2, '0')}`;
           
           const [, , d] = baseDate.split('-').map(Number);
           const dateObj = new Date(y, m - 1 + offset, d);
           const futureDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+          const futureMonth = getCompetenceMonth(futureDate, data.monthlyBudgets, data.defaultCardClosingDay ?? 5);
           
           const parsedTitle = expenseData.title.trim();
           const hasInstallmentSuffix = /(?:\d+)\s*[\/／]\s*(?:\d+)$/.test(parsedTitle);
@@ -654,6 +658,7 @@ export default function App() {
         const newId = `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const newExpense: Expense = {
           ...expenseData,
+          month: getCompetenceMonth(expenseData.date, data.monthlyBudgets, data.defaultCardClosingDay ?? 5),
           id: newId,
           createdAt: Date.now()
         };
@@ -676,17 +681,16 @@ export default function App() {
         for (let i = startInstallment; i <= totalInst; i++) {
           const offset = (i - startInstallment) + shift;
           const [y, m] = baseMonth.split('-').map(Number);
-          const futDateObj = new Date(y, m - 1 + offset, 1);
-          const futureMonth = `${futDateObj.getFullYear()}-${String(futDateObj.getMonth() + 1).padStart(2, '0')}`;
           
           const [, , d] = baseDate.split('-').map(Number);
           const dateObj = new Date(y, m - 1 + offset, d);
           const futureDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+          const futureMonth = getCompetenceMonth(futureDate, data.monthlyBudgets, data.defaultCardClosingDay ?? 5);
           
           const parsedTitle = expenseData.title.trim();
           const hasInstallmentSuffix = /(?:\d+)\s*[\/／]\s*(?:\d+)$/.test(parsedTitle);
           const finalTitle = hasInstallmentSuffix ? parsedTitle : `${parsedTitle} ${i}/${totalInst}`;
-
+ 
           generatedExpenses.push({
             ...expenseData,
             id: `exp-${now}-${i}-${Math.random().toString(36).substr(2, 5)}`,
@@ -707,10 +711,11 @@ export default function App() {
       } else {
         const newExpense: Expense = {
           ...expenseData,
+          month: getCompetenceMonth(expenseData.date, data.monthlyBudgets, data.defaultCardClosingDay ?? 5),
           id: `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           createdAt: Date.now()
         };
-
+ 
         setData(prev => ({
           ...prev,
           expenses: [newExpense, ...prev.expenses]
@@ -784,7 +789,7 @@ export default function App() {
       if (scope === 'single') {
         const merged = { ...originalExpense, ...updatedFields };
         if (updatedFields.date) {
-          merged.month = updatedFields.date.substring(0, 7);
+          merged.month = getCompetenceMonth(updatedFields.date, data.monthlyBudgets, data.defaultCardClosingDay ?? 5);
         }
         await setDoc(doc(db!, 'users', uid, 'expenses', id), cleanDocument(merged))
           .catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}/expenses/${id}`));
@@ -834,12 +839,11 @@ export default function App() {
           const offset = (i - startInstallment) + shift;
 
           const [y, m] = baseMonth.split('-').map(Number);
-          const futDateObj = new Date(y, m - 1 + offset, 1);
-          const futureMonth = `${futDateObj.getFullYear()}-${String(futDateObj.getMonth() + 1).padStart(2, '0')}`;
 
           const [, , d] = baseDate.split('-').map(Number);
           const dateObj = new Date(y, m - 1 + offset, d);
           const futureDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+          const futureMonth = getCompetenceMonth(futureDate, data.monthlyBudgets, data.defaultCardClosingDay ?? 5);
 
           const rootTitle = (updatedFields.title || originalExpense.title).replace(/\s*\d+\s*[\/／]\s*\d+\s*$/, '').trim();
           const finalTitle = `${rootTitle} ${i}/${totalInst}`;
@@ -873,7 +877,7 @@ export default function App() {
             if (exp.id === id) {
               const merged = { ...exp, ...updatedFields };
               if (updatedFields.date) {
-                merged.month = updatedFields.date.substring(0, 7);
+                merged.month = getCompetenceMonth(updatedFields.date, data.monthlyBudgets, data.defaultCardClosingDay ?? 5);
               }
               return merged;
             }
@@ -921,12 +925,11 @@ export default function App() {
             const offset = (i - startInstallment) + shift;
 
             const [y, m] = baseMonth.split('-').map(Number);
-            const futDateObj = new Date(y, m - 1 + offset, 1);
-            const futureMonth = `${futDateObj.getFullYear()}-${String(futDateObj.getMonth() + 1).padStart(2, '0')}`;
 
             const [, , d] = baseDate.split('-').map(Number);
             const dateObj = new Date(y, m - 1 + offset, d);
             const futureDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+            const futureMonth = getCompetenceMonth(futureDate, data.monthlyBudgets, data.defaultCardClosingDay ?? 5);
 
             const rootTitle = (updatedFields.title || originalExpense.title).replace(/\s*\d+\s*[\/／]\s*\d+\s*$/, '').trim();
             const finalTitle = `${rootTitle} ${i}/${totalInst}`;
@@ -1062,12 +1065,19 @@ export default function App() {
       return;
     }
 
+    const closingDayVal = parseInt(cardClosingDayInput.toString(), 10);
+    if (isNaN(closingDayVal) || closingDayVal < 0 || closingDayVal > 28) {
+      triggerNotification('O dia de fechamento deve ser de 0 (não aplicar) até 28.', 'error');
+      return;
+    }
+
     const budgetsCopy = [...data.monthlyBudgets];
     const idx = budgetsCopy.findIndex(b => b.month === selectedMonth);
     const newBudget: MonthlyBudget = {
       month: selectedMonth,
       salary: sal,
-      targetSavingsPercentage: savingsInput
+      targetSavingsPercentage: savingsInput,
+      cardClosingDay: closingDayVal
     };
 
     if (idx !== -1) {
@@ -1082,7 +1092,8 @@ export default function App() {
         uid: uid,
         monthlyBudgets: budgetsCopy,
         defaultMonthlySalary: sal,
-        defaultTargetSavingsPercentage: savingsInput
+        defaultTargetSavingsPercentage: savingsInput,
+        defaultCardClosingDay: data.defaultCardClosingDay ?? 5
       }), { merge: true }).catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`));
     } else {
       setData(prev => ({
@@ -1632,7 +1643,7 @@ export default function App() {
       {showConfigPanel && (
         <div className="w-full bg-[#141414] border-b border-white/5 text-white animate-fade-in" id="config-panel">
           <div className="w-full max-w-7xl mx-auto px-4 py-5 sm:px-6">
-            <form onSubmit={handleSaveMonthConfig} className="grid grid-cols-1 md:grid-cols-3 gap-5 items-end">
+            <form onSubmit={handleSaveMonthConfig} className="grid grid-cols-1 md:grid-cols-4 gap-5 items-end">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
                   Salário Ideal / Rendimento Fixo (R$) — {formatMonthName(selectedMonth)}
@@ -1672,6 +1683,27 @@ export default function App() {
                     Poupe: {formatCurrency(parseFloat(salaryInput || '0') * (savingsInput / 100))}
                   </span>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 select-none">
+                  Virada do Cartão (Dia) — {formatMonthName(selectedMonth)}
+                </label>
+                <div className="relative mt-1">
+                  <input
+                    type="number"
+                    min="0"
+                    max="28"
+                    className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-white outline-none focus:border-indigo-500 font-semibold text-center font-mono"
+                    placeholder="Ex: 5"
+                    value={cardClosingDayInput}
+                    onChange={(e) => setCardClosingDayInput(parseInt(e.target.value) || 0)}
+                    required
+                  />
+                </div>
+                <span className="text-[9.5px] text-slate-500 block mt-1 font-medium leading-none select-none">
+                  Contas até este dia caem no mês anterior (use 0 para desativar).
+                </span>
               </div>
 
               <div className="flex gap-2">
@@ -1770,6 +1802,8 @@ export default function App() {
                 onDeleteRevenue={handleDeleteRevenue}
                 onUpdateRevenue={handleUpdateRevenue}
                 selectedMonth={selectedMonth}
+                monthlyBudgets={data.monthlyBudgets}
+                defaultCardClosingDay={data.defaultCardClosingDay}
               />
             </div>
           </>
