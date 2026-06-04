@@ -27,11 +27,17 @@ import {
   CloudOff,
   FolderHeart,
   Database,
-  Chrome
+  Chrome,
+  Plus,
+  X,
+  ArrowUpRight,
+  TrendingDown,
+  PlusCircle
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 import { AppData, Expense, Revenue, CategoryBudget, MonthlyBudget } from './types';
-import { loadAppData, saveAppData, exportDataAsJSON, importDataFromJSON, DEFAULT_CATEGORIES, INITIAL_MOCK_DATA } from './utils/storage';
+import { loadAppData, saveAppData, exportDataAsJSON, importDataFromJSON, DEFAULT_CATEGORIES, DEFAULT_REVENUE_CATEGORIES, INITIAL_MOCK_DATA } from './utils/storage';
 import { formatCurrency, formatMonthName, getCurrentMonthStr, getInstallmentInfo, getCompetenceMonth } from './utils/format';
 
 import { 
@@ -87,6 +93,127 @@ export default function App() {
   const [hideMobileBudgets, setHideMobileBudgets] = useState<boolean>(() => {
     return localStorage.getItem('hide-mobile-budgets') === 'true';
   });
+
+  // Mobile Floating Menu States
+  const [isTrackerVisible, setIsTrackerVisible] = useState<boolean>(false);
+  const [showMobileFabMenu, setShowMobileFabMenu] = useState<boolean>(false);
+  const [mobileModalType, setMobileModalType] = useState<'expense' | 'revenue' | null>(null);
+
+  // Form states for Mobile Quick Entry Modal
+  const [mobTitle, setMobTitle] = useState('');
+  const [mobValue, setMobValue] = useState('');
+  const [mobCategory, setMobCategory] = useState('');
+  const [mobCustomCategory, setMobCustomCategory] = useState('');
+  const [mobIsCustomCategory, setMobIsCustomCategory] = useState(false);
+  const [mobDate, setMobDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [mobIsInstallment, setMobIsInstallment] = useState(false);
+  const [mobTotalInstallments, setMobTotalInstallments] = useState('12');
+  const [mobFirstInstallmentNextMonth, setMobFirstInstallmentNextMonth] = useState(false);
+  const [mobInstallmentValueType, setMobInstallmentValueType] = useState<'total' | 'single'>('single');
+
+  // Load defaults for the mobile modal forms
+  useEffect(() => {
+    if (mobileModalType === 'expense') {
+      setMobTitle('');
+      setMobValue('');
+      setMobCategory(DEFAULT_CATEGORIES[0]);
+      setMobCustomCategory('');
+      setMobIsCustomCategory(false);
+      setMobDate(new Date().toISOString().split('T')[0]);
+      setMobIsInstallment(false);
+      setMobTotalInstallments('12');
+      setMobFirstInstallmentNextMonth(false);
+      setMobInstallmentValueType('single');
+    } else if (mobileModalType === 'revenue') {
+      setMobTitle('');
+      setMobValue('');
+      setMobCategory(DEFAULT_REVENUE_CATEGORIES[0]);
+      setMobCustomCategory('');
+      setMobIsCustomCategory(false);
+      setMobDate(new Date().toISOString().split('T')[0]);
+    }
+  }, [mobileModalType]);
+
+  // Viewport observer to hide the Mobile floating menu when the user scrolls to the manual transaction entry logs
+  useEffect(() => {
+    if (activeView !== 'monthly') {
+      setIsTrackerVisible(false);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsTrackerVisible(entry.isIntersecting);
+      },
+      {
+        root: null,
+        rootMargin: "20px",
+        threshold: 0.1,
+      }
+    );
+
+    const target = document.getElementById("bottom-tracker-layout");
+    if (target) {
+      observer.observe(target);
+    }
+
+    return () => {
+      if (target) {
+        observer.unobserve(target);
+      }
+    };
+  }, [activeView]);
+
+  const handleMobileSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const parsedValue = parseFloat(mobValue);
+    if (isNaN(parsedValue) || parsedValue <= 0) {
+      alert('Por favor, insira um valor válido maior que zero.');
+      return;
+    }
+
+    if (!mobTitle.trim()) {
+      alert('Por favor, insira uma descrição.');
+      return;
+    }
+
+    const finalCategory = mobIsCustomCategory ? mobCustomCategory.trim() : mobCategory;
+    if (!finalCategory) {
+      alert('Por favor, defina a categoria.');
+      return;
+    }
+
+    const recordMonth = mobDate.substring(0, 7);
+
+    if (mobileModalType === 'expense') {
+      const finalValue = mobIsInstallment && mobInstallmentValueType === 'total'
+        ? parseFloat((parsedValue / parseInt(mobTotalInstallments, 10)).toFixed(2))
+        : parsedValue;
+
+      handleAddExpense({
+        title: mobTitle.trim(),
+        value: finalValue,
+        category: finalCategory,
+        month: recordMonth,
+        isInstallment: mobIsInstallment,
+        totalInstallments: mobIsInstallment ? parseInt(mobTotalInstallments, 10) : undefined,
+        currentInstallment: mobIsInstallment ? 1 : undefined,
+        firstInstallmentInNextMonth: mobIsInstallment ? mobFirstInstallmentNextMonth : undefined,
+        date: mobDate,
+      });
+    } else {
+      handleAddRevenue({
+        title: mobTitle.trim(),
+        value: parsedValue,
+        category: finalCategory,
+        month: recordMonth,
+        date: mobDate,
+      });
+    }
+
+    setMobileModalType(null);
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cloudFileInputRef = useRef<HTMLInputElement>(null);
@@ -1980,6 +2107,311 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* MENU FLUTUANTE MOBILE (FAB) */}
+      <AnimatePresence>
+        {activeView === 'monthly' && !isTrackerVisible && (
+          <div className="fixed bottom-6 right-6 z-40 md:hidden flex flex-col items-center gap-3">
+            {/* Backdrop para fechar o menu expandido ao clicar fora */}
+            {showMobileFabMenu && (
+              <div 
+                onClick={() => setShowMobileFabMenu(false)}
+                className="fixed inset-0 bg-black/40 backdrop-blur-xs z-30 animate-fade-in"
+              />
+            )}
+
+            {/* Menu expandido (Opções de Entrada e Saída) */}
+            {showMobileFabMenu && (
+              <motion.div 
+                initial={{ opacity: 0, y: 15, scale: 0.85 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 15, scale: 0.85 }}
+                transition={{ duration: 0.15 }}
+                className="flex flex-col gap-3 items-end z-40 mb-2 mr-0.5"
+              >
+                {/* Opção 1: Entrada / Receita */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileModalType('revenue');
+                    setShowMobileFabMenu(false);
+                  }}
+                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3.5 rounded-full shadow-lg shadow-emerald-600/30 text-xs active:scale-95 transition-all cursor-pointer"
+                >
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                  Nova Entrada
+                </button>
+
+                {/* Opção 2: Saída / Despesa */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileModalType('expense');
+                    setShowMobileFabMenu(false);
+                  }}
+                  className="flex items-center gap-2 bg-rose-600 hover:bg-rose-500 text-white font-bold py-2 px-3.5 rounded-full shadow-lg shadow-rose-600/30 text-xs active:scale-95 transition-all cursor-pointer"
+                >
+                  <TrendingDown className="w-3.5 h-3.5" />
+                  Nova Saída
+                </button>
+              </motion.div>
+            )}
+
+            {/* Botão de triggers principal (FAB) */}
+            <button
+              onClick={() => setShowMobileFabMenu(prev => !prev)}
+              className={`w-14 h-14 rounded-full flex items-center justify-center text-white shadow-2xl transition-all cursor-pointer z-40 active:scale-95 hover:scale-105 ${
+                showMobileFabMenu 
+                  ? 'bg-zinc-800 rotate-45 shadow-zinc-800/20' 
+                  : 'bg-indigo-600 shadow-indigo-600/30'
+              }`}
+              title="Novo Lançamento Rápido"
+            >
+              <Plus className="w-6 h-6 transition-transform duration-200" />
+            </button>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL DE ENTRADA MOBILE RESISTENTE */}
+      <AnimatePresence>
+        {mobileModalType !== null && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-end md:items-center justify-center p-0 md:p-4 animate-fade-in">
+            <motion.div 
+              initial={{ y: "100%", opacity: 0.8 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0.8 }}
+              transition={{ type: "spring", damping: 25, stiffness: 220 }}
+              className="bg-[#141414] border-t md:border border-white/10 w-full max-w-md rounded-t-3xl md:rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col text-left"
+            >
+              {/* Header */}
+              <div className="px-5 py-4 border-b border-white/5 bg-zinc-950/20 flex justify-between items-center shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className={`p-1.5 rounded-lg border ${
+                    mobileModalType === 'expense' 
+                      ? 'bg-rose-500/10 text-rose-400 border-rose-500/10' 
+                      : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/10'
+                  }`}>
+                    <PlusCircle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">
+                      {mobileModalType === 'expense' ? 'Nova Saída (Despesa)' : 'Nova Entrada (Rendimento)'}
+                    </h3>
+                    <p className="text-[10px] text-slate-400 font-medium">Inserção rápida pelo smartphone</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileModalType(null)}
+                  className="w-8 h-8 rounded-full bg-white/5 text-slate-300 flex items-center justify-center font-bold text-xs hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Form Content */}
+              <form onSubmit={handleMobileSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
+                {/* Descrição */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                    Descrição
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={mobileModalType === 'expense' ? "Ex: Padaria ou Combustível" : "Ex: Salário da Empresa"}
+                    value={mobTitle}
+                    onChange={(e) => setMobTitle(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors placeholder:text-zinc-650"
+                    maxLength={50}
+                    required
+                  />
+                </div>
+
+                {/* Valor e Data */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                      Valor (R$)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={mobValue}
+                      onChange={(e) => setMobValue(e.target.value)}
+                      className="w-full px-3 py-2 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors placeholder:text-zinc-655 privacy-blur"
+                      required
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                      Data
+                    </label>
+                    <input
+                      type="date"
+                      value={mobDate}
+                      onChange={(e) => setMobDate(e.target.value)}
+                      className="w-full px-3 py-2 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 outline-none transition-colors"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Categoria */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                    Categoria
+                  </label>
+                  <div className="flex flex-col gap-2">
+                    <select
+                      value={mobIsCustomCategory ? 'CUSTOM' : mobCategory}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'CUSTOM') {
+                          setMobIsCustomCategory(true);
+                        } else {
+                          setMobIsCustomCategory(false);
+                          setMobCategory(val);
+                        }
+                      }}
+                      className="w-full px-3 py-2 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 outline-none transition-colors"
+                    >
+                      {mobileModalType === 'expense' ? (
+                        <>
+                          {DEFAULT_CATEGORIES.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                          <option value="CUSTOM">Outro (Digitar personalizado...)</option>
+                        </>
+                      ) : (
+                        <>
+                          {DEFAULT_REVENUE_CATEGORIES.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                          <option value="CUSTOM">Outro (Digitar personalizado...)</option>
+                        </>
+                      )}
+                    </select>
+
+                    {mobIsCustomCategory && (
+                      <input
+                        type="text"
+                        placeholder="Nome da categoria personalizada"
+                        value={mobCustomCategory}
+                        onChange={(e) => setMobCustomCategory(e.target.value)}
+                        className="w-full px-3 py-2 text-xs border border-indigo-500/30 bg-zinc-900/60 text-white rounded-xl focus:border-indigo-500 outline-none transition-colors placeholder:text-zinc-650"
+                        maxLength={35}
+                        required
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Seções específicas de Despesa (Parcelado) */}
+                {mobileModalType === 'expense' && (
+                  <div className="border border-white/5 bg-zinc-900/20 p-3 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-[11px] font-bold text-slate-200">Compra Parcelada?</span>
+                        <span className="text-[9px] text-slate-400 font-medium font-medium">Dividir em lançamentos recorrentes</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setMobIsInstallment(prev => !prev)}
+                        className={`w-10 h-5.5 rounded-full p-0.5 transition-colors duration-250 cursor-pointer ${
+                          mobIsInstallment ? 'bg-indigo-600' : 'bg-zinc-800'
+                        }`}
+                      >
+                        <div className={`w-4.5 h-4.5 rounded-full bg-white shadow-md transform transition-transform duration-250 ${
+                          mobIsInstallment ? 'translate-x-[18px]' : 'translate-x-0'
+                        }`} />
+                      </button>
+                    </div>
+
+                    {mobIsInstallment && (
+                      <div className="pt-2 border-t border-white/5 space-y-3 animate-fade-in text-left">
+                        {/* Quantidade de parcelas */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-450 uppercase mb-1">
+                              Parcelas
+                            </label>
+                            <select
+                              value={mobTotalInstallments}
+                              onChange={(e) => setMobTotalInstallments(e.target.value)}
+                              className="w-full px-2.5 py-1.5 text-xs border border-white/10 bg-zinc-950 text-white rounded-xl focus:border-indigo-500 outline-none transition-colors"
+                            >
+                              {[2,3,4,5,6,7,8,9,10,11,12,15,18,24,36,48].map(n => (
+                                <option key={n} value={String(n)}>{n}x</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-450 uppercase mb-1">
+                              Tipo do Valor
+                            </label>
+                            <select
+                              value={mobInstallmentValueType}
+                              onChange={(e) => setMobInstallmentValueType(e.target.value as any)}
+                              className="w-full px-2.5 py-1.5 text-xs border border-white/10 bg-zinc-950 text-white rounded-xl focus:border-indigo-500 outline-none transition-colors"
+                            >
+                              <option value="single">Valor por Parcela</option>
+                              <option value="total">Valor Total da Compra</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Próximo Mês toggle */}
+                        <div className="flex items-center justify-between pt-1">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-bold text-slate-300">Cobrar a partir do próximo mês?</span>
+                            <span className="text-[8px] text-slate-500 font-medium">Começar as parcelas na competência futura</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setMobFirstInstallmentNextMonth(prev => !prev)}
+                            className={`w-8 h-4 rounded-full p-0.5 transition-colors duration-250 cursor-pointer ${
+                              mobFirstInstallmentNextMonth ? 'bg-indigo-600' : 'bg-zinc-800'
+                            }`}
+                          >
+                            <div className={`w-3.5 h-3.5 rounded-full bg-white transform transition-transform duration-250 ${
+                              mobFirstInstallmentNextMonth ? 'translate-x-[15px]' : 'translate-x-0'
+                            }`} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Footer Modal Buttons */}
+                <div className="pt-3 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setMobileModalType(null)}
+                    className="flex-1 py-2.5 bg-zinc-900 border border-white/10 hover:bg-zinc-800 text-slate-300 text-xs font-bold rounded-xl transition-colors cursor-pointer text-center"
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    type="submit"
+                    className={`flex-1 py-2.5 text-white text-xs font-bold rounded-xl transition-all shadow-lg text-center cursor-pointer ${
+                      mobileModalType === 'expense'
+                        ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-600/10'
+                        : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/10'
+                    }`}
+                  >
+                    Salvar Registro
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
