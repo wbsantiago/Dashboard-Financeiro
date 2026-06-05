@@ -935,7 +935,10 @@ export default function App() {
             ...exp, 
             title: finalTitle,
             category: updatedFields.category ?? exp.category,
-            value: updatedFields.value ?? exp.value
+            value: updatedFields.value ?? exp.value,
+            paymentMethod: updatedFields.paymentMethod !== undefined ? updatedFields.paymentMethod : exp.paymentMethod,
+            cardLastDigits: updatedFields.cardLastDigits !== undefined ? updatedFields.cardLastDigits : exp.cardLastDigits,
+            paid: updatedFields.paid !== undefined ? updatedFields.paid : exp.paid
           };
           
           batch.set(doc(db!, 'users', uid, 'expenses', exp.id), cleanDocument(merged));
@@ -985,7 +988,10 @@ export default function App() {
             currentInstallment: i,
             firstInstallmentInNextMonth: rebuildParams.firstInstallmentInNextMonth,
             date: futureDate,
-            createdAt: now
+            createdAt: now,
+            paymentMethod: updatedFields.paymentMethod !== undefined ? updatedFields.paymentMethod : originalExpense.paymentMethod,
+            cardLastDigits: updatedFields.cardLastDigits !== undefined ? updatedFields.cardLastDigits : originalExpense.cardLastDigits,
+            paid: updatedFields.paid !== undefined ? updatedFields.paid : originalExpense.paid
           };
 
           batch.set(doc(db!, 'users', uid, 'expenses', expData.id), cleanDocument(expData));
@@ -1026,7 +1032,10 @@ export default function App() {
                 ...exp,
                 title: finalTitle,
                 category: updatedFields.category ?? exp.category,
-                value: updatedFields.value ?? exp.value
+                value: updatedFields.value ?? exp.value,
+                paymentMethod: updatedFields.paymentMethod !== undefined ? updatedFields.paymentMethod : exp.paymentMethod,
+                cardLastDigits: updatedFields.cardLastDigits !== undefined ? updatedFields.cardLastDigits : exp.cardLastDigits,
+                paid: updatedFields.paid !== undefined ? updatedFields.paid : exp.paid
               };
             }
             return exp;
@@ -1071,7 +1080,10 @@ export default function App() {
               currentInstallment: i,
               firstInstallmentInNextMonth: rebuildParams.firstInstallmentInNextMonth,
               date: futureDate,
-              createdAt: now
+              createdAt: now,
+              paymentMethod: updatedFields.paymentMethod !== undefined ? updatedFields.paymentMethod : originalExpense.paymentMethod,
+              cardLastDigits: updatedFields.cardLastDigits !== undefined ? updatedFields.cardLastDigits : originalExpense.cardLastDigits,
+              paid: updatedFields.paid !== undefined ? updatedFields.paid : originalExpense.paid
             });
           }
 

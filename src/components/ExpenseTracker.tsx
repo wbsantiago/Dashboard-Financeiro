@@ -11,7 +11,9 @@ import {
   ArrowUpRight,
   TrendingDown,
   Pencil,
-  AlertTriangle
+  AlertTriangle,
+  Zap,
+  FileText
 } from 'lucide-react';
 import { Expense, Revenue, MonthlyBudget } from '../types';
 import { formatCurrency, formatDate, getInstallmentInfo, getCompetenceMonth } from '../utils/format';
@@ -86,6 +88,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   const [currentInstallment, setCurrentInstallment] = useState('1');
   const [firstInstallmentNextMonth, setFirstInstallmentNextMonth] = useState(false);
   const [installmentValueType, setInstallmentValueType] = useState<'total' | 'single'>('single');
+  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'boleto' | 'card'>('pix');
+  const [cardLastDigits, setCardLastDigits] = useState('');
 
   // Calculate dynamic months based on the selected date for the card "virou" questions
   const getMonthsLabels = () => {
@@ -130,6 +134,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   const [editTotalInstallments, setEditTotalInstallments] = useState('12');
   const [editFirstInstallmentInNextMonth, setEditFirstInstallmentInNextMonth] = useState(false);
   const [editInstallmentValueType, setEditInstallmentValueType] = useState<'total' | 'single'>('single');
+  const [editPaymentMethod, setEditPaymentMethod] = useState<'pix' | 'boleto' | 'card'>('pix');
+  const [editCardLastDigits, setEditCardLastDigits] = useState('');
 
   const handleStartEditExpense = (exp: Expense) => {
     setEditingExpense(exp);
@@ -141,6 +147,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
     setEditTitle(cleanTitle);
     setEditValue(exp.value.toString());
     setEditDate(exp.date);
+    setEditPaymentMethod(exp.paymentMethod || 'pix');
+    setEditCardLastDigits(exp.cardLastDigits || '');
     if (DEFAULT_CATEGORIES.includes(exp.category)) {
       setEditCategory(exp.category);
       setIsEditCustomCategory(false);
@@ -194,6 +202,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
         title: editTitle.trim(),
         category: finalCategory,
         date: editDate,
+        paymentMethod: editPaymentMethod,
+        cardLastDigits: editPaymentMethod === 'card' ? editCardLastDigits : undefined,
       }, 'rebuild', {
         totalInstallments: totalInsts,
         firstInstallmentInNextMonth: editFirstInstallmentInNextMonth,
@@ -206,6 +216,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
         value: parsedValue,
         category: finalCategory,
         date: editDate,
+        paymentMethod: editPaymentMethod,
+        cardLastDigits: editPaymentMethod === 'card' ? editCardLastDigits : undefined,
       }, 'all');
     } else {
       onUpdateExpense(editingExpense.id, {
@@ -213,6 +225,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
         value: parsedValue,
         category: finalCategory,
         date: editDate,
+        paymentMethod: editPaymentMethod,
+        cardLastDigits: editPaymentMethod === 'card' ? editCardLastDigits : undefined,
       }, 'single');
     }
 
@@ -311,6 +325,49 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   const totalPaidSum = paidExpenses.reduce((sum, item) => sum + item.value, 0);
   const paidPercentage = totalExpensesCount > 0 ? (totalPaidCount / totalExpensesCount) * 100 : 0;
 
+  // Cartões únicos salvos no sistema para autocompletar
+  const uniqueCardsUsed = React.useMemo(() => {
+    const cards = expenses
+      .filter(e => e.paymentMethod === 'card' && e.cardLastDigits)
+      .map(e => e.cardLastDigits!);
+    return Array.from(new Set(cards)).slice(0, 5); // top 5 unique cards
+  }, [expenses]);
+
+  // Detalhamento de cartões do mês corrente
+  const creditCardsThisMonth = React.useMemo(() => {
+    const cardExpenses = filteredExpenses.filter(e => e.paymentMethod === 'card' && e.cardLastDigits);
+    const cardsMap: { [digits: string]: { totalValue: number; count: number; unpaidCount: number; unpaidValue: number } } = {};
+    
+    cardExpenses.forEach(e => {
+      const digits = e.cardLastDigits!;
+      if (!cardsMap[digits]) {
+        cardsMap[digits] = { totalValue: 0, count: 0, unpaidCount: 0, unpaidValue: 0 };
+      }
+      cardsMap[digits].count += 1;
+      cardsMap[digits].totalValue += e.value;
+      if (!e.paid) {
+        cardsMap[digits].unpaidCount += 1;
+        cardsMap[digits].unpaidValue += e.value;
+      }
+    });
+
+    return Object.entries(cardsMap).map(([digits, info]) => ({
+      digits,
+      ...info
+    }));
+  }, [filteredExpenses]);
+
+  // Função para quitar toda a fatura do cartão
+  const handlePayWholeCard = (digits: string, count: number) => {
+    if (confirm(`Deseja marcar todas as ${count} despesas pendentes do Cartão final ${digits} neste mês como PAGAS de uma vez só?`)) {
+      const unpaidCardExpenses = filteredExpenses.filter(e => e.paymentMethod === 'card' && e.cardLastDigits === digits && !e.paid);
+      unpaidCardExpenses.forEach(exp => {
+        onUpdateExpense(exp.id, { paid: true }, 'single');
+      });
+      alert(`Sucesso! ${count} despesas do cartão final ${digits} foram marcadas como PAGAS.`);
+    }
+  };
+
   const regularExpenses = expenses.filter(exp => exp.month === selectedMonth && !exp.isInstallment && !getInstallmentInfo(exp).hasInfo);
   const installmentExpenses = expenses.filter(exp => exp.month === selectedMonth && (exp.isInstallment || getInstallmentInfo(exp).hasInfo));
 
@@ -366,6 +423,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
       currentInstallment: isInstallment ? parseInt(currentInstallment) : undefined,
       firstInstallmentInNextMonth: isInstallment ? firstInstallmentNextMonth : undefined,
       date,
+      paymentMethod,
+      cardLastDigits: paymentMethod === 'card' ? cardLastDigits : undefined,
     });
 
     setTitle('');
@@ -375,6 +434,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
     setIsCustomCategory(false);
     setFirstInstallmentNextMonth(false);
     setInstallmentValueType('single');
+    setPaymentMethod('pix');
+    setCardLastDigits('');
   };
 
   const handleRevenueSubmit = (e: React.FormEvent) => {
@@ -552,6 +613,93 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                           >
                             Voltar
                           </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Forma de Pagamento */}
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-450 uppercase mb-1.5">
+                        Forma de Pagamento
+                      </label>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod('pix')}
+                          className={`py-1.5 px-1 rounded-xl text-[10px] font-bold border transition-all text-center flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                            paymentMethod === 'pix'
+                              ? 'bg-teal-500/10 text-teal-400 border-teal-500/30 shadow-sm shadow-teal-500/5'
+                              : 'bg-zinc-900 text-slate-400 border-white/5 hover:border-white/10'
+                          }`}
+                        >
+                          <Zap className="w-3.5 h-3.5" />
+                          <span>PIX</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod('boleto')}
+                          className={`py-1.5 px-1 rounded-xl text-[10px] font-bold border transition-all text-center flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                            paymentMethod === 'boleto'
+                              ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+                              : 'bg-zinc-900 text-slate-400 border-white/5 hover:border-white/10'
+                          }`}
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>Boleto</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod('card')}
+                          className={`py-1.5 px-1 rounded-xl text-[10px] font-bold border transition-all text-center flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                            paymentMethod === 'card'
+                              ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 shadow-sm shadow-indigo-500/5'
+                              : 'bg-zinc-900 text-slate-400 border-white/5 hover:border-white/10'
+                          }`}
+                        >
+                          <CreditCard className="w-3.5 h-3.5" />
+                          <span>Cartão</span>
+                        </button>
+                      </div>
+
+                      {/* Se for Cartão, cadastrar os 4 últimos dígitos */}
+                      {paymentMethod === 'card' && (
+                        <div className="mt-2.5 animate-slideDown p-2.5 bg-zinc-950/20 border border-white/5 rounded-xl flex flex-col gap-1.5">
+                          <div>
+                            <label className="block text-[8.5px] font-bold text-indigo-400 uppercase tracking-wide leading-none mb-1">
+                              4 últimos dígitos do cartão
+                            </label>
+                            <input
+                              type="text"
+                              maxLength={4}
+                              placeholder="Ex: 5678"
+                              value={cardLastDigits}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, '');
+                                setCardLastDigits(val);
+                              }}
+                              className="w-full px-2.5 py-1 text-xs border border-white/10 bg-zinc-900 text-white rounded-lg focus:border-indigo-500 outline-none font-mono text-center tracking-widest font-bold placeholder:tracking-normal placeholder:font-sans"
+                              required={paymentMethod === 'card'}
+                            />
+                          </div>
+
+                          {/* Quick selector of already used card numbers */}
+                          {uniqueCardsUsed.length > 0 && (
+                            <div className="flex flex-col gap-1 mt-1">
+                              <span className="text-[7.5px] text-slate-500 leading-none">Cartões recentes:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {uniqueCardsUsed.map(digits => (
+                                  <button
+                                    key={digits}
+                                    type="button"
+                                    onClick={() => setCardLastDigits(digits)}
+                                    className="px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider bg-zinc-900/60 hover:bg-zinc-800 text-slate-350 hover:text-white rounded border border-white/5 hover:border-white/10 cursor-pointer shadow-xs animate-fadeIn"
+                                  >
+                                    **** {digits}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -758,6 +906,52 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                     </button>
                   </div>
 
+                  {/* Quitar faturas de cartões cadastrados */}
+                  {creditCardsThisMonth.length > 0 && (
+                    <div className="bg-zinc-950/20 border border-white/5 rounded-xl p-3 mb-3 animate-fade-in flex flex-col gap-2">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                        Controle e Quitação de Faturas
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {creditCardsThisMonth.map(card => (
+                          <div 
+                            key={card.digits} 
+                            className="bg-[#18181b] border border-white/5 hover:border-white/10 rounded-xl p-2 flex items-center justify-between gap-5 flex-1 min-w-[150px] transition-colors"
+                          >
+                            <div className="min-w-0">
+                              <span className="text-[10px] font-bold text-white flex items-center gap-1">
+                                <CreditCard className="w-3.5 h-3.5 text-indigo-400" />
+                                **** {card.digits}
+                              </span>
+                              <span className="text-[9px] block text-slate-500 mt-0.5 leading-none font-medium">
+                                Total: <strong className="text-white font-mono privacy-blur">{formatCurrency(card.totalValue)}</strong> ({card.count}x)
+                              </span>
+                              {card.unpaidCount > 0 ? (
+                                <span className="text-[8px] block text-amber-500/90 font-mono mt-1">
+                                  Pendente: <strong className="font-bold privacy-blur">{formatCurrency(card.unpaidValue)}</strong> ({card.unpaidCount} despesas)
+                                </span>
+                              ) : (
+                                <span className="text-[8px] block text-emerald-400 font-bold mt-1 uppercase tracking-wide">
+                                  ✓ FATURA PAGA
+                                </span>
+                              )}
+                            </div>
+                            
+                            {card.unpaidCount > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => handlePayWholeCard(card.digits, card.unpaidCount)}
+                                className="px-2 py-1.5 text-[8.5px] font-black uppercase bg-indigo-500/10 border border-indigo-500/20 hover:bg-indigo-500 hover:text-white rounded-lg text-indigo-400 transition-all cursor-pointer whitespace-nowrap"
+                              >
+                                Pagar Fatura
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Projeção Financeira de Compras Parceladas */}
                   {filterType === 'installment' && installmentExpenses.length > 0 && (
                     <div className="bg-[#121212] border border-indigo-500/15 rounded-xl p-3 mb-3 text-white flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center animate-slideDown">
@@ -831,8 +1025,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                     </div>
                   )}
 
-                  {/* Lista com Scroller Expandido (max-h-[460px] para comportar confortavelmente as contas) */}
-                  <div className="overflow-y-auto max-h-[460px] pr-1 space-y-2 scrollbar-thin" id="expenses-scroller">
+                  {/* Lista com Scroller Expandido (Garante o mesmo tamanho com pelo menos 5 lançamentos visáveis) */}
+                  <div className="overflow-y-auto h-[480px] min-h-[480px] pr-1 space-y-2 scrollbar-thin" id="expenses-scroller">
                     {filteredExpenses.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-10 text-center text-slate-500">
                         <HelpCircle className="w-8 h-8 text-zinc-850 stroke-1 mb-2" />
@@ -908,6 +1102,41 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                                     <Calendar className="w-3 h-3 text-slate-600" />
                                     {formatDate(exp.date)}
                                   </span>
+                                  {exp.paymentMethod && (
+                                    <>
+                                      <span>•</span>
+                                      <span className={`flex items-center gap-1 text-[8.5px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0 border transition-colors ${
+                                        exp.paymentMethod === 'card'
+                                          ? exp.paid
+                                            ? 'bg-zinc-950/40 text-slate-600 border-white/5'
+                                            : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/10'
+                                          : exp.paymentMethod === 'pix'
+                                          ? exp.paid
+                                            ? 'bg-zinc-950/40 text-slate-600 border-white/5'
+                                            : 'bg-teal-500/10 text-teal-400 border-teal-500/10'
+                                          : exp.paid
+                                          ? 'bg-zinc-950/40 text-slate-600 border-white/5'
+                                          : 'bg-amber-500/10 text-amber-500 border-amber-500/10'
+                                      }`}>
+                                        {exp.paymentMethod === 'card' ? (
+                                          <>
+                                            <CreditCard className="w-2.5 h-2.5" />
+                                            Cartão {exp.cardLastDigits ? `**** ${exp.cardLastDigits}` : ''}
+                                          </>
+                                        ) : exp.paymentMethod === 'pix' ? (
+                                          <>
+                                            <Zap className="w-2.5 h-2.5" />
+                                            Pix
+                                          </>
+                                        ) : (
+                                          <>
+                                            <FileText className="w-2.5 h-2.5" />
+                                            Boleto
+                                          </>
+                                        )}
+                                      </span>
+                                    </>
+                                  )}
                                   {instInfo.hasInfo && instInfo.remaining > 0 && (
                                     <>
                                       <span>•</span>
@@ -1123,8 +1352,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                     </div>
                   </div>
 
-                  {/* Lista com Scroller Expandido (max-h-[460px] para corresponder ao histórico de saídas) */}
-                  <div className="overflow-y-auto max-h-[460px] pr-1 space-y-2 scrollbar-thin animate-fade-in" id="revenues-scroller">
+                  {/* Lista com Scroller Expandido (Garante o mesmo tamanho com pelo menos 5 lançamentos visíveis) */}
+                  <div className="overflow-y-auto h-[480px] min-h-[480px] pr-1 space-y-2 scrollbar-thin animate-fade-in" id="revenues-scroller">
                     {filteredRevenues.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-10 text-center text-slate-500">
                         <PiggyBank className="w-8 h-8 text-zinc-850 stroke-1 mb-2" />
@@ -1314,6 +1543,93 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                     >
                       Voltar
                     </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Forma de Pagamento */}
+              <div>
+                <label className="block text-[10px] font-bold text-slate-450 uppercase mb-1.5">
+                  Forma de Pagamento
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setEditPaymentMethod('pix')}
+                    className={`py-1.5 px-1 rounded-xl text-[10px] font-bold border transition-all text-center flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                      editPaymentMethod === 'pix'
+                        ? 'bg-teal-500/10 text-teal-400 border-teal-500/30'
+                        : 'bg-zinc-900 text-slate-400 border-white/5 hover:border-white/10'
+                    }`}
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>PIX</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditPaymentMethod('boleto')}
+                    className={`py-1.5 px-1 rounded-xl text-[10px] font-bold border transition-all text-center flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                      editPaymentMethod === 'boleto'
+                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                        : 'bg-zinc-900 text-slate-400 border-white/5 hover:border-white/10'
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Boleto</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditPaymentMethod('card')}
+                    className={`py-1.5 px-1 rounded-xl text-[10px] font-bold border transition-all text-center flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                      editPaymentMethod === 'card'
+                        ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 shadow-sm shadow-indigo-500/5'
+                        : 'bg-zinc-900 text-slate-400 border-white/5 hover:border-white/10'
+                    }`}
+                  >
+                    <CreditCard className="w-3.5 h-3.5" />
+                    <span>Cartão</span>
+                  </button>
+                </div>
+
+                {/* Se for Cartão, cadastrar os 4 últimos dígitos */}
+                {editPaymentMethod === 'card' && (
+                  <div className="mt-2.5 animate-slideDown p-2 bg-zinc-950/20 border border-white/5 rounded-xl flex flex-col gap-1.5">
+                    <div>
+                      <label className="block text-[8.5px] font-bold text-indigo-400 uppercase tracking-wide leading-none mb-1">
+                        4 últimos dígitos do cartão
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={4}
+                        placeholder="Ex: 5678"
+                        value={editCardLastDigits}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setEditCardLastDigits(val);
+                        }}
+                        className="w-full px-2.5 py-1 text-xs border border-white/10 bg-zinc-900 text-white rounded-lg focus:border-indigo-500 outline-none font-mono text-center tracking-widest font-bold placeholder:tracking-normal placeholder:font-sans"
+                        required={editPaymentMethod === 'card'}
+                      />
+                    </div>
+
+                    {/* Quick selector of already used card numbers */}
+                    {uniqueCardsUsed.length > 0 && (
+                      <div className="flex flex-col gap-1 mt-1">
+                        <span className="text-[7.5px] text-slate-500 leading-none">Cartões recentes:</span>
+                        <div className="flex flex-wrap gap-1">
+                          {uniqueCardsUsed.map(digits => (
+                            <button
+                              key={digits}
+                              type="button"
+                              onClick={() => setEditCardLastDigits(digits)}
+                              className="px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider bg-zinc-900/60 hover:bg-zinc-800 text-slate-350 hover:text-white rounded border border-white/5 hover:border-white/10 cursor-pointer shadow-xs animate-fadeIn"
+                            >
+                              **** {digits}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

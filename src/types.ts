@@ -16,6 +16,8 @@ export interface Expense {
   date: string; // "YYYY-MM-DD"
   createdAt: number;
   paid?: boolean;
+  paymentMethod?: 'pix' | 'boleto' | 'card';
+  cardLastDigits?: string;
 }
 
 export interface Revenue {
