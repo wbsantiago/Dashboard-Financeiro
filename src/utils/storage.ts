@@ -122,6 +122,7 @@ export const INITIAL_MOCK_DATA: AppData = {
     { category: 'Outros', idealLimit: 0.00 }
   ],
   monthlyBudgets: [],
+  creditCards: [],
   defaultMonthlySalary: 0.00,
   defaultTargetSavingsPercentage: 20,
   defaultCardClosingDay: 5
@@ -214,7 +215,12 @@ export function importDataFromJSON(jsonString: string): AppData {
       totalInstallments: e.totalInstallments ? Number(e.totalInstallments) : undefined,
       currentInstallment: e.currentInstallment ? Number(e.currentInstallment) : undefined,
       date: String(e.date || new Date().toISOString().split('T')[0]),
-      createdAt: e.createdAt ? Number(e.createdAt) : Date.now()
+      createdAt: e.createdAt ? Number(e.createdAt) : Date.now(),
+      paid: e.paid !== undefined ? Boolean(e.paid) : false,
+      paymentMethod: e.paymentMethod,
+      cardLastDigits: e.cardLastDigits,
+      cardId: e.cardId,
+      cardNickname: e.cardNickname
     })),
     revenues: Array.isArray(parsed.revenues)
       ? parsed.revenues.map((r: any, i: number) => ({
@@ -237,6 +243,13 @@ export function importDataFromJSON(jsonString: string): AppData {
           salary: Number(m.salary || 0),
           targetSavingsPercentage: Number(m.targetSavingsPercentage || 30),
           cardClosingDay: m.cardClosingDay !== undefined ? Number(m.cardClosingDay) : undefined
+        }))
+      : [],
+    creditCards: Array.isArray(parsed.creditCards)
+      ? parsed.creditCards.map((c: any) => ({
+          id: String(c.id),
+          name: String(c.name),
+          lastDigits: String(c.lastDigits)
         }))
       : [],
     defaultMonthlySalary: Number(parsed.defaultMonthlySalary || 4500.00),

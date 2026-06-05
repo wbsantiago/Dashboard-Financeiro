@@ -18,6 +18,8 @@ export interface Expense {
   paid?: boolean;
   paymentMethod?: 'pix' | 'boleto' | 'card';
   cardLastDigits?: string;
+  cardId?: string;
+  cardNickname?: string;
 }
 
 export interface Revenue {
@@ -42,11 +44,18 @@ export interface MonthlyBudget {
   cardClosingDay?: number; // Dia de fechamento/virada do cartão (ex: 5, use 0 para não aplicar)
 }
 
+export interface CreditCard {
+  id: string;
+  name: string;
+  lastDigits: string;
+}
+
 export interface AppData {
   expenses: Expense[];
   revenues?: Revenue[];
   categoryBudgets: CategoryBudget[];
   monthlyBudgets: MonthlyBudget[];
+  creditCards?: CreditCard[];
   defaultMonthlySalary: number;
   defaultTargetSavingsPercentage: number;
   defaultCardClosingDay?: number; // Dia de fechamento padrão do cartão (ex: 5)

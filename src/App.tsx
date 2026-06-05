@@ -9,6 +9,7 @@ import {
   Upload, 
   Trash2, 
   Sparkles, 
+  CreditCard as CreditCardIcon, 
   ChevronLeft, 
   ChevronRight, 
   Calendar,
@@ -36,7 +37,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-import { AppData, Expense, Revenue, CategoryBudget, MonthlyBudget } from './types';
+import { AppData, Expense, Revenue, CategoryBudget, MonthlyBudget, CreditCard } from './types';
 import { loadAppData, saveAppData, exportDataAsJSON, importDataFromJSON, DEFAULT_CATEGORIES, DEFAULT_REVENUE_CATEGORIES, INITIAL_MOCK_DATA } from './utils/storage';
 import { formatCurrency, formatMonthName, getCurrentMonthStr, getInstallmentInfo, getCompetenceMonth } from './utils/format';
 
@@ -86,6 +87,8 @@ export default function App() {
   const [salaryInput, setSalaryInput] = useState<string>('');
   const [savingsInput, setSavingsInput] = useState<number>(30);
   const [cardClosingDayInput, setCardClosingDayInput] = useState<number>(5);
+  const [newCardName, setNewCardName] = useState<string>('');
+  const [newCardDigits, setNewCardDigits] = useState<string>('');
   const [showNotification, setShowNotification] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
   const [privacyMode, setPrivacyMode] = useState<boolean>(() => {
     return localStorage.getItem('privacy-mode') === 'true';
@@ -266,6 +269,11 @@ export default function App() {
           date: String(exp.date || fallbackDate).substring(0, 12),
           isInstallment: Boolean(exp.isInstallment),
           createdAt: Number(exp.createdAt || Date.now()),
+          paid: exp.paid !== undefined ? Boolean(exp.paid) : false,
+          ...(exp.paymentMethod ? { paymentMethod: String(exp.paymentMethod) } : {}),
+          ...(exp.cardLastDigits ? { cardLastDigits: String(exp.cardLastDigits) } : {}),
+          ...(exp.cardId ? { cardId: String(exp.cardId) } : {}),
+          ...(exp.cardNickname ? { cardNickname: String(exp.cardNickname) } : {}),
           ...(exp.totalInstallments !== undefined ? { totalInstallments: Number(exp.totalInstallments) } : {}),
           ...(exp.currentInstallment !== undefined ? { currentInstallment: Number(exp.currentInstallment) } : {}),
           ...(exp.firstInstallmentInNextMonth !== undefined ? { firstInstallmentInNextMonth: Boolean(exp.firstInstallmentInNextMonth) } : {}),
@@ -293,6 +301,7 @@ export default function App() {
         uid: uid,
         categoryBudgets: targetData.categoryBudgets,
         monthlyBudgets: targetData.monthlyBudgets || [],
+        creditCards: targetData.creditCards || [],
         defaultMonthlySalary: targetData.defaultMonthlySalary,
         defaultTargetSavingsPercentage: targetData.defaultTargetSavingsPercentage
       }), { merge: true });
@@ -569,6 +578,7 @@ export default function App() {
             ...prev,
             categoryBudgets: profileData.categoryBudgets || prev.categoryBudgets,
             monthlyBudgets: profileData.monthlyBudgets || prev.monthlyBudgets,
+            creditCards: profileData.creditCards || [],
             defaultMonthlySalary: profileData.defaultMonthlySalary ?? prev.defaultMonthlySalary,
             defaultTargetSavingsPercentage: profileData.defaultTargetSavingsPercentage ?? prev.defaultTargetSavingsPercentage,
             defaultCardClosingDay: profileData.defaultCardClosingDay ?? prev.defaultCardClosingDay,
@@ -592,6 +602,7 @@ export default function App() {
               uid: user.uid,
               categoryBudgets: defaultData.categoryBudgets,
               monthlyBudgets: defaultData.monthlyBudgets,
+              creditCards: defaultData.creditCards || [],
               defaultMonthlySalary: defaultData.defaultMonthlySalary,
               defaultTargetSavingsPercentage: defaultData.defaultTargetSavingsPercentage,
               defaultCardClosingDay: defaultData.defaultCardClosingDay ?? 5
@@ -938,6 +949,8 @@ export default function App() {
             value: updatedFields.value ?? exp.value,
             paymentMethod: updatedFields.paymentMethod !== undefined ? updatedFields.paymentMethod : exp.paymentMethod,
             cardLastDigits: updatedFields.cardLastDigits !== undefined ? updatedFields.cardLastDigits : exp.cardLastDigits,
+            cardId: updatedFields.cardId !== undefined ? updatedFields.cardId : exp.cardId,
+            cardNickname: updatedFields.cardNickname !== undefined ? updatedFields.cardNickname : exp.cardNickname,
             paid: updatedFields.paid !== undefined ? updatedFields.paid : exp.paid
           };
           
@@ -991,6 +1004,8 @@ export default function App() {
             createdAt: now,
             paymentMethod: updatedFields.paymentMethod !== undefined ? updatedFields.paymentMethod : originalExpense.paymentMethod,
             cardLastDigits: updatedFields.cardLastDigits !== undefined ? updatedFields.cardLastDigits : originalExpense.cardLastDigits,
+            cardId: updatedFields.cardId !== undefined ? updatedFields.cardId : originalExpense.cardId,
+            cardNickname: updatedFields.cardNickname !== undefined ? updatedFields.cardNickname : originalExpense.cardNickname,
             paid: updatedFields.paid !== undefined ? updatedFields.paid : originalExpense.paid
           };
 
@@ -1035,6 +1050,8 @@ export default function App() {
                 value: updatedFields.value ?? exp.value,
                 paymentMethod: updatedFields.paymentMethod !== undefined ? updatedFields.paymentMethod : exp.paymentMethod,
                 cardLastDigits: updatedFields.cardLastDigits !== undefined ? updatedFields.cardLastDigits : exp.cardLastDigits,
+                cardId: updatedFields.cardId !== undefined ? updatedFields.cardId : exp.cardId,
+                cardNickname: updatedFields.cardNickname !== undefined ? updatedFields.cardNickname : exp.cardNickname,
                 paid: updatedFields.paid !== undefined ? updatedFields.paid : exp.paid
               };
             }
@@ -1083,6 +1100,8 @@ export default function App() {
               createdAt: now,
               paymentMethod: updatedFields.paymentMethod !== undefined ? updatedFields.paymentMethod : originalExpense.paymentMethod,
               cardLastDigits: updatedFields.cardLastDigits !== undefined ? updatedFields.cardLastDigits : originalExpense.cardLastDigits,
+              cardId: updatedFields.cardId !== undefined ? updatedFields.cardId : originalExpense.cardId,
+              cardNickname: updatedFields.cardNickname !== undefined ? updatedFields.cardNickname : originalExpense.cardNickname,
               paid: updatedFields.paid !== undefined ? updatedFields.paid : originalExpense.paid
             });
           }
@@ -1094,6 +1113,44 @@ export default function App() {
       });
     }
     triggerNotification('Lançamento de saída atualizado com sucesso!');
+  };
+
+  const handlePayCardBill = async (cardLastDigits: string, month: string) => {
+    const unpaidExpenses = data.expenses.filter(
+      e => e.paymentMethod === 'card' && e.cardLastDigits === cardLastDigits && e.month === month && !e.paid
+    );
+
+    if (unpaidExpenses.length === 0) {
+      triggerNotification('Nenhuma despesa pendente encontrada para este cartão.', 'info');
+      return;
+    }
+
+    if (storageType === 'cloud' && auth?.currentUser?.uid) {
+      const uid = auth.currentUser.uid;
+      const batch = writeBatch(db!);
+      
+      unpaidExpenses.forEach(exp => {
+        const merged = { ...exp, paid: true };
+        batch.set(doc(db!, 'users', uid, 'expenses', exp.id), cleanDocument(merged));
+      });
+
+      await batch.commit().catch(err => {
+        handleFirestoreError(err, OperationType.UPDATE, `users/${uid}/expenses/batch-pay`);
+        throw err;
+      });
+    }
+
+    setData(prev => {
+      const updatedExpenses = prev.expenses.map(exp => {
+        if (exp.paymentMethod === 'card' && exp.cardLastDigits === cardLastDigits && exp.month === month && !exp.paid) {
+          return { ...exp, paid: true };
+        }
+        return exp;
+      });
+      return { ...prev, expenses: updatedExpenses };
+    });
+
+    triggerNotification(`Sucesso! ${unpaidExpenses.length} despesas do cartão final ${cardLastDigits} foram marcadas como PAGAS.`, 'success');
   };
 
   const handleAddRevenue = async (revenueData: Omit<Revenue, 'id' | 'createdAt'>) => {
@@ -1192,6 +1249,61 @@ export default function App() {
       setData(prev => ({ ...prev, categoryBudgets: budgetsCopy }));
     }
     triggerNotification(`Meta limite de ${category} reajustada.`);
+  };
+
+  // Add a new credit card
+  const handleAddCreditCard = async (cardName: string, lastDigits: string) => {
+    if (!cardName.trim() || !lastDigits.trim()) {
+      triggerNotification('Preencha o apelido e os 4 últimos dígitos do cartão.', 'error');
+      return;
+    }
+    if (lastDigits.trim().length !== 4 || isNaN(Number(lastDigits))) {
+      triggerNotification('Os últimos dígitos devem possuir exatamente 4 números.', 'error');
+      return;
+    }
+
+    const newCard: CreditCard = {
+      id: `card-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      name: cardName.trim(),
+      lastDigits: lastDigits.trim()
+    };
+
+    const updatedCards = [...(data.creditCards || []), newCard];
+
+    if (storageType === 'cloud' && auth?.currentUser?.uid) {
+      const uid = auth.currentUser.uid;
+      await setDoc(doc(db!, 'users', uid), cleanDocument({
+        uid: uid,
+        creditCards: updatedCards
+      }), { merge: true }).catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`));
+    } else {
+      setData(prev => ({
+        ...prev,
+        creditCards: updatedCards
+      }));
+    }
+    triggerNotification(`Cartão "${newCard.name}" cadastrado com sucesso!`, 'success');
+    setNewCardName('');
+    setNewCardDigits('');
+  };
+
+  // Delete a credit card
+  const handleDeleteCreditCard = async (cardId: string) => {
+    const updatedCards = (data.creditCards || []).filter(c => c.id !== cardId);
+
+    if (storageType === 'cloud' && auth?.currentUser?.uid) {
+      const uid = auth.currentUser.uid;
+      await setDoc(doc(db!, 'users', uid), cleanDocument({
+        uid: uid,
+        creditCards: updatedCards
+      }), { merge: true }).catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`));
+    } else {
+      setData(prev => ({
+        ...prev,
+        creditCards: updatedCards
+      }));
+    }
+    triggerNotification('Cartão excluído com sucesso.', 'info');
   };
 
   // Save current month's configuration adjustments
@@ -1863,6 +1975,87 @@ export default function App() {
                 </button>
               </div>
             </form>
+
+            {/* GERENCIAMENTO DE CARTÕES CADASTRADOS */}
+            <div className="border-t border-white/5 mt-5 pt-5">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-3.5 flex items-center gap-1.5 select-none animate-fadeIn">
+                <CreditCardIcon className="w-3.5 h-3.5 text-indigo-400" />
+                Cadastrar e Gerenciar Meus Cartões de Crédito
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                {/* Form to add new credit card */}
+                <div className="bg-zinc-950/40 border border-white/5 rounded-2xl p-4">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-3.5">Novo Cartão</span>
+                  <div className="space-y-3.5">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Nome ou Apelido do Cartão</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Cartão XP, Nubank, Inter"
+                        className="w-full bg-[#18181b] border border-white/10 rounded-xl px-3 py-2 mt-1 text-xs text-white outline-none focus:border-indigo-500 font-semibold"
+                        value={newCardName}
+                        onChange={(e) => setNewCardName(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide">4 últimos dígitos</label>
+                      <input
+                        type="text"
+                        maxLength={4}
+                        placeholder="Ex: 5678"
+                        className="w-full bg-[#18181b] border border-white/10 rounded-xl px-3 py-2 mt-1 text-xs text-white outline-none focus:border-indigo-500 font-mono tracking-widest font-semibold"
+                        value={newCardDigits}
+                        onChange={(e) => setNewCardDigits(e.target.value.replace(/\D/g, ''))}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAddCreditCard(newCardName, newCardDigits)}
+                      className="w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-1.5 h-9"
+                    >
+                      <PlusCircle className="w-4 h-4" />
+                      Cadastrar Cartão
+                    </button>
+                  </div>
+                </div>
+
+                {/* List of registered credit cards */}
+                <div className="md:col-span-2 bg-zinc-950/20 border border-white/5 rounded-2xl p-4 h-full min-h-[196px] flex flex-col justify-start">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-3.5">Cartões Cadastrados</span>
+                  {!data.creditCards || data.creditCards.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-xs text-slate-500 border border-white/5 border-dashed rounded-xl p-6 text-center">
+                      <CreditCardIcon className="w-8 h-8 text-zinc-800 stroke-1 mb-2 animate-pulse" />
+                      Nenhum cartão cadastrado ainda. Cadastre ao lado para facilitar seus lançamentos de despesas!
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[148px] overflow-y-auto pr-1 scrollbar-thin">
+                      {data.creditCards.map(card => (
+                        <div key={card.id} className="bg-[#18181b] border border-white/5 hover:border-white/10 rounded-xl p-3 flex items-center justify-between transition-all hover:translate-x-0.5">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="p-1.5 rounded-lg bg-indigo-500/15 text-indigo-400 shrink-0">
+                              <CreditCardIcon className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-xs font-bold text-white block truncate leading-tight">{card.name}</span>
+                              <span className="text-[10px] font-mono text-slate-550 block mt-0.5">**** {card.lastDigits}</span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCreditCard(card.id)}
+                            className="p-1.5 text-slate-500 hover:text-rose-450 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer shrink-0"
+                            title="Remover Cartão"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1944,6 +2137,10 @@ export default function App() {
                 selectedMonth={selectedMonth}
                 monthlyBudgets={data.monthlyBudgets}
                 defaultCardClosingDay={data.defaultCardClosingDay}
+                creditCards={data.creditCards || []}
+                onAddCreditCard={handleAddCreditCard}
+                onDeleteCreditCard={handleDeleteCreditCard}
+                onPayCardBill={handlePayCardBill}
               />
             </div>
           </>
