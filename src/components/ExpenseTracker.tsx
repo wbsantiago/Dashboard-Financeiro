@@ -83,6 +83,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   const [filterType, setFilterType] = useState<'all' | 'one-time' | 'installment'>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>('all');
+  const [filterPaymentStatus, setFilterPaymentStatus] = useState<'all' | 'paid' | 'unpaid'>('all');
   const [showFilterDropdown, setShowFilterDropdown] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
 
@@ -335,17 +336,12 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   // CATEGORIES LISTS FOR FILTER DROPDOWNS
   const uniqueCategories = Array.from(new Set(expenses.map(e => e.category)));
   const uniqueRevenueCategories = Array.from(new Set(revenues.map(r => r.category)));
-  const activeFiltersCount = (filterCategory !== 'all' ? 1 : 0) + (filterPaymentMethod !== 'all' ? 1 : 0);
+  const activeFiltersCount = (filterCategory !== 'all' ? 1 : 0) + (filterPaymentMethod !== 'all' ? 1 : 0) + (filterPaymentStatus !== 'all' ? 1 : 0);
 
   // FILTER LOGIC FOR EXPENSES
-  const filteredExpenses = expenses.filter(exp => {
+  const baseFilteredExpenses = expenses.filter(exp => {
     if (exp.month !== selectedMonth) return false;
     
-    const info = getInstallmentInfo(exp);
-    const isInst = exp.isInstallment || info.hasInfo;
-    
-    if (filterType === 'one-time' && isInst) return false;
-    if (filterType === 'installment' && !isInst) return false;
     if (filterCategory !== 'all' && exp.category !== filterCategory) return false;
 
     if (filterPaymentMethod !== 'all') {
@@ -361,11 +357,35 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
       }
     }
 
+    if (filterPaymentStatus !== 'all') {
+      if (filterPaymentStatus === 'paid' && !exp.paid) return false;
+      if (filterPaymentStatus === 'unpaid' && exp.paid) return false;
+    }
+
     if (searchTerm.trim() !== '') {
       const term = searchTerm.toLowerCase();
       return exp.title.toLowerCase().includes(term) || exp.category.toLowerCase().includes(term);
     }
     return true;
+  });
+
+  const filteredExpenses = baseFilteredExpenses.filter(exp => {
+    const info = getInstallmentInfo(exp);
+    const isInst = exp.isInstallment || info.hasInfo;
+    
+    if (filterType === 'one-time' && isInst) return false;
+    if (filterType === 'installment' && !isInst) return false;
+    return true;
+  });
+
+  const regularExpenses = baseFilteredExpenses.filter(exp => {
+    const info = getInstallmentInfo(exp);
+    return !exp.isInstallment && !info.hasInfo;
+  });
+
+  const installmentExpenses = baseFilteredExpenses.filter(exp => {
+    const info = getInstallmentInfo(exp);
+    return exp.isInstallment || info.hasInfo;
   });
 
   const totalFilteredValue = filteredExpenses.reduce((sum, item) => sum + item.value, 0);
@@ -438,8 +458,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
     }
   };
 
-  const regularExpenses = expenses.filter(exp => exp.month === selectedMonth && !exp.isInstallment && !getInstallmentInfo(exp).hasInfo);
-  const installmentExpenses = expenses.filter(exp => exp.month === selectedMonth && (exp.isInstallment || getInstallmentInfo(exp).hasInfo));
+
 
   // FILTER LOGIC FOR REVENUES
   const filteredRevenues = revenues.filter(rev => {
@@ -1156,13 +1175,30 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                                 </select>
                               </div>
 
+                              {/* Status de Pagamento Selector */}
+                              <div className="space-y-1.5 text-left">
+                                <label className="block text-[8.5px] font-black uppercase tracking-wider text-slate-500 mb-0.5">
+                                  Filtrar por Status
+                                </label>
+                                <select
+                                  value={filterPaymentStatus}
+                                  onChange={(e) => setFilterPaymentStatus(e.target.value as 'all' | 'paid' | 'unpaid')}
+                                  className="w-full px-2.5 py-1.5 text-xs border border-white/10 bg-zinc-900 text-zinc-300 rounded-lg outline-none font-medium cursor-pointer"
+                                >
+                                  <option value="all">Todos os status</option>
+                                  <option value="paid" className="bg-zinc-900 text-white">🟢 Pagas</option>
+                                  <option value="unpaid" className="bg-zinc-900 text-white">🟡 Pendentes (Não pagas)</option>
+                                </select>
+                              </div>
+
                               {/* Actions inside filter */}
-                              <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[9.5px]">
+                              <div className="flex items-center justify-between pt-2 border-t border-t-white/5 text-[9.5px]">
                                 <button
                                   type="button"
                                   onClick={() => {
                                     setFilterCategory('all');
                                     setFilterPaymentMethod('all');
+                                    setFilterPaymentStatus('all');
                                   }}
                                   disabled={activeFiltersCount === 0}
                                   className="text-red-400 hover:text-red-300 font-extrabold uppercase disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
@@ -1190,7 +1226,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                       onClick={() => setFilterType('all')}
                       className={`pb-1 px-1.5 outline-none tracking-wider border-b-2 transition-all cursor-pointer ${filterType === 'all' ? 'border-indigo-400 text-white' : 'border-transparent'}`}
                     >
-                      Todos ({filteredExpenses.length})
+                      Todos ({baseFilteredExpenses.length})
                     </button>
                     <button
                       onClick={() => setFilterType('one-time')}
