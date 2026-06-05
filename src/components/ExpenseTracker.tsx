@@ -305,6 +305,12 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   });
 
   const totalFilteredValue = filteredExpenses.reduce((sum, item) => sum + item.value, 0);
+  const paidExpenses = filteredExpenses.filter(e => e.paid);
+  const totalPaidCount = paidExpenses.length;
+  const totalExpensesCount = filteredExpenses.length;
+  const totalPaidSum = paidExpenses.reduce((sum, item) => sum + item.value, 0);
+  const paidPercentage = totalExpensesCount > 0 ? (totalPaidCount / totalExpensesCount) * 100 : 0;
+
   const regularExpenses = expenses.filter(exp => exp.month === selectedMonth && !exp.isInstallment && !getInstallmentInfo(exp).hasInfo);
   const installmentExpenses = expenses.filter(exp => exp.month === selectedMonth && (exp.isInstallment || getInstallmentInfo(exp).hasInfo));
 
@@ -788,8 +794,45 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                     </div>
                   )}
 
-                  {/* Lista com Scroller Compacto (max 280px para diminuir o tamanho na tela!) */}
-                  <div className="overflow-y-auto max-h-[280px] pr-1 space-y-2 scrollbar-thin" id="expenses-scroller">
+                  {/* Checklist & Progress Tracker de Contas */}
+                  {totalExpensesCount > 0 && (
+                    <div className="bg-zinc-950/40 border border-white/5 rounded-xl p-3 mb-3 animate-fade-in flex flex-col gap-2">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-1.5">
+                          <span className="flex h-1.5 w-1.5 relative shrink-0">
+                            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${paidPercentage === 100 ? 'bg-emerald-400' : 'bg-indigo-405'}`}></span>
+                            <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${paidPercentage === 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`}></span>
+                          </span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300">
+                            Checklist de Contas do Mês
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-bold font-mono text-indigo-400">
+                          {totalPaidCount} de {totalExpensesCount} pagas ({paidPercentage.toFixed(0)}%)
+                        </span>
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className="w-full h-1.5 bg-zinc-950 rounded-full overflow-hidden border border-white/5">
+                        <div 
+                          className={`h-full transition-all duration-300 rounded-full ${
+                            paidPercentage === 100 
+                              ? 'bg-gradient-to-r from-emerald-500 to-teal-400' 
+                              : 'bg-gradient-to-r from-indigo-500 to-indigo-400'
+                          }`}
+                          style={{ width: `${paidPercentage}%` }}
+                        />
+                      </div>
+
+                      <div className="flex justify-between items-center text-[9px] text-slate-500">
+                        <span>Pago: <strong className="text-emerald-400 font-mono privacy-blur">{formatCurrency(totalPaidSum)}</strong></span>
+                        <span>Pendente: <strong className="text-rose-400 font-mono privacy-blur">{formatCurrency(totalFilteredValue - totalPaidSum)}</strong></span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Lista com Scroller Expandido (max-h-[460px] para comportar confortavelmente as contas) */}
+                  <div className="overflow-y-auto max-h-[460px] pr-1 space-y-2 scrollbar-thin" id="expenses-scroller">
                     {filteredExpenses.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-10 text-center text-slate-500">
                         <HelpCircle className="w-8 h-8 text-zinc-850 stroke-1 mb-2" />
@@ -805,7 +848,11 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                         return (
                           <div
                             key={exp.id}
-                            className="flex items-center justify-between p-2.5 bg-zinc-900/20 hover:bg-zinc-900/40 rounded-xl border border-white/5 transition-all"
+                            className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
+                              exp.paid 
+                                ? 'bg-zinc-950/20 border-white/2 opacity-50' 
+                                : 'bg-zinc-900/20 hover:bg-zinc-900/40 border-white/5'
+                            }`}
                             id={`expense-card-${exp.id}`}
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
@@ -813,13 +860,41 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                                 className="w-1.5 h-8 rounded-full shrink-0" 
                                 style={{ backgroundColor: categoryColor }}
                               />
+                              
+                              {/* Checkbox de Lançamento Pago */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onUpdateExpense(exp.id, { paid: !exp.paid }, 'single');
+                                }}
+                                className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                                  exp.paid 
+                                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 font-bold shadow-xs' 
+                                    : 'border-white/15 text-transparent hover:border-white/30 bg-zinc-950/40'
+                                }`}
+                                title={exp.paid ? "Marcar como Pendente" : "Marcar como Pago"}
+                              >
+                                {exp.paid && (
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </button>
+
                               <div className="min-w-0">
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="font-bold text-white text-xs truncate leading-tight">
+                                  <span className={`font-bold text-xs truncate leading-tight transition-all ${
+                                    exp.paid ? 'text-slate-500 line-through' : 'text-white'
+                                  }`}>
                                     {exp.title}
                                   </span>
                                   {instInfo.hasInfo && (
-                                    <span className="px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 text-[8px] font-bold font-mono border border-indigo-500/10 shrink-0">
+                                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold font-mono border shrink-0 transition-colors ${
+                                      exp.paid 
+                                        ? 'bg-zinc-900/40 text-slate-600 border-white/5' 
+                                        : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/10'
+                                    }`}>
                                       {instInfo.current}/{instInfo.total} parcelas
                                     </span>
                                   )}
@@ -847,7 +922,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
 
                             <div className="flex items-center gap-1 shrink-0">
                               <div className="text-right mr-1.5 animate-fadeIn">
-                                <span className="font-extrabold text-white text-xs block font-mono privacy-blur">
+                                <span className={`font-extrabold text-xs block font-mono privacy-blur transition-all ${
+                                  exp.paid ? 'text-slate-500 font-medium line-through' : 'text-white'
+                                }`}>
                                   {formatCurrency(exp.value)}
                                 </span>
                               </div>

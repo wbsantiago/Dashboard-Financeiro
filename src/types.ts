@@ -15,6 +15,7 @@ export interface Expense {
   firstInstallmentInNextMonth?: boolean;
   date: string; // "YYYY-MM-DD"
   createdAt: number;
+  paid?: boolean;
 }
 
 export interface Revenue {
