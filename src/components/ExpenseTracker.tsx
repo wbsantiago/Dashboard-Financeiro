@@ -1123,8 +1123,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                     </div>
                   </div>
 
-                  {/* Lista com Scroller Compacto (max 280px para diminuir o tamanho na tela!) */}
-                  <div className="overflow-y-auto max-h-[280px] pr-1 space-y-2 scrollbar-thin animate-fade-in" id="revenues-scroller">
+                  {/* Lista com Scroller Expandido (max-h-[460px] para corresponder ao histórico de saídas) */}
+                  <div className="overflow-y-auto max-h-[460px] pr-1 space-y-2 scrollbar-thin animate-fade-in" id="revenues-scroller">
                     {filteredRevenues.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-10 text-center text-slate-500">
                         <PiggyBank className="w-8 h-8 text-zinc-850 stroke-1 mb-2" />
