@@ -1085,44 +1085,78 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
 
                   {/* Quitar faturas de cartões cadastrados */}
                   {creditCardsThisMonth.length > 0 && (
-                    <div className="bg-zinc-950/20 border border-white/5 rounded-xl p-3 mb-3 animate-fade-in flex flex-col gap-2">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                    <div className="bg-zinc-950/20 border border-white/5 rounded-xl p-3.5 mb-3.5 animate-fade-in flex flex-col gap-2.5">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
                         Controle e Quitação de Faturas
                       </span>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-col gap-2.5">
                         {creditCardsThisMonth.map(card => (
                           <div 
                             key={card.digits} 
-                            className="bg-[#18181b] border border-white/5 hover:border-white/10 rounded-xl p-2 flex items-center justify-between gap-5 flex-1 min-w-[150px] transition-colors"
+                            className="bg-[#18181b] border border-white/5 hover:border-white/10 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all"
                           >
-                            <div className="min-w-0">
-                              <span className="text-[10px] font-bold text-white flex items-center gap-1">
-                                <CreditCard className="w-3.5 h-3.5 text-indigo-400" />
-                                {card.name ? `${card.name} (**** ${card.digits})` : `**** ${card.digits}`}
-                              </span>
-                              <span className="text-[9px] block text-slate-500 mt-0.5 leading-none font-medium">
-                                Total: <strong className="text-white font-mono privacy-blur">{formatCurrency(card.totalValue)}</strong> ({card.count}x)
-                              </span>
-                              {card.unpaidCount > 0 ? (
-                                <span className="text-[8px] block text-amber-500/90 font-mono mt-1">
-                                  Pendente: <strong className="font-bold privacy-blur">{formatCurrency(card.unpaidValue)}</strong> ({card.unpaidCount} despesas)
+                            {/* Card Name / Details */}
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 shrink-0">
+                                <CreditCard className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0 text-left">
+                                <span className="text-xs font-bold text-white block truncate leading-tight">
+                                  {card.name ? `${card.name}` : 'Cartão de Crédito'}
                                 </span>
+                                <span className="text-[10px] text-slate-400 font-mono font-medium block mt-0.5">
+                                  Final •••• {card.digits}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Card Status / Financials */}
+                            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-left text-[11px] sm:ml-auto">
+                              <div className="min-w-[110px]">
+                                <span className="text-[8px] text-slate-500 block uppercase font-bold tracking-wider mb-0.5">Total Faturado</span>
+                                <div className="flex items-baseline gap-1">
+                                  <span className="font-extrabold text-white font-mono privacy-blur">
+                                    {formatCurrency(card.totalValue)}
+                                  </span>
+                                  <span className="text-[9px] text-slate-500 leading-none">({card.count}x)</span>
+                                </div>
+                              </div>
+
+                              <div className="min-w-[130px]">
+                                <span className="text-[8px] text-slate-550 block uppercase font-bold tracking-wider mb-0.5">Status de Quitação</span>
+                                {card.unpaidCount > 0 ? (
+                                  <div className="flex flex-col">
+                                    <span className="font-extrabold text-amber-500 font-mono privacy-blur">
+                                      {formatCurrency(card.unpaidValue)}
+                                    </span>
+                                    <span className="text-[9px] text-amber-500/80 font-medium">
+                                      {card.unpaidCount} {card.unpaidCount === 1 ? 'pendente' : 'pendentes'}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[8.5px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/15 px-2 py-0.5 rounded-lg uppercase tracking-wider">
+                                    ✓ FATURA PAGA
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Action Button */}
+                            <div className="shrink-0 flex items-center justify-end w-full sm:w-auto">
+                              {card.unpaidCount > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handlePayWholeCard(card.digits, card.unpaidCount, card.name, card.unpaidValue)}
+                                  className="w-full sm:w-auto px-4 py-2 text-[10px] font-black uppercase bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all cursor-pointer whitespace-nowrap shadow-md shadow-indigo-600/10 active:scale-[0.98]"
+                                >
+                                  Pagar Fatura
+                                </button>
                               ) : (
-                                <span className="text-[8px] block text-emerald-400 font-bold mt-1 uppercase tracking-wide">
-                                  ✓ FATURA PAGA
+                                <span className="hidden sm:inline text-[9px] font-bold text-zinc-650 uppercase tracking-widest mr-2 select-none">
+                                  Sem pendências
                                 </span>
                               )}
                             </div>
-                            
-                            {card.unpaidCount > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => handlePayWholeCard(card.digits, card.unpaidCount, card.name, card.unpaidValue)}
-                                className="px-2 py-1.5 text-[8.5px] font-black uppercase bg-indigo-500/10 border border-indigo-500/20 hover:bg-indigo-500 hover:text-white rounded-lg text-indigo-400 transition-all cursor-pointer whitespace-nowrap"
-                              >
-                                Pagar Fatura
-                              </button>
-                            )}
                           </div>
                         ))}
                       </div>
