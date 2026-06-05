@@ -13,7 +13,11 @@ import {
   Pencil,
   AlertTriangle,
   Zap,
-  FileText
+  FileText,
+  Filter,
+  SlidersHorizontal,
+  ChevronDown,
+  X
 } from 'lucide-react';
 import { Expense, Revenue, MonthlyBudget, CreditCard as CreditCardType } from '../types';
 import { formatCurrency, formatDate, getInstallmentInfo, getCompetenceMonth } from '../utils/format';
@@ -78,6 +82,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   // FILTERS (Expenses)
   const [filterType, setFilterType] = useState<'all' | 'one-time' | 'installment'>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>('all');
+  const [showFilterDropdown, setShowFilterDropdown] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   // FILTERS (Revenues)
@@ -329,6 +335,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   // CATEGORIES LISTS FOR FILTER DROPDOWNS
   const uniqueCategories = Array.from(new Set(expenses.map(e => e.category)));
   const uniqueRevenueCategories = Array.from(new Set(revenues.map(r => r.category)));
+  const activeFiltersCount = (filterCategory !== 'all' ? 1 : 0) + (filterPaymentMethod !== 'all' ? 1 : 0);
 
   // FILTER LOGIC FOR EXPENSES
   const filteredExpenses = expenses.filter(exp => {
@@ -340,6 +347,19 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
     if (filterType === 'one-time' && isInst) return false;
     if (filterType === 'installment' && !isInst) return false;
     if (filterCategory !== 'all' && exp.category !== filterCategory) return false;
+
+    if (filterPaymentMethod !== 'all') {
+      if (filterPaymentMethod === 'pix') {
+        if (exp.paymentMethod !== 'pix') return false;
+      } else if (filterPaymentMethod === 'boleto') {
+        if (exp.paymentMethod !== 'boleto') return false;
+      } else if (filterPaymentMethod === 'card') {
+        if (exp.paymentMethod !== 'card' && !exp.cardLastDigits) return false;
+      } else if (filterPaymentMethod.startsWith('card-')) {
+        const lastDigits = filterPaymentMethod.replace('card-', '');
+        if (exp.cardLastDigits !== lastDigits) return false;
+      }
+    }
 
     if (searchTerm.trim() !== '') {
       const term = searchTerm.toLowerCase();
@@ -1048,16 +1068,119 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                         <Search className="w-3 h-3 text-slate-500 absolute left-2 top-1/2 -translate-y-1/2" />
                       </div>
 
-                      <select
-                        value={filterCategory}
-                        onChange={(e) => setFilterCategory(e.target.value)}
-                        className="px-2 py-1 text-[11px] border border-white/10 bg-zinc-900 text-zinc-300 rounded-lg outline-none font-medium text-center cursor-pointer"
-                      >
-                        <option value="all">Filtro Setor</option>
-                        {uniqueCategories.map(cat => (
-                          <option key={cat} value={cat} className="bg-zinc-900">{cat}</option>
-                        ))}
-                      </select>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                          className={`px-3 py-1 text-[11px] font-bold border rounded-lg outline-none flex items-center gap-1.5 transition-all cursor-pointer ${
+                            activeFiltersCount > 0
+                              ? 'border-indigo-500/50 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20'
+                              : 'border-white/10 bg-zinc-900 text-zinc-300 hover:bg-zinc-800'
+                          }`}
+                        >
+                          <SlidersHorizontal className="w-3 h-3 text-indigo-400 font-bold" />
+                          <span>Filtros</span>
+                          {activeFiltersCount > 0 && (
+                            <span className="flex items-center justify-center bg-indigo-500 text-white font-extrabold font-mono text-[9px] px-1.5 py-0.5 rounded-full leading-none">
+                              {activeFiltersCount}
+                            </span>
+                          )}
+                          <ChevronDown className={`w-3 h-3 transition-transform duration-205 ${showFilterDropdown ? 'rotate-180 text-white' : 'text-slate-500'}`} />
+                        </button>
+
+                        {showFilterDropdown && (
+                          <>
+                            {/* Backdrop to close when clicking outside */}
+                            <div 
+                              className="fixed inset-0 z-40" 
+                              onClick={() => setShowFilterDropdown(false)} 
+                            />
+                            
+                            {/* Popover Card */}
+                            <div className="absolute right-0 mt-2 w-64 bg-[#141414] border border-white/10 rounded-2xl p-4 shadow-2xl z-50 flex flex-col gap-3.5 animate-scaleUp">
+                              <div className="flex items-center justify-between pb-1.5 border-b border-white/5">
+                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                                  Filtrar Lançamentos
+                                </span>
+                                <button 
+                                  type="button" 
+                                  onClick={() => setShowFilterDropdown(false)}
+                                  className="text-slate-500 hover:text-white transition-colors cursor-pointer"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+
+                              {/* Categoria Selector */}
+                              <div className="space-y-1.5 text-left">
+                                <label className="block text-[8.5px] font-black uppercase tracking-wider text-slate-500 mb-0.5">
+                                  Filtrar por Setor (Categoria)
+                                </label>
+                                <select
+                                  value={filterCategory}
+                                  onChange={(e) => setFilterCategory(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 text-xs border border-white/10 bg-zinc-900 text-zinc-300 rounded-lg outline-none font-medium cursor-pointer"
+                                >
+                                  <option value="all">Todos os setores</option>
+                                  {uniqueCategories.map(cat => (
+                                    <option key={cat} value={cat} className="bg-zinc-900 text-white">{cat}</option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              {/* Forma de Pagamento Selector */}
+                              <div className="space-y-1.5 text-left">
+                                <label className="block text-[8.5px] font-black uppercase tracking-wider text-slate-500 mb-0.5">
+                                  Filtrar por Pagamento
+                                </label>
+                                <select
+                                  value={filterPaymentMethod}
+                                  onChange={(e) => setFilterPaymentMethod(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 text-xs border border-white/10 bg-zinc-900 text-zinc-300 rounded-lg outline-none font-medium cursor-pointer"
+                                >
+                                  <option value="all">Todas as formas</option>
+                                  <optgroup label="Opções Padrão" className="bg-zinc-950 text-indigo-400 text-[9px] font-bold uppercase tracking-wider">
+                                    <option value="pix" className="bg-zinc-900 text-white">⚡ Pix</option>
+                                    <option value="boleto" className="bg-zinc-900 text-white">📄 Boleto</option>
+                                    <option value="card" className="bg-zinc-900 text-white">💳 Cartão (Todos)</option>
+                                  </optgroup>
+                                  {creditCards.length > 0 && (
+                                    <optgroup label="Meus Cartões" className="bg-zinc-950 text-indigo-400 text-[9px] font-bold uppercase tracking-wider">
+                                      {creditCards.map(card => (
+                                        <option key={card.id} value={`card-${card.lastDigits}`} className="bg-zinc-900 text-white">
+                                          💳 {card.name} (•••• {card.lastDigits})
+                                        </option>
+                                      ))}
+                                    </optgroup>
+                                  )}
+                                </select>
+                              </div>
+
+                              {/* Actions inside filter */}
+                              <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[9.5px]">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setFilterCategory('all');
+                                    setFilterPaymentMethod('all');
+                                  }}
+                                  disabled={activeFiltersCount === 0}
+                                  className="text-red-400 hover:text-red-300 font-extrabold uppercase disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                                >
+                                  Limpar Filtros
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowFilterDropdown(false)}
+                                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 font-black text-white rounded-lg uppercase tracking-wider transition-colors cursor-pointer"
+                                >
+                                  Aplicar
+                                </button>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
 
