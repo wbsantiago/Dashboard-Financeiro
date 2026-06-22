@@ -212,15 +212,17 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
               </div>
             </div>
 
-            {/* Grid-free, flexible wrapping elements below the donut to eliminate scroll bars entirely */}
-            <div className="flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 mt-2.5 shrink-0 text-xs text-slate-305">
+            {/* Grid-based, two columns legend layout instead of wrap-centered */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 mt-3 shrink-0 text-xs w-full px-1">
               {pieChartData.map((item, idx) => {
                 const pct = ((item.value / totalExpenseInMonth) * 100).toFixed(0);
                 return (
-                  <div key={idx} className="flex items-center gap-1.5 font-bold text-slate-350 hover:text-slate-100 transition-colors">
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                    <span className="text-xs text-slate-300 font-bold" title={item.name}>{item.name}</span>
-                    <span className="font-mono font-bold text-slate-400 bg-zinc-900/40 px-1 py-0.5 rounded text-[10px] shrink-0 font-medium">{pct}%</span>
+                  <div key={idx} className="flex items-center justify-between gap-1.5 font-bold hover:text-slate-100 transition-colors min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                      <span className="text-xs text-slate-300 font-bold truncate block" title={item.name}>{item.name}</span>
+                    </div>
+                    <span className="font-mono text-slate-400 text-[10px] shrink-0 ml-1 font-medium">{pct}%</span>
                   </div>
                 );
               })}

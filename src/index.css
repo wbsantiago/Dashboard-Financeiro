@@ -108,7 +108,7 @@
   color: #475569 !important;
 }
 
-.theme-light .text-white:not(.bg-indigo-600 *):not(.bg-rose-600 *):not(.bg-emerald-600 *):not(button.bg-indigo-600 *):not(button.bg-rose-600 *):not(button.bg-emerald-600 *) {
+.theme-light .text-white:not(.bg-indigo-600):not(.bg-indigo-500):not(.bg-rose-600):not(.bg-rose-500):not(.bg-emerald-600):not(.bg-emerald-500):not(.bg-indigo-600 *):not(.bg-rose-600 *):not(.bg-emerald-600 *) {
   color: #0f172a !important;
 }
 
@@ -127,7 +127,7 @@
 }
 
 /* Complete convert of dark cards/panels to crisp paper-white slate elements */
-.theme-light [id*="-card"],
+.theme-light [id*="-card"]:not(#kpi-cards-grid),
 .theme-light [id*="-container"] > div,
 .theme-light #category-budgets-card,
 .theme-light #annual-kpi-revenues,
@@ -313,5 +313,171 @@
 .theme-light .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.25);
 }
+
+/* Precise light theme tuning for credit cards, progress checkers and item transaction logs */
+.theme-light .bg-zinc-950\/20,
+.theme-light .bg-zinc-950\/30,
+.theme-light .bg-zinc-950\/40,
+.theme-light .bg-zinc-950\/45 {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.theme-light .bg-zinc-950\/20 *,
+.theme-light .bg-zinc-950\/30 *,
+.theme-light .bg-zinc-950\/40 *,
+.theme-light .bg-zinc-950\/45 * {
+  border-color: #e2e8f0 !important;
+}
+
+/* Ensure headings inside these sections are styled beautifully */
+.theme-light .text-slate-300,
+.theme-light .text-slate-400 {
+  color: #475569 !important;
+}
+
+/* Credit Card items inside the wrapper */
+.theme-light .bg-\[\#18181b\] {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+.theme-light .bg-\[\#18181b\]:hover {
+  border-color: #94a3b8 !important;
+}
+
+.theme-light .bg-\[\#18181b\] .text-white {
+  color: #0f172a !important;
+}
+
+.theme-light .bg-\[\#18181b\] .text-slate-400 {
+  color: #64748b !important;
+}
+
+.theme-light .bg-\[\#18181b\] .text-slate-550 {
+  color: #475569 !important;
+}
+
+/* Purchase projection card styling */
+.theme-light .bg-\[\#121212\] {
+  background-color: #f8fafc !important;
+  border-color: #818cf8 !important;
+  color: #1e293b !important;
+}
+
+.theme-light .bg-\[\#121212\] .text-white {
+  color: #1e293b !important;
+}
+
+.theme-light [id*="projection-item"] {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Checklist progress bar background */
+.theme-light .bg-zinc-950.h-1\.5 {
+  background-color: #e2e8f0 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Expense & Revenue list items styling */
+.theme-light [id^="expense-card-"],
+.theme-light [id^="revenue-card-"] {
+  border-color: #cbd5e1 !important;
+}
+
+/* Unpaid list item card */
+.theme-light .bg-zinc-900\/20 {
+  background-color: #f8fafc !important;
+}
+
+.theme-light .bg-zinc-900\/20:hover {
+  background-color: #f1f5f9 !important;
+}
+
+/* Paid list item card */
+.theme-light .bg-zinc-950\/20 {
+  background-color: #f1f5f9 !important;
+  opacity: 0.7 !important;
+}
+
+/* List item text colors */
+.theme-light [id^="expense-card-"] .text-white,
+.theme-light [id^="revenue-card-"] .text-white {
+  color: #1e293b !important;
+}
+
+.theme-light [id^="expense-card-"] .text-slate-500,
+.theme-light [id^="revenue-card-"] .text-slate-500 {
+  color: #64748b !important;
+}
+
+.theme-light [id^="expense-card-"] .bg-zinc-900,
+.theme-light [id^="revenue-card-"] .bg-zinc-900 {
+  background-color: #ffffff !important;
+  color: #475569 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Checkbox bg-zinc-950/40 under light mode */
+.theme-light .bg-zinc-950\/40.w-5.h-5 {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+.theme-light .bg-zinc-950\/40.w-5.h-5:hover {
+  border-color: #94a3b8 !important;
+}
+
+/* Payment badges fine-tune */
+.theme-light .bg-emerald-500\/10 {
+  background-color: #ecfdf5 !important;
+  color: #047857 !important;
+  border-color: #a7f3d0 !important;
+}
+
+.theme-light .bg-indigo-500\/10 {
+  background-color: #e0e7ff !important;
+  color: #4338ca !important;
+  border-color: #c7d2fe !important;
+}
+
+.theme-light .bg-teal-500\/10 {
+  background-color: #f0fdfa !important;
+  color: #0f766e !important;
+  border-color: #99f6e4 !important;
+}
+
+.theme-light .bg-amber-500\/10 {
+  background-color: #fef3c7 !important;
+  color: #b45309 !important;
+  border-color: #fde68a !important;
+}
+
+.theme-light .bg-rose-500\/10 {
+  background-color: #fef2f2 !important;
+  color: #b91c1c !important;
+  border-color: #fca5a5 !important;
+}
+
+/* Align KPI cards metrics under light theme */
+.theme-light #kpi-cards-grid > div .text-white {
+  color: #1e293b !important;
+}
+
+.theme-light #kpi-cards-grid > div .text-slate-400 {
+  color: #475569 !important;
+}
+
+.theme-light #kpi-cards-grid > div .bg-white\/2 {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.theme-light #kpi-cards-grid > div .border-white\/5 {
+  border-color: #cbd5e1 !important;
+}
+
 
 
