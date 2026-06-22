@@ -219,8 +219,8 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
                 return (
                   <div key={idx} className="flex items-center gap-2 font-semibold text-slate-300 hover:text-white transition-colors">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                    <span className="truncate flex-1 text-xs text-slate-300" title={item.name}>{item.name}</span>
-                    <span className="font-mono font-bold text-slate-400 bg-zinc-900/60 px-1.5 py-0.5 rounded text-[10px] shrink-0">{pct}%</span>
+                    <span className="truncate flex-1 text-xs sm:text-[13px] text-slate-300" title={item.name}>{item.name}</span>
+                    <span className="font-mono font-bold text-slate-400 bg-zinc-900/60 px-1.5 py-0.5 rounded text-xs shrink-0">{pct}%</span>
                   </div>
                 );
               })}
@@ -238,11 +238,11 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
                     <div className="flex justify-between items-center text-xs font-semibold">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                        <span className="text-slate-300 truncate font-sans text-[11px] group-hover:text-white transition-colors">{item.name}</span>
+                        <span className="text-slate-200 truncate font-sans text-xs sm:text-[12.5px] group-hover:text-white transition-colors">{item.name}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0 font-mono text-[9px]">
+                      <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px] sm:text-xs">
                         <span className="text-white font-bold privacy-blur">{formatCurrency(item.value)}</span>
-                        <span className="text-indigo-400 bg-indigo-500/10 px-1 py-0.5 rounded font-extrabold">{pct}%</span>
+                        <span className="text-indigo-400 bg-indigo-500/10 px-1 py-0.5 rounded font-extrabold text-[10px]">{pct}%</span>
                       </div>
                     </div>
                     {/* Progress slider bar */}
