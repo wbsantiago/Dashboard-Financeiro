@@ -33,7 +33,14 @@ import {
   X,
   ArrowUpRight,
   TrendingDown,
-  PlusCircle
+  PlusCircle,
+  ShieldCheck,
+  Lock,
+  Activity,
+  Heart,
+  Facebook,
+  Instagram,
+  Youtube
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -1497,7 +1504,7 @@ export default function App() {
 
       {/* HEADER PRINCIPAL */}
       <header className="w-full bg-[#111111] border-b border-white/5 shrink-0 text-white" id="main-app-header">
-        <div className="w-full max-w-7xl mx-auto px-4 py-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="w-full max-w-[95%] lg:max-w-[90%] xl:max-w-[85%] 2xl:max-w-[82%] 3xl:max-w-[78%] mx-auto px-4 py-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
           
           {/* Logo e Nome */}
           <div className="flex items-center gap-2.5">
@@ -1894,7 +1901,7 @@ export default function App() {
       {/* PAINEL FLUTUANTE DE CONFIGURAÇÃO DE SALÁRIO ANCORADO NO HEADER */}
       {showConfigPanel && (
         <div className="w-full bg-[#141414] border-b border-white/5 text-white animate-fade-in" id="config-panel">
-          <div className="w-full max-w-7xl mx-auto px-4 py-5 sm:px-6">
+          <div className="w-full max-w-[95%] lg:max-w-[90%] xl:max-w-[85%] 2xl:max-w-[82%] 3xl:max-w-[78%] mx-auto px-4 py-5 sm:px-6">
             <form onSubmit={handleSaveMonthConfig} className="grid grid-cols-1 md:grid-cols-4 gap-5 items-end">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
@@ -2061,7 +2068,7 @@ export default function App() {
       )}
 
       {/* ÁREA DE CONTEÚDO PRINCIPAL (DASHBOARD) */}
-      <main className="w-full max-w-7xl mx-auto px-4 py-4 sm:px-6 flex-1 space-y-4" id="dashboard-main-area">
+      <main className="w-full max-w-[95%] lg:max-w-[90%] xl:max-w-[85%] 2xl:max-w-[82%] 3xl:max-w-[78%] mx-auto px-4 py-4 sm:px-6 flex-1 space-y-4" id="dashboard-main-area">
         
         {/* VIEW SELECTOR TAB BAR */}
         <div className="flex bg-[#121212] p-1 rounded-xl border border-white/5 max-w-[325px]" id="view-selector-tabs">
@@ -2155,14 +2162,74 @@ export default function App() {
       </main>
 
       {/* FOOTER */}
-      <footer className="w-full bg-[#111111] border-t border-white/5 text-slate-400 py-6 text-center mt-12 text-xs shrink-0 font-medium">
-        <div className="w-full max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-3">
-          <p>
-            Controle de Orçamento Pessoal • {storageType === 'cloud' && user ? 'Sincronizado na Nuvem de forma segura' : 'Todos os dados permanecem salvos localmente'} (<code className="bg-zinc-900 px-1 rounded text-rose-450 font-mono">{storageType === 'cloud' && user ? 'Firebase Firestore' : 'localStorage'}</code>).
+      <footer className="w-full bg-[#09090b] border-t border-white/5 text-slate-400 py-12 mt-16 text-xs shrink-0 select-none animate-fadeIn text-center">
+        <div className="w-full max-w-4xl mx-auto px-4 flex flex-col items-center gap-6">
+          
+          {/* Logo Brand Centrado */}
+          <div className="flex flex-col items-center gap-1">
+            <div className="flex items-center gap-2">
+              <PiggyBank className="w-6 h-6 text-indigo-400 shrink-0" />
+              <span className="text-base font-black text-white tracking-widest uppercase font-sans">
+                Finanças<span className="text-indigo-400">10</span>
+              </span>
+            </div>
+            <span className="text-[9px] text-slate-500 font-black uppercase tracking-[0.25em]">
+              Orçamento Inteligente
+            </span>
+          </div>
+
+          {/* Redes Sociais */}
+          <div className="flex items-center justify-center gap-6">
+            <a 
+              href="https://facebook.com" 
+              target="_blank" 
+              rel="noreferrer" 
+              className="text-slate-500 hover:text-white transition-colors duration-200"
+              aria-label="Facebook"
+            >
+              <Facebook className="w-4 h-4" />
+            </a>
+            <a 
+              href="https://instagram.com" 
+              target="_blank" 
+              rel="noreferrer" 
+              className="text-slate-500 hover:text-white transition-colors duration-200"
+              aria-label="Instagram"
+            >
+              <Instagram className="w-4 h-4" />
+            </a>
+            <a 
+              href="https://youtube.com" 
+              target="_blank" 
+              rel="noreferrer" 
+              className="text-slate-500 hover:text-white transition-colors duration-200"
+              aria-label="YouTube"
+            >
+              <Youtube className="w-4 h-4" />
+            </a>
+          </div>
+
+          {/* Texto de Disclaimer / Informativo */}
+          <p className="text-[10px] sm:text-[10.5px] leading-relaxed text-slate-500/80 max-w-3xl text-center px-4 font-normal">
+            O Finanças10 não tem como objetivo a recomendação e/ou sugestão de investimentos, sendo de caráter meramente informativo e educacional para auxílio de controle financeiro pessoal. Todas as informações inerentes aos lançamentos, tetos e cartões de crédito cadastrados permanecem salvas de forma segura ({storageType === 'cloud' && user ? 'na nuvem com Firebase' : 'localmente em seu navegador no localStorage'}), de acordo com as preferências selecionadas.
           </p>
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider">
-            Desenvolvido sob medida em Português (Brasil)
+
+          {/* Links de navegação do usuário */}
+          <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-[11px] font-semibold text-slate-500">
+            <a href="#" className="hover:text-indigo-400 transition-colors">Política de Privacidade</a>
+            <span className="text-slate-700/60 font-normal">|</span>
+            <a href="#" className="hover:text-indigo-400 transition-colors">Termos de Uso</a>
+            <span className="text-slate-700/60 font-normal">|</span>
+            <a href="#" className="hover:text-indigo-400 transition-colors">Contato</a>
+            <span className="text-slate-700/60 font-normal">|</span>
+            <a href="#" className="hover:text-indigo-400 transition-colors">Suporte</a>
+          </div>
+
+          {/* Copyright */}
+          <p className="text-[9.5px] font-bold uppercase tracking-wider text-slate-650 mt-1">
+            Copyright © {new Date().getFullYear()} Finanças10. Todos os direitos reservados.
           </p>
+
         </div>
       </footer>
 
