@@ -58,4 +58,260 @@
   pointer-events: none !important;
 }
 
+/* LIGHT THEME STYLING OVERRIDES (SLATE & INDIGO MODERN THEME) */
+.theme-light {
+  background-color: #f1f5f9 !important;
+  color: #334155 !important;
+}
+
+/* Light mode background of the main wrapper */
+.theme-light.bg-\[\#0a0a0a\],
+.theme-light .bg-\[\#0a0a0a\] {
+  background-color: #f1f5f9 !important;
+}
+
+/* Header styling overrides */
+.theme-light #main-app-header {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+}
+
+.theme-light #main-app-header * {
+  --tw-text-opacity: 1;
+}
+
+.theme-light #main-app-header h1,
+.theme-light #main-app-header span,
+.theme-light #main-app-header p {
+  color: #0f172a !important;
+}
+
+/* Typography elements */
+.theme-light h1,
+.theme-light h2,
+.theme-light h3,
+.theme-light h4,
+.theme-light h5,
+.theme-light h6 {
+  color: #0f172a !important;
+}
+
+.theme-light p {
+  color: #475569 !important;
+}
+
+.theme-light span.text-slate-200,
+.theme-light span.text-slate-300,
+.theme-light span.text-slate-400,
+.theme-light div.text-slate-400 {
+  color: #475569 !important;
+}
+
+.theme-light .text-white:not(.bg-indigo-600 *):not(.bg-rose-600 *):not(.bg-emerald-600 *):not(button.bg-indigo-600 *):not(button.bg-rose-600 *):not(button.bg-emerald-600 *) {
+  color: #0f172a !important;
+}
+
+/* Maintain true contrast inside dynamic accent button lists */
+.theme-light .bg-indigo-600,
+.theme-light .bg-indigo-600 *,
+.theme-light .bg-rose-600,
+.theme-light .bg-rose-600 *,
+.theme-light .bg-emerald-600,
+.theme-light .bg-emerald-600 *,
+.theme-light button.bg-indigo-600,
+.theme-light button.bg-indigo-600 *,
+.theme-light button.bg-rose-600,
+.theme-light button.bg-rose-600 * {
+  color: #ffffff !important;
+}
+
+/* Complete convert of dark cards/panels to crisp paper-white slate elements */
+.theme-light [id*="-card"],
+.theme-light [id*="-container"] > div,
+.theme-light #category-budgets-card,
+.theme-light #annual-kpi-revenues,
+.theme-light #annual-kpi-expenses,
+.theme-light #annual-kpi-saved,
+.theme-light #annual-kpi-rate,
+.theme-light #annual-trend-chart,
+.theme-light #annual-category-summary,
+.theme-light #annual-monthly-table-card,
+.theme-light #config-panel,
+.theme-light #add-expense-container > div,
+.theme-light #kpi-cards-grid > div,
+.theme-light #expense-savings-alert,
+.theme-light .bg-\[\#111111\],
+.theme-light .bg-\[\#121212\],
+.theme-light .bg-\[\#141414\],
+.theme-light .bg-\[\#161616\],
+.theme-light .bg-\[\#1a1a1a\],
+.theme-light .bg-\[\#1c1c1c\],
+.theme-light .bg-zinc-900,
+.theme-light .bg-zinc-950,
+.theme-light .bg-\[\#09090b\] {
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Set up sub-tables properly */
+.theme-light table,
+.theme-light tr,
+.theme-light th,
+.theme-light td {
+  border-color: #cbd5e1 !important;
+}
+
+.theme-light th {
+  background-color: #f8fafc !important;
+  color: #475569 !important;
+}
+
+.theme-light td {
+  color: #334155 !important;
+}
+
+/* Inputs, options, and placeholders */
+.theme-light input,
+.theme-light select,
+.theme-light textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.theme-light input::placeholder {
+  color: #94a3b8 !important;
+}
+
+.theme-light select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Interactive Pill Segment Selectors (tabs) */
+.theme-light #view-selector-tabs {
+  background-color: #e2e8f0 !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: none !important;
+}
+
+.theme-light #view-selector-tabs button {
+  color: #64748b !important;
+  border: 1px solid transparent !important;
+  background-color: transparent !important;
+}
+
+.theme-light #view-selector-tabs button:hover {
+  color: #0f172a !important;
+}
+
+/* Active tab inside interactive pill widgets */
+.theme-light #view-selector-tabs button[class*="bg-[#1c1c1c]"] {
+  background-color: #ffffff !important;
+  color: #0d121e !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Primary/Secondary Buttons */
+.theme-light button:not(.bg-indigo-600):not(.bg-rose-500):not(.bg-emerald-500):not(.bg-amber-500):not(.bg-rose-600):not(.bg-emerald-600):not([class*="bg-indigo"]):not([class*="bg-rose"]):not([class*="bg-emerald"]) {
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+
+.theme-light button:not(.bg-indigo-600):not(.bg-rose-500):not(.bg-emerald-500):not(.bg-amber-500):not(.bg-rose-600):not(.bg-emerald-600):not([class*="bg-indigo"]):not([class*="bg-rose"]):not([class*="bg-emerald"]):hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Month slider navigation panel */
+.theme-light #month-navigation {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+.theme-light #month-navigation button {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+.theme-light #month-navigation button:hover {
+  background-color: #f1f5f9 !important;
+}
+
+.theme-light #month-navigation span {
+  color: #0f172a !important;
+}
+
+/* Grid lines and elements inside Charts */
+.theme-light .recharts-cartesian-grid-horizontal line,
+.theme-light .recharts-cartesian-grid-vertical line {
+  stroke: #cbd5e1 !important;
+}
+
+.theme-light .recharts-text {
+  fill: #64748b !important;
+  font-weight: 600;
+}
+
+/* Fine-tune indicator colors to keep maximum visual contrast (e.g. green savings, red spent) */
+.theme-light .text-emerald-400 { color: #02a361 !important; }
+.theme-light .text-rose-400 { color: #dc2626 !important; }
+.theme-light .text-indigo-400 { color: #4f46e5 !important; }
+
+/* Modal body & configuration dropdown menus */
+.theme-light [class*="bg-[#141414]"] [class*="bg-[#141414]"],
+.theme-light .absolute.bg-\[\#141414\],
+.theme-light .absolute[class*="bg-[#141414]"],
+.theme-light [class*="bg-[#141414]"].absolute {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Modals overlays dark backdrop */
+.theme-light .bg-black\/80 {
+  background-color: rgba(15, 23, 42, 0.45) !important;
+}
+
+/* Footer rules */
+.theme-light footer {
+  background-color: #f8fafc !important;
+  border-top: 1px solid #cbd5e1 !important;
+}
+
+.theme-light footer span,
+.theme-light footer div,
+.theme-light footer p,
+.theme-light footer a {
+  color: #475569 !important;
+}
+
+.theme-light footer a:hover {
+  color: #0f172a !important;
+}
+
+/* Privacy mode support */
+.theme-light.privacy-mode-active .privacy-blur {
+  text-shadow: 0 0 8px rgba(15, 23, 42, 0.7) !important;
+}
+
+.theme-light .privacy-mode-active input.privacy-blur:not(:focus) {
+  text-shadow: 0 0 8px rgba(15, 23, 42, 0.7) !important;
+}
+
+.theme-light .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.theme-light .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
 

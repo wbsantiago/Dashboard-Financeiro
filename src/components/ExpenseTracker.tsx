@@ -598,31 +598,36 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-4" id="tracker-component-root">
+    <div className="flex flex-col gap-0" id="tracker-component-root">
       
-      {/* SELETOR DE ABAS PRINCIPAL (SUPER VISÍVEL COBRINDO AS DUAS MODALIDADES) */}
-      <div className="flex border-b border-white/5 pb-1 gap-5" id="tracker-tabs">
+      {/* SELETOR DE ABAS - ABALIZADO COM CANETA MARCA-TEXTO / MARCA-PÁGINA DO CADERNO */}
+      <div className="flex items-center gap-2 select-none border-b border-slate-200/10 dark:border-white/5 pb-2 ml-1" id="tracker-tabs">
         <button
           onClick={() => setActiveTab('expenses')}
-          className={`pb-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 outline-none border-b-2 transition-all cursor-pointer ${
-            activeTab === 'expenses' 
-              ? 'border-indigo-500 text-white font-extrabold' 
-              : 'border-transparent text-slate-550 hover:text-slate-300'
+          type="button"
+          className={`group/tab relative py-1.5 px-3 rounded-lg transition-all duration-300 cursor-pointer flex items-center gap-2 text-[11px] sm:text-xs font-bold ${
+            activeTab === 'expenses'
+              ? 'text-rose-500 dark:text-rose-400 bg-rose-500/5 dark:bg-rose-400/5 border border-rose-500/10'
+              : 'text-slate-500 hover:text-slate-800 dark:text-slate-450 dark:hover:text-slate-200 bg-transparent'
           }`}
+          title="Ver Despesas"
         >
-          <TrendingDown className={`w-3.5 h-3.5 ${activeTab === 'expenses' ? 'text-rose-450' : 'text-slate-500'}`} />
-          Saídas / Despesas
+          <TrendingDown className={`w-3.5 h-3.5 shrink-0 transition-colors duration-300 ${activeTab === 'expenses' ? 'text-rose-500 dark:text-rose-455' : 'text-slate-400 dark:text-slate-500'}`} />
+          <span className="tracking-wide">Saídas / Despesas</span>
         </button>
+
         <button
           onClick={() => setActiveTab('revenues')}
-          className={`pb-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 outline-none border-b-2 transition-all cursor-pointer ${
-            activeTab === 'revenues' 
-              ? 'border-emerald-500 text-white font-extrabold' 
-              : 'border-transparent text-slate-550 hover:text-emerald-450'
+          type="button"
+          className={`group/tab relative py-1.5 px-3 rounded-lg transition-all duration-300 cursor-pointer flex items-center gap-2 text-[11px] sm:text-xs font-bold ${
+            activeTab === 'revenues'
+              ? 'text-emerald-500 dark:text-emerald-400 bg-emerald-500/5 dark:bg-emerald-400/5 border border-emerald-500/10'
+              : 'text-slate-500 hover:text-slate-800 dark:text-slate-450 dark:hover:text-slate-200 bg-transparent'
           }`}
+          title="Ver Entradas"
         >
-          <ArrowUpRight className={`w-3.5 h-3.5 ${activeTab === 'revenues' ? 'text-emerald-400' : 'text-slate-500'}`} />
-          Entradas / Rendimentos
+          <ArrowUpRight className={`w-3.5 h-3.5 shrink-0 transition-colors duration-300 ${activeTab === 'revenues' ? 'text-emerald-500 dark:text-emerald-450' : 'text-slate-400 dark:text-slate-500'}`} />
+          <span className="tracking-wide">Entradas / Rendimentos</span>
         </button>
       </div>
 

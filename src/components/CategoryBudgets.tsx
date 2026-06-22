@@ -145,15 +145,15 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
         ) : distView === 'donut' ? (
           <div className="flex-grow flex flex-col min-h-0 animate-fadeIn h-full justify-between">
              {/* Expanded Center Donut Graphic */}
-            <div className="flex-grow w-full min-h-[235px] relative">
+            <div className="flex-grow w-full min-h-[200px] relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={pieChartData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={90}
-                    outerRadius={125}
+                    innerRadius={72}
+                    outerRadius={100}
                     paddingAngle={2.5}
                     dataKey="value"
                     onMouseEnter={(_, index) => setActiveIndex(index)}
@@ -212,15 +212,15 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
               </div>
             </div>
 
-            {/* Quick clean visual status row list below the donut */}
-            <div className="grid grid-cols-2 gap-x-2 gap-y-2 mt-2 max-h-[155px] overflow-y-auto shrink-0 pr-1 text-xs md:text-[13px] scrollbar-thin">
+            {/* Grid-free, flexible wrapping elements below the donut to eliminate scroll bars entirely */}
+            <div className="flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 mt-2.5 shrink-0 text-xs text-slate-305">
               {pieChartData.map((item, idx) => {
                 const pct = ((item.value / totalExpenseInMonth) * 100).toFixed(0);
                 return (
-                  <div key={idx} className="flex items-center gap-2 font-semibold text-slate-300 hover:text-white transition-colors">
+                  <div key={idx} className="flex items-center gap-1.5 font-bold text-slate-350 hover:text-slate-100 transition-colors">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                    <span className="truncate flex-1 text-xs sm:text-[13px] text-slate-300" title={item.name}>{item.name}</span>
-                    <span className="font-mono font-bold text-slate-400 bg-zinc-900/60 px-1.5 py-0.5 rounded text-xs shrink-0">{pct}%</span>
+                    <span className="text-xs text-slate-300 font-bold" title={item.name}>{item.name}</span>
+                    <span className="font-mono font-bold text-slate-400 bg-zinc-900/40 px-1 py-0.5 rounded text-[10px] shrink-0 font-medium">{pct}%</span>
                   </div>
                 );
               })}

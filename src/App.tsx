@@ -40,7 +40,9 @@ import {
   Heart,
   Facebook,
   Instagram,
-  Youtube
+  Youtube,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -97,6 +99,26 @@ export default function App() {
   const [newCardName, setNewCardName] = useState<string>('');
   const [newCardDigits, setNewCardDigits] = useState<string>('');
   const [showNotification, setShowNotification] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('app-theme') as 'light' | 'dark') || 'dark';
+  });
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(nextTheme);
+    localStorage.setItem('app-theme', nextTheme);
+    
+    // Also dispatch an event so other components or styling can react immediately if needed
+    window.dispatchEvent(new CustomEvent('app-theme-changed', { detail: nextTheme }));
+
+    triggerNotification(
+      nextTheme === 'light' 
+        ? 'Modo claro ativado! Ajustado para ambientes iluminados.' 
+        : 'Modo escuro ativado! Conforto ocular para ambientes escuros.', 
+      'info'
+    );
+  };
+
   const [privacyMode, setPrivacyMode] = useState<boolean>(() => {
     return localStorage.getItem('privacy-mode') === 'true';
   });
@@ -1483,7 +1505,7 @@ export default function App() {
     : totalSpent;
 
   return (
-    <div className={`min-h-screen bg-[#0a0a0a] flex flex-col items-center text-white ${privacyMode ? 'privacy-mode-active' : ''}`}>
+    <div className={`min-h-screen bg-[#0a0a0a] flex flex-col items-center text-white ${privacyMode ? 'privacy-mode-active' : ''} ${theme === 'light' ? 'theme-light light' : 'theme-dark dark'}`}>
       
       {/* GLOWING NOTIFICATION TOAST */}
       {showNotification && (
@@ -1504,7 +1526,7 @@ export default function App() {
 
       {/* HEADER PRINCIPAL */}
       <header className="w-full bg-[#111111] border-b border-white/5 shrink-0 text-white" id="main-app-header">
-        <div className="w-full max-w-[95%] lg:max-w-[90%] xl:max-w-[85%] 2xl:max-w-[82%] 3xl:max-w-[78%] mx-auto px-4 py-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="w-full max-w-[95%] lg:max-w-[75%] xl:max-w-[65%] 2xl:max-w-[60%] mx-auto px-4 py-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
           
           {/* Logo e Nome */}
           <div className="flex items-center gap-2.5">
@@ -1611,6 +1633,24 @@ export default function App() {
 
           {/* Ações de Dados e Backup */}
           <div className="flex flex-wrap items-center gap-2" id="action-controls-row">
+            {/* Alternar Tema (Modo Escuro / Claro) */}
+            <button
+              onClick={toggleTheme}
+              className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all cursor-pointer shrink-0 ${
+                theme === 'light' 
+                  ? 'bg-amber-100/50 text-amber-600 border-amber-300' 
+                  : 'bg-[#1c1c1c] hover:bg-[#252525] text-slate-200 border-white/5'
+              }`}
+              title={theme === 'light' ? 'Alternar para Modo Escuro' : 'Alternar para Modo Claro'}
+              id="theme-toggler"
+            >
+              {theme === 'light' ? (
+                <Moon className="w-4 h-4 text-indigo-500 animate-pulse" />
+              ) : (
+                <Sun className="w-4 h-4 text-amber-400" />
+              )}
+            </button>
+
             {/* Olho - Modo Privacidade */}
             <button
               onClick={() => {
@@ -2068,7 +2108,7 @@ export default function App() {
       )}
 
       {/* ÁREA DE CONTEÚDO PRINCIPAL (DASHBOARD) */}
-      <main className="w-full max-w-[95%] lg:max-w-[90%] xl:max-w-[85%] 2xl:max-w-[82%] 3xl:max-w-[78%] mx-auto px-4 py-4 sm:px-6 flex-1 space-y-4" id="dashboard-main-area">
+      <main className="w-full max-w-[95%] lg:max-w-[75%] xl:max-w-[65%] 2xl:max-w-[60%] mx-auto px-4 py-4 sm:px-6 flex-1 space-y-4" id="dashboard-main-area">
         
         {/* VIEW SELECTOR TAB BAR */}
         <div className="flex bg-[#121212] p-1 rounded-xl border border-white/5 max-w-[325px]" id="view-selector-tabs">
