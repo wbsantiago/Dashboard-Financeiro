@@ -67,6 +67,21 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
   // Filtra as despesas do mês selecionado que contribuem para a dívida futura
   const expensesInMonth = expenses.filter(e => e.month === selectedMonth);
 
+  // 1. Gastos que começaram de fato neste mês (À Vista + Nova Parcela [1/X])
+  const newPurchases = expensesInMonth.filter(e => {
+    const info = getInstallmentInfo(e);
+    if (!e.isInstallment && !info.hasInfo) return true; // à vista
+    return info.current === 1; // primeiro pagamento de um parcelamento
+  });
+  const totalNewPurchases = newPurchases.reduce((sum, item) => sum + item.value, 0);
+
+  // 2. Parcelas herdadas de meses anteriores (Contas que já estavam correndo e não iniciaram neste mês, ou seja, current > 1)
+  const previousInstallments = expensesInMonth.filter(e => {
+    const info = getInstallmentInfo(e);
+    return (e.isInstallment || info.hasInfo) && info.current > 1;
+  });
+  const totalPreviousInstallments = previousInstallments.reduce((sum, item) => sum + item.value, 0);
+
   const debtBreakdown = expensesInMonth.map(exp => {
     const info = getInstallmentInfo(exp);
     const isInst = info.hasInfo || exp.isInstallment;
@@ -172,14 +187,37 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
             <TrendingUp className="w-5 h-5" />
           </div>
         </div>
-        <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
+        <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
           <span>Teto Recomendado:</span>
           <span className="font-semibold text-slate-300 font-mono privacy-blur">
             {formatCurrency(maxSpentAllowed)}
           </span>
         </div>
+
+        {/* Detalhamento de novos vs herdados (conforme solicitado pelo usuário) */}
+        <div className="mt-3.5 pt-2.5 border-t border-white/5 flex flex-col gap-1.5 text-[11px]" id="kpi-expenses-breakdown">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-400 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+              Lançados no Mês:
+            </span>
+            <span className="font-bold text-white font-mono privacy-blur" title="Compras à vista e primeira parcela de compras novas">
+              {formatCurrency(totalNewPurchases)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-400 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+              Parcelas de Meses Anteriores:
+            </span>
+            <span className="font-bold text-amber-400 font-mono privacy-blur" title="Parcelas de compras parceladas originadas em competências passadas">
+              {formatCurrency(totalPreviousInstallments)}
+            </span>
+          </div>
+        </div>
+
         {futureInstallmentsDebt > 0 && (
-          <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-400">
+          <div className="mt-2.5 pt-2.5 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-400">
             <div className="flex items-center gap-1">
               <span>Dívida Futura (Cartão):</span>
               <button

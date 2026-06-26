@@ -75,7 +75,7 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
 
   return (
     <div 
-      className="bg-[#161616] rounded-2xl border border-white/5 p-4.5 shadow-xs flex flex-col lg:h-[569px] overflow-hidden" 
+      className="bg-[#161616] rounded-2xl border border-white/5 p-4.5 shadow-xs flex flex-col lg:h-full overflow-hidden" 
       id="category-budgets-card"
     >
       {/* HEADER SECTION */}
@@ -145,15 +145,15 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
         ) : distView === 'donut' ? (
           <div className="flex-grow flex flex-col min-h-0 animate-fadeIn h-full justify-between">
              {/* Expanded Center Donut Graphic */}
-            <div className="flex-grow w-full min-h-[200px] relative">
+            <div className="flex-grow w-full min-h-[280px] lg:min-h-[340px] relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={pieChartData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={72}
-                    outerRadius={100}
+                    innerRadius={90}
+                    outerRadius={125}
                     paddingAngle={2.5}
                     dataKey="value"
                     onMouseEnter={(_, index) => setActiveIndex(index)}
@@ -230,7 +230,7 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
           </div>
         ) : (
           /* FINTECH PROGRESS BARS LIST VIEW */
-          <div className="flex-1 overflow-y-auto max-h-[440px] pr-1 space-y-3.5 scrollbar-thin animate-fadeIn">
+          <div className="flex-1 overflow-y-auto max-h-[440px] lg:max-h-[580px] pr-1 space-y-3.5 scrollbar-thin animate-fadeIn">
             {[...pieChartData]
               .sort((a, b) => b.value - a.value)
               .map((item, idx) => {

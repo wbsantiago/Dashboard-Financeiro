@@ -264,6 +264,9 @@
 .theme-light .text-emerald-400 { color: #02a361 !important; }
 .theme-light .text-rose-400 { color: #dc2626 !important; }
 .theme-light .text-indigo-400 { color: #4f46e5 !important; }
+.theme-light .text-amber-400 { color: #d97706 !important; }
+.theme-light .border-amber-500\/15 { border-color: #fde68a !important; }
+.theme-light .border-indigo-500\/15 { border-color: #c7d2fe !important; }
 
 /* Modal body & configuration dropdown menus */
 .theme-light [class*="bg-[#141414]"] [class*="bg-[#141414]"],

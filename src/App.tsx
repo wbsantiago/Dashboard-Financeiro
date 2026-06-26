@@ -2161,7 +2161,7 @@ export default function App() {
               </div>
 
               {/* Planejamento de Metas Limites por Categoria (4 colunas) */}
-              <div className={`lg:col-span-4 lg:h-[590px] ${hideMobileBudgets ? 'hidden lg:block' : ''}`}>
+              <div className={`lg:col-span-4 lg:h-full ${hideMobileBudgets ? 'hidden lg:block' : ''}`}>
                 <CategoryBudgets 
                   categoryBudgets={data.categoryBudgets}
                   expensesByCategory={expensesByCategory}

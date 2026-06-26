@@ -389,6 +389,13 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   });
 
   const totalFilteredValue = filteredExpenses.reduce((sum, item) => sum + item.value, 0);
+  const totalFilteredPreviousInstallments = filteredExpenses.reduce((sum, item) => {
+    const info = getInstallmentInfo(item);
+    if ((item.isInstallment || info.hasInfo) && info.current > 1) {
+      return sum + item.value;
+    }
+    return sum;
+  }, 0);
   const paidExpenses = filteredExpenses.filter(e => e.paid);
   const totalPaidCount = paidExpenses.length;
   const totalExpensesCount = filteredExpenses.length;
@@ -1072,12 +1079,28 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                   <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center mb-4 bg-zinc-950/20 p-2.5 rounded-xl border border-white/5">
                     <div>
                       <h3 className="text-xs font-bold text-white uppercase tracking-wider">Histórico de Saídas</h3>
-                      <p className="text-[10px] text-slate-400 mt-0.5 leading-none">
-                        Comprometido no Mês:{' '}
-                        <span className="font-extrabold text-indigo-400 font-mono privacy-blur">
-                          {formatCurrency(totalFilteredValue)}
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[10px] text-slate-400">
+                        <span>
+                          Comprometido:{' '}
+                          <span className="font-extrabold text-indigo-400 font-mono privacy-blur">
+                            {formatCurrency(totalFilteredValue)}
+                          </span>
                         </span>
-                      </p>
+                        <span className="text-slate-600 hidden xs:inline">•</span>
+                        <span title="Novas compras à vista ou novas parcelas iniciando neste mês">
+                          Novos:{' '}
+                          <span className="font-bold text-slate-200 font-mono privacy-blur">
+                            {formatCurrency(totalFilteredValue - totalFilteredPreviousInstallments)}
+                          </span>
+                        </span>
+                        <span className="text-slate-600 hidden xs:inline">•</span>
+                        <span title="Parcelas herdadas que iniciaram em meses passados" className="text-amber-400/90 font-medium">
+                          Herdado:{' '}
+                          <span className="font-bold text-amber-400 font-mono privacy-blur">
+                            {formatCurrency(totalFilteredPreviousInstallments)}
+                          </span>
+                        </span>
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -1459,12 +1482,17 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                                     {exp.title}
                                   </span>
                                   {instInfo.hasInfo && (
-                                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold font-mono border shrink-0 transition-colors ${
-                                      exp.paid 
-                                        ? 'bg-zinc-900/40 text-slate-600 border-white/5' 
-                                        : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/10'
-                                    }`}>
-                                      {instInfo.current}/{instInfo.total} parcelas
+                                    <span 
+                                      className={`px-1.5 py-0.5 rounded text-[8px] font-bold font-mono border shrink-0 transition-all ${
+                                        exp.paid 
+                                          ? 'bg-zinc-900/40 text-slate-600 border-white/5' 
+                                          : instInfo.current > 1
+                                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/15 shadow-xs shadow-amber-500/5'
+                                            : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/15 shadow-xs shadow-indigo-500/5'
+                                      }`}
+                                      title={instInfo.current > 1 ? "Parcela herdada de meses anteriores (compra não iniciada neste mês)" : "Parcela nova iniciada neste mês"}
+                                    >
+                                      {instInfo.current > 1 ? `⌛ Parcela ${instInfo.current}/${instInfo.total}` : `✨ Parcela ${instInfo.current}/${instInfo.total}`}
                                     </span>
                                   )}
                                 </div>
