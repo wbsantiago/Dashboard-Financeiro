@@ -1526,7 +1526,7 @@ export default function App() {
 
       {/* HEADER PRINCIPAL */}
       <header className="w-full bg-[#111111] border-b border-white/5 shrink-0 text-white" id="main-app-header">
-        <div className="w-full max-w-[95%] lg:max-w-[75%] xl:max-w-[65%] 2xl:max-w-[60%] mx-auto px-4 py-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="w-full max-w-[95%] lg:max-w-[85%] xl:max-w-[75%] 2xl:max-w-[70%] mx-auto px-4 py-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
           
           {/* Logo e Nome */}
           <div className="flex items-center gap-2.5">
@@ -2108,7 +2108,7 @@ export default function App() {
       )}
 
       {/* ÁREA DE CONTEÚDO PRINCIPAL (DASHBOARD) */}
-      <main className="w-full max-w-[95%] lg:max-w-[75%] xl:max-w-[65%] 2xl:max-w-[60%] mx-auto px-4 py-4 sm:px-6 flex-1 space-y-4" id="dashboard-main-area">
+      <main className="w-full max-w-[95%] lg:max-w-[85%] xl:max-w-[75%] 2xl:max-w-[70%] mx-auto px-4 py-4 sm:px-6 flex-1 space-y-4" id="dashboard-main-area">
         
         {/* VIEW SELECTOR TAB BAR */}
         <div className="flex bg-[#121212] p-1 rounded-xl border border-white/5 max-w-[325px]" id="view-selector-tabs">
