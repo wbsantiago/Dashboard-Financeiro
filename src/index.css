@@ -264,9 +264,6 @@
 .theme-light .text-emerald-400 { color: #02a361 !important; }
 .theme-light .text-rose-400 { color: #dc2626 !important; }
 .theme-light .text-indigo-400 { color: #4f46e5 !important; }
-.theme-light .text-amber-400 { color: #d97706 !important; }
-.theme-light .border-amber-500\/15 { border-color: #fde68a !important; }
-.theme-light .border-indigo-500\/15 { border-color: #c7d2fe !important; }
 
 /* Modal body & configuration dropdown menus */
 .theme-light [class*="bg-[#141414]"] [class*="bg-[#141414]"],
@@ -480,33 +477,6 @@
 
 .theme-light #kpi-cards-grid > div .border-white\/5 {
   border-color: #cbd5e1 !important;
-}
-
-/* Styling for charts history view selectors and insight cards in light theme */
-.theme-light #charts-history-view-selector {
-  background-color: #f1f5f9 !important;
-  border-color: #cbd5e1 !important;
-}
-
-.theme-light #charts-history-view-selector button:not([class*="bg-[#22d3ee]"]) {
-  color: #475569 !important;
-}
-
-.theme-light #charts-history-view-selector button:not([class*="bg-[#22d3ee]"]):hover {
-  color: #0f172a !important;
-}
-
-.theme-light #charts-history-insights > div {
-  background-color: #f8fafc !important;
-  border-color: #cbd5e1 !important;
-}
-
-.theme-light #charts-history-insights > div .text-white {
-  color: #1e293b !important;
-}
-
-.theme-light #charts-history-insights > div .text-slate-400 {
-  color: #64748b !important;
 }
 
 
