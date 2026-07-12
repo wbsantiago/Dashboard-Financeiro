@@ -605,9 +605,9 @@ export default function App() {
           const profileData = snapshot.data();
           setData(prev => ({
             ...prev,
-            categoryBudgets: profileData.categoryBudgets || prev.categoryBudgets,
-            monthlyBudgets: profileData.monthlyBudgets || prev.monthlyBudgets,
-            creditCards: profileData.creditCards || [],
+            categoryBudgets: profileData.categoryBudgets ?? prev.categoryBudgets,
+            monthlyBudgets: profileData.monthlyBudgets ?? prev.monthlyBudgets,
+            creditCards: profileData.creditCards ?? prev.creditCards ?? [],
             defaultMonthlySalary: profileData.defaultMonthlySalary ?? prev.defaultMonthlySalary,
             defaultTargetSavingsPercentage: profileData.defaultTargetSavingsPercentage ?? prev.defaultTargetSavingsPercentage,
             defaultCardClosingDay: profileData.defaultCardClosingDay ?? prev.defaultCardClosingDay,
@@ -616,7 +616,11 @@ export default function App() {
           // Check if there is existing offline data in this browser to migrate/synchronize
           const localData = loadAppData();
           const hasLocalData = (localData.expenses && localData.expenses.length > 0) || 
-                               (localData.revenues && localData.revenues.length > 0);
+                               (localData.revenues && localData.revenues.length > 0) ||
+                               (localData.creditCards && localData.creditCards.length > 0) ||
+                               (localData.monthlyBudgets && localData.monthlyBudgets.length > 0) ||
+                               (localData.defaultMonthlySalary > 0) ||
+                               (localData.categoryBudgets && localData.categoryBudgets.some(b => b.idealLimit > 0));
           
           if (hasLocalData) {
             uploadDataToCloud(

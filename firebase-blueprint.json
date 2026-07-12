@@ -8,10 +8,15 @@
         "uid": { "type": "string" },
         "defaultMonthlySalary": { "type": "number" },
         "defaultTargetSavingsPercentage": { "type": "number" },
+        "defaultCardClosingDay": { "type": "number" },
+        "lastDiagnosticAt": { "type": "number" },
         "categoryBudgets": {
           "type": "array"
         },
         "monthlyBudgets": {
+          "type": "array"
+        },
+        "creditCards": {
           "type": "array"
         }
       },
