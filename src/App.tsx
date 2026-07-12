@@ -1261,27 +1261,19 @@ export default function App() {
     triggerNotification('Rendimento atualizado com sucesso!');
   };
 
-  // Update ideal category limits
-  const handleUpdateCategoryBudget = async (category: string, idealLimit: number) => {
-    const budgetsCopy = [...data.categoryBudgets];
-    const idx = budgetsCopy.findIndex(b => b.category === category);
-    
-    if (idx !== -1) {
-      budgetsCopy[idx] = { category, idealLimit };
-    } else {
-      budgetsCopy.push({ category, idealLimit });
-    }
+  // Update ideal category limits in bulk
+  const handleUpdateCategoryBudgets = async (updatedBudgets: CategoryBudget[]) => {
+    // Update local state optimistically
+    setData(prev => ({ ...prev, categoryBudgets: updatedBudgets }));
 
     if (storageType === 'cloud' && auth?.currentUser?.uid) {
       const uid = auth.currentUser.uid;
       await setDoc(doc(db!, 'users', uid), cleanDocument({
         uid: uid,
-        categoryBudgets: budgetsCopy
+        categoryBudgets: updatedBudgets
       }), { merge: true }).catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`));
-    } else {
-      setData(prev => ({ ...prev, categoryBudgets: budgetsCopy }));
     }
-    triggerNotification(`Meta limite de ${category} reajustada.`);
+    triggerNotification('Metas limites das categorias reajustadas com sucesso!', 'success');
   };
 
   // Add a new credit card
@@ -2169,7 +2161,7 @@ export default function App() {
                 <CategoryBudgets 
                   categoryBudgets={data.categoryBudgets}
                   expensesByCategory={expensesByCategory}
-                  onUpdateBudget={handleUpdateCategoryBudget}
+                  onUpdateBudgets={handleUpdateCategoryBudgets}
                 />
               </div>
             </div>

@@ -23,13 +23,13 @@ import { CATEGORY_COLORS } from '../utils/storage';
 interface CategoryBudgetsProps {
   categoryBudgets: CategoryBudget[];
   expensesByCategory: Record<string, number>;
-  onUpdateBudget: (category: string, idealLimit: number) => void;
+  onUpdateBudgets: (updatedBudgets: CategoryBudget[]) => void;
 }
 
 export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
   categoryBudgets,
   expensesByCategory,
-  onUpdateBudget,
+  onUpdateBudgets,
 }) => {
   const [distView, setDistView] = useState<'donut' | 'bars'>('donut');
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -63,13 +63,15 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
   // Save all modified limits
   const handleSaveAllLimits = (e: React.FormEvent) => {
     e.preventDefault();
-    categoryBudgets.forEach(b => {
+    const updatedBudgets = categoryBudgets.map(b => {
       const rawVal = localLimits[b.category];
       const newVal = rawVal !== undefined ? parseFloat(rawVal) : b.idealLimit;
-      if (!isNaN(newVal) && newVal >= 0) {
-        onUpdateBudget(b.category, newVal);
-      }
+      return {
+        category: b.category,
+        idealLimit: !isNaN(newVal) && newVal >= 0 ? newVal : b.idealLimit
+      };
     });
+    onUpdateBudgets(updatedBudgets);
     setIsModalOpen(false);
   };
 
