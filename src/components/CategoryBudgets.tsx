@@ -36,6 +36,16 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [localLimits, setLocalLimits] = useState<Record<string, string>>({});
 
+  // Calculate sum of all category ideal limits
+  const totalCategoryLimits = categoryBudgets.reduce((sum, b) => sum + (b.idealLimit || 0), 0);
+
+  // Live total category limit as edited in modal
+  const liveModalTotalCategoryLimits = categoryBudgets.reduce((sum, b) => {
+    const rawVal = localLimits[b.category];
+    const val = rawVal !== undefined ? parseFloat(rawVal) : b.idealLimit;
+    return sum + (!isNaN(val) && val >= 0 ? val : 0);
+  }, 0);
+
   // Gather Pie Chart details (Categories with positive values)
   const pieChartData = Object.keys(expensesByCategory)
     .map(cat => {
@@ -136,6 +146,8 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
           </button>
         </div>
       </div>
+
+
 
       {/* CORE GRAPHIC OR LIST SECTION */}
       <div className="flex-1 flex flex-col min-h-0 py-4 justify-center">
@@ -295,6 +307,26 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
 
             {/* Modal Limits Config List */}
             <form onSubmit={handleSaveAllLimits} className="flex-grow flex flex-col min-h-0">
+              {/* Real-time Total Category Ceiling Banner */}
+              <div className="bg-indigo-950/40 border border-indigo-500/20 rounded-xl p-3 mb-3 flex items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-2 rounded-lg bg-indigo-500/20 text-indigo-300 shrink-0">
+                    <DollarSign className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] uppercase font-bold text-indigo-300 tracking-wider block truncate">
+                      Teto Total Estipulado (Somatória)
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-medium truncate block">
+                      Soma de todas as metas individuais de gastos das categorias
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right font-mono font-black text-sm sm:text-base text-indigo-300 privacy-blur shrink-0">
+                  {formatCurrency(liveModalTotalCategoryLimits)}
+                </div>
+              </div>
+
               <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin max-h-[50vh] py-1">
                 {categoryBudgets.map((budget) => {
                   const spent = expensesByCategory[budget.category] || 0;

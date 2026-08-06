@@ -241,7 +241,7 @@ export function importDataFromJSON(jsonString: string): AppData {
       ? parsed.monthlyBudgets.map((m: any) => ({
           month: String(m.month),
           salary: Number(m.salary || 0),
-          targetSavingsPercentage: Number(m.targetSavingsPercentage || 30),
+          targetSavingsPercentage: Number(m.targetSavingsPercentage || 20),
           cardClosingDay: m.cardClosingDay !== undefined ? Number(m.cardClosingDay) : undefined
         }))
       : [],
@@ -253,7 +253,7 @@ export function importDataFromJSON(jsonString: string): AppData {
         }))
       : [],
     defaultMonthlySalary: Number(parsed.defaultMonthlySalary || 4500.00),
-    defaultTargetSavingsPercentage: Number(parsed.defaultTargetSavingsPercentage || 30),
+    defaultTargetSavingsPercentage: Number(parsed.defaultTargetSavingsPercentage || 20),
     defaultCardClosingDay: parsed.defaultCardClosingDay !== undefined ? Number(parsed.defaultCardClosingDay) : 5
   };
   

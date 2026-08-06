@@ -94,7 +94,7 @@ export default function App() {
   const [diagnosticLogs, setDiagnosticLogs] = useState<{ step: string; status: 'pending' | 'running' | 'success' | 'error'; details?: string }[]>([]);
   const [diagnosticIsRunning, setDiagnosticIsRunning] = useState<boolean>(false);
   const [salaryInput, setSalaryInput] = useState<string>('');
-  const [savingsInput, setSavingsInput] = useState<number>(30);
+  const [savingsInput, setSavingsInput] = useState<number>(20);
   const [cardClosingDayInput, setCardClosingDayInput] = useState<number>(5);
   const [newCardName, setNewCardName] = useState<string>('');
   const [newCardDigits, setNewCardDigits] = useState<string>('');
@@ -1493,6 +1493,9 @@ export default function App() {
     return acc;
   }, {} as Record<string, number>);
 
+  // Somatória das metas limites de todas as categorias
+  const totalCategoryLimits = data.categoryBudgets.reduce((sum, b) => sum + (b.idealLimit || 0), 0);
+
   // Média acumulada geral de todas as despesas por mês
   const uniqueMonthsWithExpenses = Array.from(new Set(data.expenses.map(e => e.month)));
   const totalSpentHistory = data.expenses.reduce((sum, item) => sum + item.value, 0);
@@ -2143,6 +2146,7 @@ export default function App() {
               selectedMonth={selectedMonth}
               futureInstallmentsDebt={futureInstallmentsDebt}
               expenses={data.expenses}
+              totalCategoryLimits={totalCategoryLimits}
             />
 
             {/* ROW 2: GRÁFICOS INTERATIVOS E TETOS POR CATEGORIA */}

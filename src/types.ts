@@ -40,7 +40,7 @@ export interface CategoryBudget {
 export interface MonthlyBudget {
   month: string; // "YYYY-MM"
   salary: number; // Salário padrão do mês (servirá como base se não houver rendimentos lançados)
-  targetSavingsPercentage: number; // Porcentagem que gostaria de poupar (ex: 30%)
+  targetSavingsPercentage: number; // Porcentagem que gostaria de poupar (ex: 20%)
   cardClosingDay?: number; // Dia de fechamento/virada do cartão (ex: 5, use 0 para não aplicar)
 }
 

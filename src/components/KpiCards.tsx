@@ -26,6 +26,7 @@ interface KpiCardsProps {
   selectedMonth: string;
   futureInstallmentsDebt?: number;
   expenses?: Expense[];
+  totalCategoryLimits?: number;
 }
 
 export const KpiCards: React.FC<KpiCardsProps> = ({
@@ -36,6 +37,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
   selectedMonth,
   futureInstallmentsDebt = 0,
   expenses = [],
+  totalCategoryLimits,
 }) => {
   const [showDebtDetails, setShowDebtDetails] = useState(false);
   const totalRevenue = extraIncome; // O rendimento do mês é estritamente a somatória de todas as entradas reais cadastradas
@@ -109,6 +111,12 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
           <span className="text-slate-600">|</span>
           <span>Guardar: <strong className="text-white font-mono font-bold privacy-blur">{formatCurrency(plannedSavings)}</strong></span>
         </div>
+        <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between text-xs text-slate-400">
+          <span>Teto Estipulado:</span>
+          <strong className="text-indigo-300 font-mono font-bold privacy-blur" title="Somatória das metas limites das categorias">
+            {formatCurrency(totalCategoryLimits || 0)}
+          </strong>
+        </div>
         <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500"></div>
       </div>
 
@@ -172,7 +180,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
             <TrendingUp className="w-5 h-5" />
           </div>
         </div>
-        <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
+        <div className="mt-3.5 flex items-center justify-between text-xs text-slate-400">
           <span>Teto Recomendado:</span>
           <span className="font-semibold text-slate-300 font-mono privacy-blur">
             {formatCurrency(maxSpentAllowed)}
