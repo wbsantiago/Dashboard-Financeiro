@@ -4,51 +4,37 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Download, 
-  Upload, 
-  Trash2, 
-  Sparkles, 
-  CreditCard as CreditCardIcon, 
-  ChevronLeft, 
-  ChevronRight, 
-  Calendar,
-  DollarSign,
+import {
+  Upload,
+  Trash2,
+  Sparkles,
+  CreditCard as CreditCardIcon,
+  ChevronLeft,
+  ChevronRight,
   PiggyBank,
   Check,
-  RefreshCw,
-  Coins,
   Settings,
   Eye,
   EyeOff,
   Sliders,
   LogIn,
-  LogOut,
   Cloud,
-  CloudOff,
-  FolderHeart,
-  Database,
-  Chrome,
   Plus,
   X,
   ArrowUpRight,
   TrendingDown,
   PlusCircle,
-  ShieldCheck,
-  Lock,
-  Activity,
-  Heart,
   Facebook,
   Instagram,
-  Youtube,
-  Sun,
-  Moon
+  Youtube
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { AppData, Expense, Revenue, CategoryBudget, MonthlyBudget, CreditCard, ExpenseEditScope, RecurrenceScope } from './types';
 import { createMonthlyOccurrences, selectRecurringItems, updateRecurringItems, readRecurrenceFields } from './utils/recurrence';
 import { loadAppData, saveAppData, exportDataAsJSON, importDataFromJSON, DEFAULT_CATEGORIES, DEFAULT_REVENUE_CATEGORIES, INITIAL_MOCK_DATA } from './utils/storage';
+import { createDemoData } from './utils/demoData';
+import { demoMode } from './utils/demoMode';
 import { formatCurrency, formatMonthName, getCurrentMonthStr, getInstallmentInfo, getCompetenceMonth } from './utils/format';
 
 import { 
@@ -70,17 +56,20 @@ import { CategoryBudgets } from './components/CategoryBudgets';
 import { ExpenseTracker } from './components/ExpenseTracker';
 import { ChartsView } from './components/ChartsView';
 import { AnnualSummary } from './components/AnnualSummary';
+import { AppSettings, type SettingsSection } from './components/AppSettings';
 
 export default function App() {
   // Cloud Sync or Client-Side Local Storage toggle
   const [storageType, setStorageType] = useState<'local' | 'cloud'>(() => {
+    if (demoMode) return 'local';
     return (localStorage.getItem('storage-type') || 'local') as 'local' | 'cloud';
   });
   const [user, setUser] = useState<any>(null);
 
   // Load initial state
-  const [data, setData] = useState<AppData>(() => loadAppData());
+  const [data, setData] = useState<AppData>(() => demoMode ? createDemoData(2026) : loadAppData());
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    if (demoMode) return '2026-10';
     const initialData = loadAppData();
     const d = new Date();
     const currentDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -90,6 +79,14 @@ export default function App() {
   // UI States
   const [activeView, setActiveView] = useState<'monthly' | 'annual'>('monthly');
   const [showConfigPanel, setShowConfigPanel] = useState<boolean>(false);
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>('budget');
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const closeSettings = () => { setShowConfigPanel(false); settingsButtonRef.current?.focus(); };
+  const openSettings = (section: SettingsSection) => {
+    setSettingsSection(section);
+    setShowConfigPanel(true);
+    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  };
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [showDiagnosticModal, setShowDiagnosticModal] = useState<boolean>(false);
   const [diagnosticLogs, setDiagnosticLogs] = useState<{ step: string; status: 'pending' | 'running' | 'success' | 'error'; details?: string }[]>([]);
@@ -104,10 +101,9 @@ export default function App() {
     return (localStorage.getItem('app-theme') as 'light' | 'dark') || 'dark';
   });
 
-  const toggleTheme = () => {
-    const nextTheme = theme === 'light' ? 'dark' : 'light';
+  const changeTheme = (nextTheme: 'light' | 'dark') => {
     setTheme(nextTheme);
-    localStorage.setItem('app-theme', nextTheme);
+    if (!demoMode) localStorage.setItem('app-theme', nextTheme);
     
     // Also dispatch an event so other components or styling can react immediately if needed
     window.dispatchEvent(new CustomEvent('app-theme-changed', { detail: nextTheme }));
@@ -121,9 +117,11 @@ export default function App() {
   };
 
   const [privacyMode, setPrivacyMode] = useState<boolean>(() => {
+    if (demoMode) return false;
     return localStorage.getItem('privacy-mode') === 'true';
   });
   const [hideMobileBudgets, setHideMobileBudgets] = useState<boolean>(() => {
+    if (demoMode) return false;
     return localStorage.getItem('hide-mobile-budgets') === 'true';
   });
 
@@ -249,27 +247,25 @@ export default function App() {
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cloudFileInputRef = useRef<HTMLInputElement>(null);
-  const [showDataMenu, setShowDataMenu] = useState<boolean>(false);
-  const dataMenuRef = useRef<HTMLDivElement>(null);
-  const [showProfileMenu, setShowProfileMenu] = useState<boolean>(false);
-  const profileMenuRef = useRef<HTMLDivElement>(null);
 
-  // Click outside to close Data Menu and Profile Menu Dropdowns
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dataMenuRef.current && !dataMenuRef.current.contains(event.target as Node)) {
-        setShowDataMenu(false);
-      }
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
-        setShowProfileMenu(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+  const handleLogin = async () => {
+    if (demoMode) return;
+    if (!auth) throw new Error('Autenticação indisponível');
+    const result = await signInWithPopup(auth, new GoogleAuthProvider());
+    setUser(result.user);
+    setStorageType('cloud');
+    localStorage.setItem('storage-type', 'cloud');
+    triggerNotification('Conta Google conectada.', 'success');
+  };
+
+  const handleLogout = async () => {
+    if (!auth) throw new Error('Autenticação indisponível');
+    await signOut(auth);
+    setUser(null);
+    setStorageType('local');
+    localStorage.setItem('storage-type', 'local');
+    triggerNotification('Desconectado com sucesso.', 'info');
+  };
 
   // General-purpose data uploader to Cloud Firestore
   const uploadDataToCloud = async (uid: string, targetData: AppData, successMessage: string) => {
@@ -588,7 +584,7 @@ export default function App() {
 
   // 1. Decoupled Authentication State Listener
   useEffect(() => {
-    if (!isFirebaseConfigured || !auth || !db) {
+    if (demoMode || !isFirebaseConfigured || !auth || !db) {
       setUser(null);
       setStorageType('local');
       return;
@@ -612,6 +608,7 @@ export default function App() {
 
   // 2. Separate Dynamic Sync listening hooks with strict unsubscriptions
   useEffect(() => {
+    if (demoMode) return;
     if (storageType === 'cloud' && user && db) {
       const userDocRef = doc(db, 'users', user.uid);
       
@@ -693,48 +690,19 @@ export default function App() {
 
   // Sync state changes with localStorage only under local mode
   useEffect(() => {
-    if (storageType === 'local') {
+    if (!demoMode && storageType === 'local') {
       saveAppData(data);
     }
   }, [data, storageType]);
 
   // uploadDataToCloud and handleMergeLocalDataToCloud have been relocated above the listening effects.
 
-  const handleCloudImportButtonClick = () => {
-    cloudFileInputRef.current?.click();
-  };
-
-  const handleCloudImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!user) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const fileContent = event.target?.result as string;
-        const importedData = importDataFromJSON(fileContent);
-        
-        await uploadDataToCloud(
-          user.uid, 
-          importedData, 
-          'Backup importado e gravado com sucesso no seu banco na Nuvem! ☁️'
-        );
-      } catch (err: any) {
-        alert(`Falha na importação na nuvem: ${err.message || 'Formato de arquivo incorreto'}`);
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  };
-
-
   useEffect(() => {
-    localStorage.setItem('privacy-mode', String(privacyMode));
+    if (!demoMode) localStorage.setItem('privacy-mode', String(privacyMode));
   }, [privacyMode]);
 
   useEffect(() => {
-    localStorage.setItem('hide-mobile-budgets', String(hideMobileBudgets));
+    if (!demoMode) localStorage.setItem('hide-mobile-budgets', String(hideMobileBudgets));
   }, [hideMobileBudgets]);
 
   // Load active month config values into inputs
@@ -1457,7 +1425,7 @@ export default function App() {
       }));
     }
 
-    setShowConfigPanel(false);
+    closeSettings();
     triggerNotification(`Planejamento de ${formatMonthName(selectedMonth)} foi atualizado.`);
   };
 
@@ -1500,44 +1468,13 @@ export default function App() {
     e.target.value = '';
   };
 
-  // Destructive reset triggered from custom modal
+  // Clear only this application's local financial copy, preserving session and preferences.
   const handleRealClearData = () => {
-    const emptyData: AppData = {
-      expenses: [],
-      revenues: [],
-      categoryBudgets: [
-        { category: 'Alimentação', idealLimit: 0.00 },
-        { category: 'Presentes', idealLimit: 0.00 },
-        { category: 'Saúde', idealLimit: 0.00 },
-        { category: 'Moradia', idealLimit: 0.00 },
-        { category: 'Transporte', idealLimit: 0.00 },
-        { category: 'Vestuário', idealLimit: 0.00 },
-        { category: 'Lazer & Entretenimento', idealLimit: 0.00 },
-        { category: 'Serviços de utilidade pública', idealLimit: 0.00 },
-        { category: 'Viagens', idealLimit: 0.00 },
-        { category: 'Tecnologia & Eletrônicos', idealLimit: 0.00 },
-        { category: 'Cuidados Pessoais', idealLimit: 0.00 },
-        { category: 'Assinaturas', idealLimit: 0.00 },
-        { category: 'Educação & Profissional', idealLimit: 0.00 },
-        { category: 'Outros', idealLimit: 0.00 }
-      ],
-      monthlyBudgets: [],
-      defaultMonthlySalary: 0.00,
-      defaultTargetSavingsPercentage: 20
-    };
-
-    // Limpeza completa em todos os níveis
-    localStorage.clear();
-    saveAppData(emptyData);
-    setData(emptyData);
+    const emptyData = structuredClone(INITIAL_MOCK_DATA);
+    if (!demoMode) saveAppData(emptyData);
+    if (storageType === 'local') setData(emptyData);
     setShowDeleteConfirm(false);
-
-    triggerNotification('Todos os dados foram completamente limpos!', 'success');
-
-    // Forçar o recarregamento total da página para resetar todos os estados de componentes internos e campos de input
-    setTimeout(() => {
-      window.location.reload();
-    }, 150);
+    triggerNotification(demoMode ? 'Os exemplos foram limpos desta visualização.' : 'A cópia financeira deste navegador foi apagada.', 'success');
   };
 
   const handleClearData = () => {
@@ -1584,10 +1521,17 @@ export default function App() {
   return (
     <div className={`min-h-screen bg-[#0a0a0a] flex flex-col items-center text-white ${privacyMode ? 'privacy-mode-active' : ''} ${theme === 'light' ? 'theme-light light' : 'theme-dark dark'}`}>
       
+      {demoMode && (
+        <div role="status" className="w-full bg-indigo-950 text-indigo-100 border-b border-indigo-400/30 px-4 py-2 text-xs flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+          <span><strong>Demonstração 2026</strong> · Dados fictícios de janeiro a dezembro. As alterações são descartadas ao atualizar a página.</span>
+          <a href="/" className="underline underline-offset-2 font-semibold">Voltar aos meus dados</a>
+        </div>
+      )}
+
       {/* GLOWING NOTIFICATION TOAST */}
       {showNotification && (
         <div 
-          className={`fixed bottom-6 right-6 px-4 py-3 rounded-2xl shadow-xl border text-sm font-semibold z-50 flex items-center gap-2 animate-fade-in ${
+          className={`fixed bottom-6 right-4 sm:right-6 max-w-[calc(100vw-2rem)] px-4 py-3 rounded-2xl shadow-xl border text-sm font-semibold z-50 flex items-center gap-2 animate-fade-in ${
             showNotification.type === 'error' 
               ? 'bg-rose-950 text-rose-100 border-rose-800' 
               : showNotification.type === 'info'
@@ -1596,14 +1540,14 @@ export default function App() {
           }`}
           id="toast-notification"
         >
-          <Sparkles className="w-4 h-4 text-amber-400" />
+          <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
           <span>{showNotification.message}</span>
         </div>
       )}
 
       {/* HEADER PRINCIPAL */}
       <header className="w-full bg-[#111111] border-b border-white/5 shrink-0 text-white" id="main-app-header">
-        <div className="w-full max-w-[95%] lg:max-w-[85%] xl:max-w-[75%] 2xl:max-w-[70%] mx-auto px-4 py-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="compact-header-content">
           
           {/* Logo e Nome */}
           <div className="flex items-center gap-2.5">
@@ -1679,7 +1623,7 @@ export default function App() {
               </svg>
             </div>
             <div>
-              <h1 className="text-lg font-bold font-sans tracking-tight">Dashboard de Finanças Pessoais</h1>
+              <h1 className="text-lg font-bold font-sans tracking-tight">Finanças10</h1>
               <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">Planejamento & Controle</p>
             </div>
           </div>
@@ -1708,318 +1652,41 @@ export default function App() {
             </button>
           </div>
 
-          {/* Ações de Dados e Backup */}
-          <div className="flex flex-wrap items-center gap-2" id="action-controls-row">
-            {/* Alternar Tema (Modo Escuro / Claro) */}
-            <button
-              onClick={toggleTheme}
-              className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all cursor-pointer shrink-0 ${
-                theme === 'light' 
-                  ? 'bg-amber-100/50 text-amber-600 border-amber-300' 
-                  : 'bg-[#1c1c1c] hover:bg-[#252525] text-slate-200 border-white/5'
-              }`}
-              title={theme === 'light' ? 'Alternar para Modo Escuro' : 'Alternar para Modo Claro'}
-              id="theme-toggler"
-            >
-              {theme === 'light' ? (
-                <Moon className="w-4 h-4 text-indigo-500 animate-pulse" />
-              ) : (
-                <Sun className="w-4 h-4 text-amber-400" />
-              )}
+          <div className="compact-header-actions" id="action-controls-row">
+            <button type="button" className="compact-header-button"
+              onClick={() => setPrivacyMode(value => !value)}
+              aria-label={privacyMode ? 'Mostrar valores' : 'Ocultar valores'}
+              title={privacyMode ? 'Mostrar valores' : 'Ocultar valores'} aria-pressed={privacyMode}>
+              {privacyMode ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
-
-            {/* Olho - Modo Privacidade */}
-            <button
-              onClick={() => {
-                const nv = !privacyMode;
-                setPrivacyMode(nv);
-                triggerNotification(nv ? 'Modo de privacidade ativado! Os valores foram borrados para locais públicos.' : 'Modo de privacidade desativado. Valores visíveis.', 'info');
-              }}
-              className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all cursor-pointer shrink-0 ${
-                privacyMode 
-                  ? 'bg-amber-950/40 text-amber-400 border-amber-500/30 shadow-md shadow-amber-950/20' 
-                  : 'bg-[#1c1c1c] hover:bg-[#252525] text-slate-200 border-white/5'
-              }`}
-              title={privacyMode ? 'Mostrar valores (Modo público)' : 'Esconder valores (Modo privado)'}
-            >
-              {privacyMode ? <EyeOff className="w-4 h-4 text-amber-400" /> : <Eye className="w-4 h-4 text-slate-400" />}
+            <button type="button" ref={settingsButtonRef} className="compact-header-button"
+              aria-controls="settings-panel" aria-expanded={showConfigPanel}
+              onClick={() => showConfigPanel ? closeSettings() : openSettings('budget')}
+              aria-label="Configurações" title="Configurações">
+              <Settings size={18} /><span className="compact-header-label">Configurações</span>
             </button>
-
-            {/* Esconder Teto de Gastos (Apenas Mobile/Tablet) */}
-            <button
-              onClick={() => {
-                const nv = !hideMobileBudgets;
-                setHideMobileBudgets(nv);
-                triggerNotification(nv ? 'Seção de Teto de Gastos ocultada para telas menores.' : 'Seção de Teto de Gastos visível.', 'info');
-              }}
-              className={`lg:hidden w-8 h-8 flex items-center justify-center rounded-xl border transition-all cursor-pointer shrink-0 ${
-                hideMobileBudgets 
-                  ? 'bg-indigo-950/40 text-indigo-400 border-indigo-500/30 shadow-md shadow-indigo-950/20' 
-                  : 'bg-[#1c1c1c] hover:bg-[#252525] text-slate-200 border-white/5'
-              }`}
-              title={hideMobileBudgets ? 'Mostrar Teto de Gastos Adotado' : 'Esconder Teto de Gastos Adotado'}
-            >
-              <Sliders className="w-4 h-4" />
+            <button type="button" className="compact-header-button compact-header-avatar"
+              onClick={() => openSettings('privacy')} aria-label="Conta e privacidade" title={user ? 'Conta e privacidade' : 'Conectar conta'}>
+              {user?.photoURL ? <img src={user.photoURL} alt="" referrerPolicy="no-referrer" /> : user ? <span>{(user.displayName || user.email || 'U').slice(0, 1).toUpperCase()}</span> : <LogIn size={18} />}
             </button>
-
-            {/* Editar Salário e Metas */}
-            <button
-              onClick={() => setShowConfigPanel(prev => !prev)}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${
-                showConfigPanel 
-                  ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-600/20' 
-                  : 'bg-[#1c1c1c] hover:bg-[#252525] text-slate-200 border-white/5'
-              }`}
-              title="Configurações do Orçamento Mensal"
-            >
-              <Settings className="w-3.5 h-3.5" />
-              Configurar Mês
-            </button>
-
-            {/* Input de arquivo invisível para importação */}
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleImportFile} 
-              accept=".json" 
-              className="hidden" 
-            />
-
-            {/* Input de arquivo invisível para importação na nuvem */}
-            <input 
-              type="file" 
-              ref={cloudFileInputRef} 
-              onChange={handleCloudImportFile} 
-              accept=".json" 
-              className="hidden" 
-            />
-
-            {/* Menu Dropdown de Gerenciamento de Dados Locais */}
-            {!user && (
-              <div className="relative" ref={dataMenuRef} id="local-storage-menu-container">
-                <button
-                  onClick={() => setShowDataMenu(prev => !prev)}
-                  className={`w-8 h-8 flex items-center justify-center text-xs font-bold rounded-xl border transition-all cursor-pointer ${
-                    showDataMenu 
-                      ? 'bg-zinc-900 text-white border-white/10 shadow-lg' 
-                      : 'bg-[#1c1c1c] hover:bg-[#252525] text-slate-200 border-white/5'
-                  }`}
-                  title="Ações de Backup e Armazenamento Local"
-                >
-                  <Database className="w-4 h-4 text-zinc-400" />
-                </button>
-
-                {showDataMenu && (
-                  <div className="absolute right-0 mt-2 w-64 bg-[#141414] border border-white/10 rounded-2xl shadow-2xl p-2.5 z-50 flex flex-col gap-1.5 animate-fade-in text-left">
-                    <div className="px-2 py-1.5 border-b border-white/5 mb-1">
-                      <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 block">Armazenamento Local</span>
-                      <span className="text-[11px] text-slate-400 mt-0.5 block">Gerencie backups e integridade física de seus lançamentos.</span>
-                    </div>
-
-                    {/* Opção Exportar */}
-                    <button
-                      onClick={() => {
-                        handleExportData();
-                        setShowDataMenu(false);
-                      }}
-                      className="w-full text-left px-3 py-2 hover:bg-white/5 text-slate-200 hover:text-white rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group"
-                    >
-                      <Download className="w-4 h-4 text-emerald-400 mt-0.5 group-hover:scale-110 transition-transform" />
-                      <div>
-                        <span className="text-xs font-bold block">Fazer Backup JSON</span>
-                        <span className="text-[9px] text-slate-500">Exportar todos os dados salvos localmente.</span>
-                      </div>
-                    </button>
-
-                    {/* Opção Importar */}
-                    <button
-                      onClick={() => {
-                        handleImportButtonClick();
-                        setShowDataMenu(false);
-                      }}
-                      className="w-full text-left px-3 py-2 hover:bg-white/5 text-slate-200 hover:text-white rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group"
-                    >
-                      <Upload className="w-4 h-4 text-indigo-400 mt-0.5 group-hover:scale-110 transition-transform" />
-                      <div>
-                        <span className="text-xs font-bold block">Recuperar Backup</span>
-                        <span className="text-[9px] text-slate-500">Restaurar arquivo de backup no navegador.</span>
-                      </div>
-                    </button>
-
-                    <div className="h-px bg-white/5 my-1" />
-
-                    {/* Opção Destrutiva: Limpar */}
-                    <button
-                      onClick={() => {
-                        handleClearData();
-                        setShowDataMenu(false);
-                      }}
-                      className="w-full text-left px-3 py-2 hover:bg-rose-950/20 text-rose-350 hover:text-rose-200 rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group"
-                    >
-                      <Trash2 className="w-4 h-4 text-rose-400 mt-0.5 group-hover:scale-110 transition-transform" />
-                      <div>
-                        <span className="text-xs font-bold block text-rose-400">Limpar Banco de Dados</span>
-                        <span className="text-[9px] text-rose-500/80">Apagar todos os registros do navegador local.</span>
-                      </div>
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Firebase Google Cloud Sync controller */}
-            {isFirebaseConfigured ? (
-              <div id="firebase-cloud-sync-widget" className="relative shrink-0">
-                {user ? (
-                  <div className="relative" ref={profileMenuRef}>
-                    <button
-                      onClick={() => setShowProfileMenu(prev => !prev)}
-                      className="w-8 h-8 rounded-full border border-indigo-500/80 hover:border-indigo-400 transition-all focus:outline-none shrink-0 shadow-md flex items-center justify-center p-0 cursor-pointer overflow-hidden"
-                      title={`${user.displayName || 'Usuário'} (${user.email || ''})`}
-                    >
-                      <img 
-                        src={user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.displayName}`} 
-                        alt={user.displayName || 'Avatar'} 
-                        className="w-full h-full object-cover rounded-full" 
-                        referrerPolicy="no-referrer"
-                      />
-                    </button>
-
-                    {showProfileMenu && (
-                      <div className="absolute right-0 mt-2 w-64 bg-[#141414] border border-white/10 rounded-2xl shadow-2xl p-2.5 z-50 flex flex-col gap-1.5 animate-fade-in text-left">
-                        <div className="px-2 py-1.5 border-b border-white/5 mb-1 flex items-center gap-2">
-                          <img 
-                            src={user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.displayName}`} 
-                            alt={user.displayName || 'Avatar'} 
-                            className="w-7 h-7 rounded-full object-cover shrink-0" 
-                            referrerPolicy="no-referrer"
-                          />
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-xs font-bold text-white truncate">{user.displayName || 'Usuário'}</span>
-                            <span className="text-[10px] text-zinc-500 truncate">{user.email || ''}</span>
-                          </div>
-                        </div>
-
-                        <div className="px-2 py-0.5 mb-1">
-                          <span className="text-[10px] uppercase tracking-wider font-bold text-indigo-400 block">Sincronização ☁️</span>
-                          <span className="text-[9px] text-slate-500 block leading-tight mt-0.5">Seus dados estão sincronizados na nuvem de forma privada e segura.</span>
-                        </div>
-
-                        {/* Opção Manual de Sincronização de Dados do Navegador para Nuvem */}
-                        <button
-                          onClick={async () => {
-                            setShowProfileMenu(false);
-                            await handleMergeLocalDataToCloud(user.uid);
-                          }}
-                          className="w-full text-left px-3 py-2 hover:bg-white/5 text-slate-200 hover:text-white rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group border border-transparent hover:border-white/10"
-                        >
-                          <Database className="w-4 h-4 text-emerald-400 mt-0.5 group-hover:scale-110 transition-transform shrink-0" />
-                          <div>
-                            <span className="text-xs font-bold block text-emerald-300">Enviar Dados do Navegador</span>
-                            <span className="text-[9px] text-slate-500">Enviar os lançamentos salvos neste navegador para a Nuvem.</span>
-                          </div>
-                        </button>
-
-                        {/* Opção Importar Backup para Nuvem via Arquivo */}
-                        <button
-                          onClick={() => {
-                            setShowProfileMenu(false);
-                            handleCloudImportButtonClick();
-                          }}
-                          className="w-full text-left px-3 py-2 hover:bg-white/5 text-slate-200 hover:text-white rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group border border-transparent hover:border-white/10"
-                        >
-                          <Upload className="w-4 h-4 text-indigo-400 mt-0.5 group-hover:scale-110 transition-transform shrink-0" />
-                          <div>
-                            <span className="text-xs font-bold block text-indigo-300">Importar do Computador</span>
-                            <span className="text-[9px] text-slate-500">Enviar arquivo backup JSON para sua conta na Nuvem.</span>
-                          </div>
-                        </button>
-
-                        {/* Opção Diagnosticar Erros do Firebase */}
-                        <button
-                          onClick={() => {
-                            setShowProfileMenu(false);
-                            setShowDiagnosticModal(true);
-                            runFirebaseDiagnostics();
-                          }}
-                          className="w-full text-left px-3 py-2 hover:bg-white/5 text-slate-200 hover:text-white rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group border border-transparent hover:border-white/10"
-                        >
-                          <Sliders className="w-4 h-4 text-amber-400 mt-0.5 group-hover:scale-110 transition-transform shrink-0" />
-                          <div>
-                            <span className="text-xs font-bold block text-amber-300">Diagnóstico do Sincronismo</span>
-                            <span className="text-[9px] text-slate-500">Executar testes de conexão, leitura e escrita na nuvem.</span>
-                          </div>
-                        </button>
-
-                        <div className="h-px bg-white/5 my-1" />
-
-                        {/* Opção Sair */}
-                        <button
-                          onClick={async () => {
-                            setShowProfileMenu(false);
-                            if (signOut && auth) {
-                              await signOut(auth).catch(err => console.error(err));
-                            }
-                            setUser(null);
-                            setStorageType('local');
-                            localStorage.setItem('storage-type', 'local');
-                            triggerNotification('Desconectado com sucesso.', 'info');
-                          }}
-                          className="w-full text-left px-3 py-2 hover:bg-rose-950/20 text-rose-350 hover:text-rose-200 rounded-xl transition-all flex items-start gap-2.5 cursor-pointer group"
-                        >
-                          <LogOut className="w-4 h-4 text-rose-400 mt-0.5 group-hover:scale-110 transition-transform shrink-0" />
-                          <div>
-                            <span className="text-xs font-bold block text-rose-450">Sair da Conta Google</span>
-                            <span className="text-[9px] text-slate-500">Voltar ao armazenamento local offline.</span>
-                          </div>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <button
-                    onClick={async () => {
-                      try {
-                        if (signInWithPopup && auth) {
-                          const provider = new GoogleAuthProvider();
-                          const result = await signInWithPopup(auth, provider);
-                          setUser(result.user);
-                          
-                          // Enable Cloud sync immediately
-                          setStorageType('cloud');
-                          localStorage.setItem('storage-type', 'cloud');
-                          
-                          triggerNotification(`Conectado como ${result.user.displayName}!`, 'success');
-                        }
-                      } catch (err) {
-                        console.error('Erro de Login Google:', err);
-                        triggerNotification('Erro ao autenticar com Google.', 'error');
-                      }
-                    }}
-                    className="px-3 py-1.5 flex items-center justify-center gap-2 bg-[#1c1c1c] hover:bg-[#252525] text-slate-300 hover:text-white border border-white/5 rounded-xl transition-all cursor-pointer shrink-0 hover:border-indigo-500/30 shadow-sm text-xs font-bold"
-                    title="Conectar com o Google"
-                  >
-                    <svg className="w-3.5 h-3.5 shrink-0 animate-pulse" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                      <path d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.08H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.92l2.85-2.22.81-.6z" fill="#FBBC05"/>
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.08l3.66 2.84c.87-2.6 3.3-4.54 6.16-4.54z" fill="#EA4335"/>
-                    </svg>
-                    <span>Conectar</span>
-                  </button>
-                )}
-              </div>
-            ) : null}
           </div>
-
         </div>
       </header>
+      <input type="file" accept=".json,application/json" ref={fileInputRef} onChange={handleImportFile} hidden aria-label="Arquivo de backup" />
 
-      {/* PAINEL FLUTUANTE DE CONFIGURAÇÃO DE SALÁRIO ANCORADO NO HEADER */}
       {showConfigPanel && (
-        <div className="w-full bg-[#141414] border-b border-white/5 text-white animate-fade-in" id="config-panel">
-          <div className="w-full max-w-[95%] lg:max-w-[90%] xl:max-w-[85%] 2xl:max-w-[82%] 3xl:max-w-[78%] mx-auto px-4 py-5 sm:px-6">
-            <form onSubmit={handleSaveMonthConfig} className="grid grid-cols-1 md:grid-cols-4 gap-5 items-end">
+        <AppSettings
+          demoMode={demoMode} section={settingsSection} onSectionChange={setSettingsSection} onClose={closeSettings}
+          user={user} storageType={storageType} firebaseConfigured={!demoMode && isFirebaseConfigured}
+          theme={theme} onThemeChange={changeTheme}
+          privacyMode={privacyMode} onPrivacyModeChange={setPrivacyMode}
+          hideMobileBudgets={hideMobileBudgets} onHideMobileBudgetsChange={setHideMobileBudgets}
+          onExport={handleExportData} onImport={handleImportButtonClick}
+          onUploadLocal={async () => { if (user) await handleMergeLocalDataToCloud(user.uid); }}
+          onClearLocal={handleClearData} onLogin={handleLogin} onLogout={handleLogout}
+          onDiagnostics={() => { closeSettings(); setShowDiagnosticModal(true); runFirebaseDiagnostics(); }}
+          budgetContent={<>
+            <form onSubmit={handleSaveMonthConfig} className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-end">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
                   Salário Ideal / Rendimento Fixo (R$) — {formatMonthName(selectedMonth)}
@@ -2031,7 +1698,7 @@ export default function App() {
                   <input
                     type="number"
                     step="0.01"
-                    className="w-full bg-zinc-900 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-white outline-none focus:border-indigo-500 font-semibold"
+                    className="w-full bg-zinc-900 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-white outline-none focus:border-indigo-500 font-semibold privacy-blur"
                     placeholder="Ex: 5000.00"
                     value={salaryInput}
                     onChange={(e) => setSalaryInput(e.target.value)}
@@ -2056,7 +1723,7 @@ export default function App() {
                     onChange={(e) => setSavingsInput(parseInt(e.target.value))}
                   />
                   <span className="text-xs text-slate-500 whitespace-nowrap">
-                    Poupe: {formatCurrency(parseFloat(salaryInput || '0') * (savingsInput / 100))}
+                    Poupe: <span className="privacy-blur">{formatCurrency(parseFloat(salaryInput || '0') * (savingsInput / 100))}</span>
                   </span>
                 </div>
               </div>
@@ -2092,7 +1759,7 @@ export default function App() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowConfigPanel(false)}
+                  onClick={closeSettings}
                   className="px-4 py-2 bg-[#1c1c1c] hover:bg-[#252525] text-slate-300 rounded-xl text-xs font-bold transition-all"
                 >
                   Cancelar
@@ -2107,7 +1774,7 @@ export default function App() {
                 Cadastrar e Gerenciar Meus Cartões de Crédito
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
                 {/* Form to add new credit card */}
                 <div className="bg-zinc-950/40 border border-white/5 rounded-2xl p-4">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-3.5">Novo Cartão</span>
@@ -2145,12 +1812,12 @@ export default function App() {
                 </div>
 
                 {/* List of registered credit cards */}
-                <div className="md:col-span-2 bg-zinc-950/20 border border-white/5 rounded-2xl p-4 h-full min-h-[196px] flex flex-col justify-start">
+                <div className="bg-zinc-950/20 border border-white/5 rounded-2xl p-4 h-full min-h-[196px] flex flex-col justify-start">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-3.5">Cartões Cadastrados</span>
                   {!data.creditCards || data.creditCards.length === 0 ? (
                     <div className="flex-1 flex flex-col items-center justify-center text-xs text-slate-500 border border-white/5 border-dashed rounded-xl p-6 text-center">
                       <CreditCardIcon className="w-8 h-8 text-zinc-800 stroke-1 mb-2 animate-pulse" />
-                      Nenhum cartão cadastrado ainda. Cadastre ao lado para facilitar seus lançamentos de despesas!
+                      Nenhum cartão cadastrado ainda. Cadastre um cartão para facilitar seus lançamentos de despesas!
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[148px] overflow-y-auto pr-1 scrollbar-thin">
@@ -2180,8 +1847,9 @@ export default function App() {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+
+          </>}
+        />
       )}
 
       {/* ÁREA DE CONTEÚDO PRINCIPAL (DASHBOARD) */}
@@ -2329,18 +1997,14 @@ export default function App() {
 
           {/* Texto de Disclaimer / Informativo */}
           <p className="text-[10px] sm:text-[10.5px] leading-relaxed text-slate-500/80 max-w-3xl text-center px-4 font-normal">
-            O Finanças10 não tem como objetivo a recomendação e/ou sugestão de investimentos, sendo de caráter meramente informativo e educacional para auxílio de controle financeiro pessoal. Todas as informações inerentes aos lançamentos, tetos e cartões de crédito cadastrados permanecem salvas de forma segura ({storageType === 'cloud' && user ? 'na nuvem com Firebase' : 'localmente em seu navegador no localStorage'}), de acordo com as preferências selecionadas.
+            O Finanças10 não tem como objetivo a recomendação e/ou sugestão de investimentos, sendo de caráter meramente informativo e educacional para auxílio de controle financeiro pessoal. Todas as informações inerentes aos lançamentos, tetos e cartões de crédito cadastrados ficam {storageType === 'cloud' && user ? 'na conta conectada, no Firebase' : 'neste navegador e neste dispositivo'}. Consulte a área de privacidade para entender o armazenamento e as opções de controle.
           </p>
 
           {/* Links de navegação do usuário */}
           <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-[11px] font-semibold text-slate-500">
-            <a href="#" className="hover:text-indigo-400 transition-colors">Política de Privacidade</a>
+            <button type="button" onClick={() => openSettings('privacy')} className="hover:text-indigo-400 transition-colors cursor-pointer">Privacidade dos dados</button>
             <span className="text-slate-700/60 font-normal">|</span>
-            <a href="#" className="hover:text-indigo-400 transition-colors">Termos de Uso</a>
-            <span className="text-slate-700/60 font-normal">|</span>
-            <a href="#" className="hover:text-indigo-400 transition-colors">Contato</a>
-            <span className="text-slate-700/60 font-normal">|</span>
-            <a href="#" className="hover:text-indigo-400 transition-colors">Suporte</a>
+            <button type="button" onClick={() => openSettings('help')} className="hover:text-indigo-400 transition-colors cursor-pointer">Ajuda e contato</button>
           </div>
 
           {/* Copyright */}
@@ -2360,10 +2024,10 @@ export default function App() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-white mb-1">
-                Apagar todos os dados registrados?
+                {demoMode ? 'Limpar os exemplos?' : 'Apagar a cópia deste navegador?'}
               </h3>
               <p className="text-sm text-slate-400 leading-relaxed">
-                Tem certeza de que deseja limpar completamente todas as despesas, rendimentos, limites e planejamentos do navegador? Esta ação é irreversível.
+                {demoMode ? 'Limpa os exemplos desta visualização. Seus dados salvos permanecem. Atualize a página para restaurar a demonstração.' : 'As despesas, rendimentos, cartões e planejamentos salvos neste navegador serão apagados. Os dados da nuvem e os backups baixados permanecem. Exporte um backup antes de confirmar se quiser guardar esta cópia.'}
               </p>
             </div>
             <div className="flex gap-3 justify-end mt-2">
@@ -2377,7 +2041,7 @@ export default function App() {
                 onClick={handleRealClearData}
                 className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-rose-600/20 cursor-pointer"
               >
-                Confirmar Limpeza
+                {demoMode ? 'Limpar exemplos' : 'Apagar cópia local'}
               </button>
             </div>
           </div>

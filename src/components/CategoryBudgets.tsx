@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
   PieChart, 
   Pie, 
@@ -47,7 +47,8 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
   }, 0);
 
   // Gather Pie Chart details (Categories with positive values)
-  const pieChartData = Object.keys(expensesByCategory)
+  // Hover changes only the active slice; keep the data stable so its animation doesn't restart.
+  const pieChartData = useMemo(() => Object.keys(expensesByCategory)
     .map(cat => {
       const val = expensesByCategory[cat];
       return {
@@ -56,7 +57,7 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
         color: CATEGORY_COLORS[cat] || '#6b7280',
       };
     })
-    .filter(item => item.value > 0);
+    .filter(item => item.value > 0), [expensesByCategory]);
 
   const totalExpenseInMonth = pieChartData.reduce((sum, item) => sum + item.value, 0);
 
@@ -387,7 +388,7 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
                                   [budget.category]: val,
                                 }));
                               }}
-                              className="w-full pl-8 pr-3 py-1.5 text-xs font-bold font-mono border border-white/10 bg-zinc-950 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                              className="w-full pl-8 pr-3 py-1.5 text-xs font-bold font-mono border border-white/10 bg-zinc-950 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all privacy-blur"
                               min="0"
                               step="10"
                             />

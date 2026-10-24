@@ -43,8 +43,16 @@ Um painel completo, interativo e extremamente polido para controle financeiro pe
 
 * **Modo local**: os dados financeiros ficam neste navegador e podem ser usados sem uma conta Google.
 * **Modo nuvem**: ao entrar com Google, o aplicativo carrega os dados associados à conta. Um perfil novo começa com as configurações padrão, sem importar os dados do navegador automaticamente.
-* **Transferência manual**: para copiar os dados locais para a conta conectada, abra o menu do perfil e escolha **Enviar Dados do Navegador**. Confirme a conta de destino antes do envio. Dados existentes na nuvem podem ser substituídos; a cópia local é mantida.
+* **Transferência manual**: para copiar os dados locais para a conta conectada, abra **Configurações → Dados e backups → Enviar dados do navegador**. Confirme a conta de destino antes do envio. Dados existentes na nuvem podem ser substituídos; a cópia local é mantida.
 * **Ao sair da conta**: o aplicativo volta ao modo local e carrega os dados deste navegador.
+
+### Topo compacto e preferências
+
+O topo reúne a navegação mensal, o botão de ocultar valores, as configurações e o acesso à conta. O painel de configurações organiza orçamento e cartões, dados e backups, conta e privacidade, aparência e ajuda. A opção **Apagar cópia local** exige confirmação e limpa somente os dados financeiros deste navegador, preservando a sessão, as preferências e os dados da nuvem.
+
+Ao ocultar valores, os gráficos continuam nítidos e interativos, com categorias, meses e percentuais visíveis. Os valores monetários, inclusive os detalhes ao passar o mouse, ficam desfocados; a escala numérica dos gráficos fica oculta. Campos de valor são revelados durante a edição. Essa opção altera somente a apresentação na tela.
+
+Os dados de atendimento são configurados em `src/config/appContact.ts`; o canal de email só aparece quando um contato for definido. A exclusão da conta e dos dados da nuvem ainda não está implementada.
 
 ### Lançamentos mensais recorrentes
 
@@ -95,3 +103,7 @@ npm run build
 2. **Qualidade Textual**: Aumentado o tamanho da fonte da legenda de proporções em aproximadamente 50%, proporcionando excelente leitura mesmo à distância.
 3. **Casamento de Layout e Bento-Grid**: A altura dos cards foi calibrada em conjunto (`h-[569px]` e `h-[235px]`) para que o gráfico pizza de categorias e os gráficos temporais se alinhem perfeitamente na grade horizontal, evitando estouros indesejados e mantendo o contorno retangular limpo.
 4. **Precisão Algorítmica**: Ajustada e integrada a regra que acrescenta os ganhos adicionais do mês ao teto de gastos permitido, permitindo de forma fluida manter intactas as metas originais de poupança em todos os meses.
+
+### Demonstração local com dados fictícios
+
+Com o servidor de desenvolvimento aberto, acesse `http://127.0.0.1:3000/?demo=2026` para visualizar despesas, receitas, cartões e orçamentos de janeiro a dezembro. Essa demonstração só funciona em desenvolvimento: não inicializa o Firebase e mantém as alterações apenas na memória, sem substituir os dados salvos no navegador. Atualizar a página restaura os exemplos; o link **Voltar aos meus dados** abre o uso normal.

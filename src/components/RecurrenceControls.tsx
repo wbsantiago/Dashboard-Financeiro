@@ -25,11 +25,11 @@ export function RecurrenceControls({ entryType, onTypeChange, months, onMonthsCh
   ];
   const count = Number(months);
   const validCount = Number.isInteger(count) && count >= 1 && count <= MAX_RECURRENCE_MONTHS;
-  let summary = '';
+  let summary: React.ReactNode = null;
   try {
     if (validCount && Number(value) > 0) {
       const lastDate = shiftMonthlyDate(date, count - 1);
-      summary = `${count} lançamento${count === 1 ? '' : 's'} de ${formatCurrency(Number(value))}, de ${formatMonthName(getMonth(date))} a ${formatMonthName(getMonth(lastDate))}.`;
+      summary = <>{count} lançamento{count === 1 ? '' : 's'} de <span className="privacy-blur">{formatCurrency(Number(value))}</span>, de {formatMonthName(getMonth(date))} a {formatMonthName(getMonth(lastDate))}.</>;
     }
   } catch { /* Wait for a complete, valid date before showing the preview. */ }
   const untilDecember = /^\d{4}-\d{2}-\d{2}$/.test(date) ? 13 - Number(date.slice(5, 7)) : 0;
@@ -67,7 +67,7 @@ export function RecurrenceControls({ entryType, onTypeChange, months, onMonthsCh
             )}
           </div>
           <p className="text-[10px] leading-relaxed text-slate-400">Inclui o primeiro mês. O valor inteiro se repete a cada mês, por até {MAX_RECURRENCE_MONTHS} meses.</p>
-          {summary && <p role="status" className="rounded-lg border border-indigo-500/20 bg-indigo-500/10 p-2.5 text-[11px] leading-relaxed text-indigo-200 privacy-blur">{summary}</p>}
+          {summary && <p role="status" className="rounded-lg border border-indigo-500/20 bg-indigo-500/10 p-2.5 text-[11px] leading-relaxed text-indigo-200">{summary}</p>}
         </div>
       )}
     </fieldset>

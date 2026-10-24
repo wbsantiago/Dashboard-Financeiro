@@ -1916,7 +1916,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                     step="0.01"
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
+                    className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors privacy-blur"
                     required
                     min="0"
                   />
@@ -2248,15 +2248,15 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                           {editInstallmentValueType === 'single' ? (
                             <p>
                               Serão geradas <span className="text-white font-bold">{editTotalInstallments}</span> parcelas de{' '}
-                              <span className="text-indigo-400 font-extrabold">{formatCurrency(parseFloat(editValue))}</span> cada.{' '}
-                              (Total: {formatCurrency(parseFloat(editValue) * parseInt(editTotalInstallments || '1'))})
+                              <span className="text-indigo-400 font-extrabold"><span className="privacy-blur">{formatCurrency(parseFloat(editValue))}</span></span> cada.{' '}
+                              (Total: <span className="privacy-blur">{formatCurrency(parseFloat(editValue) * parseInt(editTotalInstallments || '1'))}</span>)
                             </p>
                           ) : (
                             <p>
-                              Total de <span className="text-white font-bold">{formatCurrency(parseFloat(editValue))}</span> dividido em{' '}
+                              Total de <span className="text-white font-bold"><span className="privacy-blur">{formatCurrency(parseFloat(editValue))}</span></span> dividido em{' '}
                               <span className="text-white font-bold">{editTotalInstallments}</span> parcelas de{' '}
                               <span className="text-amber-400 font-extrabold">
-                                {formatCurrency(parseFloat(editValue) / parseInt(editTotalInstallments || '1', 10))}
+                                <span className="privacy-blur">{formatCurrency(parseFloat(editValue) / parseInt(editTotalInstallments || '1', 10))}</span>
                               </span>{' '}
                               cada uma.
                             </p>
@@ -2331,7 +2331,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                     step="0.01"
                     value={editRevValue}
                     onChange={(e) => setEditRevValue(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-colors"
+                    className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-colors privacy-blur"
                     required
                     min="0"
                   />

@@ -282,7 +282,7 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
               <ComposedChart data={monthlyData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#222222" vertical={false} />
                 <XAxis dataKey="monthLabel" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#64748b', fontSize: 10, className: 'privacy-axis-value' }} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomChartTooltip />} />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, fontWeight: 500, color: '#94a3b8', paddingTop: 6 }} />
                 <Bar dataKey="Entradas" fill="#10b981" radius={[3, 3, 0, 0]} maxBarSize={16} />

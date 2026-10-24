@@ -7,6 +7,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, Auth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore, Firestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
+import { demoMode } from './demoMode';
 
 // Detect whether the user has integrated Firebase
 const isFirebaseConfigured = !!(firebaseConfig && firebaseConfig.apiKey);
@@ -15,7 +16,7 @@ let app;
 let db: Firestore | null = null;
 let auth: Auth | null = null;
 
-if (isFirebaseConfigured) {
+if (isFirebaseConfigured && !demoMode) {
   try {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     let dbId: string | undefined = firebaseConfig.firestoreDatabaseId || undefined;

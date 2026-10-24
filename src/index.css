@@ -43,19 +43,25 @@
   user-select: none !important;
 }
 
-/* Also support blurring charts, labels, lists and inputs */
+/* Mask only the text in amount fields; keep the control clear and editable. */
+.privacy-mode-active input.privacy-blur {
+  filter: none !important;
+  user-select: text !important;
+}
+
 .privacy-mode-active input.privacy-blur:not(:focus) {
-  filter: blur(6px) !important;
   color: transparent !important;
   text-shadow: 0 0 8px rgba(255, 255, 255, 0.65) !important;
 }
 
-/* Blur the whole chart container or line/bar series when in privacy mode */
-.privacy-mode-active .recharts-responsive-container,
-.privacy-mode-active .recharts-wrapper {
-  filter: blur(8px) !important;
-  user-select: none !important;
-  pointer-events: none !important;
+.privacy-mode-active input.privacy-blur:focus {
+  color: inherit !important;
+  text-shadow: none !important;
+}
+
+/* Keep chart shapes and interaction visible; hide only the monetary scale. */
+.privacy-mode-active .privacy-axis-value {
+  visibility: hidden;
 }
 
 /* LIGHT THEME STYLING OVERRIDES (SLATE & INDIGO MODERN THEME) */
@@ -108,7 +114,7 @@
   color: #475569 !important;
 }
 
-.theme-light .text-white:not(.bg-indigo-600):not(.bg-indigo-500):not(.bg-rose-600):not(.bg-rose-500):not(.bg-emerald-600):not(.bg-emerald-500):not(.bg-indigo-600 *):not(.bg-rose-600 *):not(.bg-emerald-600 *) {
+.theme-light .text-white:not(input.privacy-blur):not(.bg-indigo-600):not(.bg-indigo-500):not(.bg-rose-600):not(.bg-rose-500):not(.bg-emerald-600):not(.bg-emerald-500):not(.bg-indigo-600 *):not(.bg-rose-600 *):not(.bg-emerald-600 *) {
   color: #0f172a !important;
 }
 
@@ -217,13 +223,13 @@
 }
 
 /* Primary/Secondary Buttons */
-.theme-light button:not(.bg-indigo-600):not(.bg-rose-500):not(.bg-emerald-500):not(.bg-amber-500):not(.bg-rose-600):not(.bg-emerald-600):not([class*="bg-indigo"]):not([class*="bg-rose"]):not([class*="bg-emerald"]) {
+.theme-light button:not(:where(.app-settings *)):not(.bg-indigo-600):not(.bg-rose-500):not(.bg-emerald-500):not(.bg-amber-500):not(.bg-rose-600):not(.bg-emerald-600):not([class*="bg-indigo"]):not([class*="bg-rose"]):not([class*="bg-emerald"]) {
   background-color: #ffffff !important;
   color: #334155 !important;
   border-color: #cbd5e1 !important;
 }
 
-.theme-light button:not(.bg-indigo-600):not(.bg-rose-500):not(.bg-emerald-500):not(.bg-amber-500):not(.bg-rose-600):not(.bg-emerald-600):not([class*="bg-indigo"]):not([class*="bg-rose"]):not([class*="bg-emerald"]):hover {
+.theme-light button:not(:where(.app-settings *)):not(.bg-indigo-600):not(.bg-rose-500):not(.bg-emerald-500):not(.bg-amber-500):not(.bg-rose-600):not(.bg-emerald-600):not([class*="bg-indigo"]):not([class*="bg-rose"]):not([class*="bg-emerald"]):hover {
   background-color: #f1f5f9 !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
@@ -302,7 +308,7 @@
   text-shadow: 0 0 8px rgba(15, 23, 42, 0.7) !important;
 }
 
-.theme-light .privacy-mode-active input.privacy-blur:not(:focus) {
+.theme-light.privacy-mode-active input.privacy-blur:not(:focus) {
   text-shadow: 0 0 8px rgba(15, 23, 42, 0.7) !important;
 }
 

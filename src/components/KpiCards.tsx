@@ -322,7 +322,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
                       <tr key={item.id} className="border-b border-white/5 hover:bg-white/2 transition-colors">
                         <td className="py-2 px-3 font-semibold text-white">{item.title}</td>
                         <td className="py-2 px-3 text-slate-400">{item.category}</td>
-                        <td className="py-2 px-3 text-right text-slate-300 font-mono">{formatCurrency(item.value)}</td>
+                        <td className="py-2 px-3 text-right text-slate-300 font-mono"><span className="privacy-blur">{formatCurrency(item.value)}</span></td>
                         <td className="py-2 px-3 text-center text-[10px] text-slate-500 font-mono">
                           {item.current}/{item.total}
                         </td>
@@ -330,7 +330,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
                           {item.remaining}
                         </td>
                         <td className="py-2 px-3 text-right text-indigo-400 font-bold font-mono">
-                          {formatCurrency(item.totalRemainingDebt)}
+                          <span className="privacy-blur">{formatCurrency(item.totalRemainingDebt)}</span>
                         </td>
                       </tr>
                     ))}
@@ -342,7 +342,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
             <div className="flex justify-between items-center pt-3 border-t border-white/5 text-xs">
               <span className="text-slate-400">Total acumulado de parcelas subsequentes:</span>
               <span className="text-base font-extrabold text-indigo-400 font-mono">
-                {formatCurrency(futureInstallmentsDebt)}
+                <span className="privacy-blur">{formatCurrency(futureInstallmentsDebt)}</span>
               </span>
             </div>
 

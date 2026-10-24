@@ -75,7 +75,7 @@ export const ChartsView: React.FC<ChartsViewProps> = ({
           {payload.map((p: any, i: number) => (
             <div key={i} className="flex justify-between gap-4 font-medium mb-0.5 last:mb-0">
               <span style={{ color: p.color || p.fill }}>{p.name}:</span>
-              <span className="font-mono font-bold text-slate-100">{formatCurrency(p.value)}</span>
+              <span className="font-mono font-bold text-slate-100 privacy-blur">{formatCurrency(p.value)}</span>
             </div>
           ))}
         </div>
@@ -116,7 +116,7 @@ export const ChartsView: React.FC<ChartsViewProps> = ({
                 tickLine={false}
               />
               <YAxis 
-                tick={{ fill: '#64748b', fontSize: 10 }} 
+                tick={{ fill: '#64748b', fontSize: 10, className: 'privacy-axis-value' }}
                 axisLine={false}
                 tickLine={false}
               />
@@ -170,7 +170,7 @@ export const ChartsView: React.FC<ChartsViewProps> = ({
                 tickLine={false}
               />
               <YAxis 
-                tick={{ fill: '#64748b', fontSize: 10 }} 
+                tick={{ fill: '#64748b', fontSize: 10, className: 'privacy-axis-value' }}
                 axisLine={false}
                 tickLine={false}
               />
