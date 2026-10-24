@@ -61,7 +61,7 @@ import {
   handleFirestoreError,
   cleanDocument
 } from './utils/firebase';
-import { collection, doc, setDoc, onSnapshot, writeBatch, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, onSnapshot, writeBatch, deleteDoc, runTransaction } from 'firebase/firestore';
 
 // import components
 import { KpiCards } from './components/KpiCards';
@@ -612,7 +612,7 @@ export default function App() {
     if (storageType === 'cloud' && user && db) {
       const userDocRef = doc(db, 'users', user.uid);
       
-      const unsubProfile = onSnapshot(userDocRef, (snapshot) => {
+      const unsubProfile = onSnapshot(userDocRef, { includeMetadataChanges: true }, (snapshot) => {
         if (snapshot.exists()) {
           const profileData = snapshot.data();
           setData(prev => ({
@@ -624,18 +624,24 @@ export default function App() {
             defaultTargetSavingsPercentage: profileData.defaultTargetSavingsPercentage ?? prev.defaultTargetSavingsPercentage,
             defaultCardClosingDay: profileData.defaultCardClosingDay ?? prev.defaultCardClosingDay,
           }));
-        } else {
-          // Keep browser data separate: only the explicit upload action transfers it.
-          const defaultData = INITIAL_MOCK_DATA;
-          setDoc(userDocRef, {
-            uid: user.uid,
-            categoryBudgets: defaultData.categoryBudgets,
-            monthlyBudgets: defaultData.monthlyBudgets,
-            creditCards: defaultData.creditCards || [],
-            defaultMonthlySalary: defaultData.defaultMonthlySalary,
-            defaultTargetSavingsPercentage: defaultData.defaultTargetSavingsPercentage,
-            defaultCardClosingDay: defaultData.defaultCardClosingDay ?? 5
-          }, { merge: true }).catch(err => {
+        } else if (!snapshot.metadata.fromCache) {
+          // Only create a profile after the server confirms it is missing.
+          // A transaction also protects profiles created concurrently in another tab.
+          runTransaction(db!, async (transaction) => {
+            const currentProfile = await transaction.get(userDocRef);
+            if (currentProfile.exists()) return;
+
+            const defaultData = INITIAL_MOCK_DATA;
+            transaction.set(userDocRef, {
+              uid: user.uid,
+              categoryBudgets: defaultData.categoryBudgets,
+              monthlyBudgets: defaultData.monthlyBudgets,
+              creditCards: defaultData.creditCards || [],
+              defaultMonthlySalary: defaultData.defaultMonthlySalary,
+              defaultTargetSavingsPercentage: defaultData.defaultTargetSavingsPercentage,
+              defaultCardClosingDay: defaultData.defaultCardClosingDay ?? 5
+            });
+          }).catch(err => {
             console.error("Erro ao configurar perfil padrão na nuvem:", err);
           });
         }
