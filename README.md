@@ -39,6 +39,15 @@ Um painel completo, interativo e extremamente polido para controle financeiro pe
 
 ---
 
+## 🔐 Armazenamento local e conta Google
+
+* **Modo local**: os dados financeiros ficam neste navegador e podem ser usados sem uma conta Google.
+* **Modo nuvem**: ao entrar com Google, o aplicativo carrega os dados associados à conta. Um perfil novo começa com as configurações padrão, sem importar os dados do navegador automaticamente.
+* **Transferência manual**: para copiar os dados locais para a conta conectada, abra o menu do perfil e escolha **Enviar Dados do Navegador**. Confirme a conta de destino antes do envio. Dados existentes na nuvem podem ser substituídos; a cópia local é mantida.
+* **Ao sair da conta**: o aplicativo volta ao modo local e carrega os dados deste navegador.
+
+---
+
 ## 🛠️ Tecnologias Utilizadas
 
 * **React 18+ & Vite** — Ferramental moderno e compilação rápida para desenvolvimento web.

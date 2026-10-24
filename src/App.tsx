@@ -563,6 +563,18 @@ export default function App() {
 
   // Bulk merge helper from local localStorage context state to Cloud FireStore standard
   const handleMergeLocalDataToCloud = async (uid: string) => {
+    const currentUser = auth?.currentUser;
+    if (!currentUser || currentUser.uid !== uid) {
+      triggerNotification('Entre novamente na conta Google antes de enviar os dados.', 'error');
+      return;
+    }
+
+    const destination = currentUser.email || currentUser.uid;
+    const confirmed = window.confirm(
+      `Enviar os dados financeiros deste navegador para a conta ${destination}?\n\nDados já existentes na nuvem podem ser substituídos. A cópia neste navegador será mantida.`
+    );
+    if (!confirmed) return;
+
     const localData = loadAppData();
     await uploadDataToCloud(
       uid, 
@@ -613,36 +625,19 @@ export default function App() {
             defaultCardClosingDay: profileData.defaultCardClosingDay ?? prev.defaultCardClosingDay,
           }));
         } else {
-          // Check if there is existing offline data in this browser to migrate/synchronize
-          const localData = loadAppData();
-          const hasLocalData = (localData.expenses && localData.expenses.length > 0) || 
-                               (localData.revenues && localData.revenues.length > 0) ||
-                               (localData.creditCards && localData.creditCards.length > 0) ||
-                               (localData.monthlyBudgets && localData.monthlyBudgets.length > 0) ||
-                               (localData.defaultMonthlySalary > 0) ||
-                               (localData.categoryBudgets && localData.categoryBudgets.some(b => b.idealLimit > 0));
-          
-          if (hasLocalData) {
-            uploadDataToCloud(
-              user.uid,
-              localData,
-              'Seu perfil na Nuvem foi configurado! Todos os dados que você possuía localmente neste navegador foram sincronizados automaticamente. ☁️'
-            );
-          } else {
-            // Bootstrap pristine defaults
-            const defaultData = INITIAL_MOCK_DATA;
-            setDoc(userDocRef, {
-              uid: user.uid,
-              categoryBudgets: defaultData.categoryBudgets,
-              monthlyBudgets: defaultData.monthlyBudgets,
-              creditCards: defaultData.creditCards || [],
-              defaultMonthlySalary: defaultData.defaultMonthlySalary,
-              defaultTargetSavingsPercentage: defaultData.defaultTargetSavingsPercentage,
-              defaultCardClosingDay: defaultData.defaultCardClosingDay ?? 5
-            }, { merge: true }).catch(err => {
-              console.error("Erro ao configurar perfil padrão na nuvem:", err);
-            });
-          }
+          // Keep browser data separate: only the explicit upload action transfers it.
+          const defaultData = INITIAL_MOCK_DATA;
+          setDoc(userDocRef, {
+            uid: user.uid,
+            categoryBudgets: defaultData.categoryBudgets,
+            monthlyBudgets: defaultData.monthlyBudgets,
+            creditCards: defaultData.creditCards || [],
+            defaultMonthlySalary: defaultData.defaultMonthlySalary,
+            defaultTargetSavingsPercentage: defaultData.defaultTargetSavingsPercentage,
+            defaultCardClosingDay: defaultData.defaultCardClosingDay ?? 5
+          }, { merge: true }).catch(err => {
+            console.error("Erro ao configurar perfil padrão na nuvem:", err);
+          });
         }
       }, (err) => handleFirestoreError(err, OperationType.GET, `users/${user.uid}`));
 
