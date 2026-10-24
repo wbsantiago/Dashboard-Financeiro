@@ -46,7 +46,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-import { AppData, Expense, Revenue, CategoryBudget, MonthlyBudget, CreditCard } from './types';
+import { AppData, Expense, Revenue, CategoryBudget, MonthlyBudget, CreditCard, ExpenseEditScope, RecurrenceScope } from './types';
+import { createMonthlyOccurrences, selectRecurringItems, updateRecurringItems, readRecurrenceFields } from './utils/recurrence';
 import { loadAppData, saveAppData, exportDataAsJSON, importDataFromJSON, DEFAULT_CATEGORIES, DEFAULT_REVENUE_CATEGORIES, INITIAL_MOCK_DATA } from './utils/storage';
 import { formatCurrency, formatMonthName, getCurrentMonthStr, getInstallmentInfo, getCompetenceMonth } from './utils/format';
 
@@ -306,6 +307,7 @@ export default function App() {
           ...(exp.totalInstallments !== undefined ? { totalInstallments: Number(exp.totalInstallments) } : {}),
           ...(exp.currentInstallment !== undefined ? { currentInstallment: Number(exp.currentInstallment) } : {}),
           ...(exp.firstInstallmentInNextMonth !== undefined ? { firstInstallmentInNextMonth: Boolean(exp.firstInstallmentInNextMonth) } : {}),
+          ...readRecurrenceFields(exp),
         };
       };
 
@@ -321,7 +323,8 @@ export default function App() {
           category: String(rev.category || 'Outros').substring(0, 80),
           month: String(rev.month || rev.date?.substring(0, 7) || fallbackMonth).substring(0, 10),
           date: String(rev.date || fallbackDate).substring(0, 12),
-          createdAt: Number(rev.createdAt || Date.now())
+          createdAt: Number(rev.createdAt || Date.now()),
+          ...readRecurrenceFields(rev),
         };
       };
       
@@ -613,6 +616,7 @@ export default function App() {
       const userDocRef = doc(db, 'users', user.uid);
       
       const unsubProfile = onSnapshot(userDocRef, { includeMetadataChanges: true }, (snapshot) => {
+        const fromCache = snapshot.metadata.fromCache;
         if (snapshot.exists()) {
           const profileData = snapshot.data();
           setData(prev => ({
@@ -624,7 +628,7 @@ export default function App() {
             defaultTargetSavingsPercentage: profileData.defaultTargetSavingsPercentage ?? prev.defaultTargetSavingsPercentage,
             defaultCardClosingDay: profileData.defaultCardClosingDay ?? prev.defaultCardClosingDay,
           }));
-        } else if (!snapshot.metadata.fromCache) {
+        } else if (!fromCache) {
           // Only create a profile after the server confirms it is missing.
           // A transaction also protects profiles created concurrently in another tab.
           runTransaction(db!, async (transaction) => {
@@ -780,8 +784,45 @@ export default function App() {
     setSelectedMonth(nextStr);
   };
 
+  // Recurring operations write only the selected records in the active storage mode.
+  const persistRecurringItems = async (
+    collectionName: 'expenses' | 'revenues', items: (Expense | Revenue)[], remove = false,
+  ) => {
+    if (storageType === 'cloud') {
+      const uid = auth?.currentUser?.uid;
+      if (!uid || !db) throw new Error('Entre novamente na conta Google para salvar os lançamentos.');
+      const batch = writeBatch(db);
+      items.forEach(item => {
+        const ref = doc(db!, 'users', uid, collectionName, item.id);
+        if (remove) batch.delete(ref);
+        else batch.set(ref, cleanDocument(item));
+      });
+      await batch.commit().catch(err => handleFirestoreError(err,
+        remove ? OperationType.DELETE : OperationType.WRITE, `users/${uid}/${collectionName}`));
+    } else {
+      const ids = new Set(items.map(item => item.id));
+      setData(prev => {
+        if (collectionName === 'expenses') {
+          const remaining = prev.expenses.filter(item => !ids.has(item.id));
+          return { ...prev, expenses: remove ? remaining : [...items as Expense[], ...remaining] };
+        }
+        const remaining = (prev.revenues || []).filter(item => !ids.has(item.id));
+        return { ...prev, revenues: remove ? remaining : [...items as Revenue[], ...remaining] };
+      });
+    }
+  };
+
   // Add / Delete core items
   const handleAddExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>) => {
+    if (expenseData.recurrenceMonths !== undefined) {
+      if (expenseData.isInstallment) throw new Error('Escolha parcelamento ou recorrência mensal.');
+      const entries = createMonthlyOccurrences({ ...expenseData, paid: false,
+        totalInstallments: undefined, currentInstallment: undefined, firstInstallmentInNextMonth: undefined,
+      }, expenseData.recurrenceMonths, 'exp', date => getCompetenceMonth(date, data.monthlyBudgets, data.defaultCardClosingDay ?? 5));
+      await persistRecurringItems('expenses', entries);
+      triggerNotification(`${entries.length} despesas mensais criadas com o valor integral em cada mês.`);
+      return;
+    }
     if (storageType === 'cloud' && auth?.currentUser?.uid) {
       const uid = auth.currentUser.uid;
       if (expenseData.isInstallment && expenseData.totalInstallments && expenseData.currentInstallment) {
@@ -896,9 +937,16 @@ export default function App() {
     }
   };
 
-  const handleDeleteExpense = async (id: string) => {
+  const handleDeleteExpense = async (id: string, scope: RecurrenceScope = 'single') => {
     const item = data.expenses.find(e => e.id === id);
     if (!item) return;
+
+    if (item.recurrenceId) {
+      const entries = selectRecurringItems(data.expenses, item, scope);
+      await persistRecurringItems('expenses', entries, true);
+      triggerNotification(`${entries.length} lançamento(s) removido(s). Os meses anteriores foram preservados.`);
+      return;
+    }
 
     if (storageType === 'cloud' && auth?.currentUser?.uid) {
       const uid = auth.currentUser.uid;
@@ -943,7 +991,7 @@ export default function App() {
   const handleUpdateExpense = async (
     id: string, 
     updatedFields: Partial<Omit<Expense, 'id' | 'createdAt'>>,
-    scope: 'single' | 'all' | 'rebuild' = 'single',
+    scope: ExpenseEditScope = 'single',
     rebuildParams?: {
       totalInstallments: number;
       firstInstallmentInNextMonth: boolean;
@@ -953,6 +1001,15 @@ export default function App() {
   ) => {
     const originalExpense = data.expenses.find(e => e.id === id);
     if (!originalExpense) return;
+
+    if (originalExpense.recurrenceId) {
+      const entries = updateRecurringItems(data.expenses, originalExpense, updatedFields,
+        scope === 'future' ? 'future' : 'single',
+        date => getCompetenceMonth(date, data.monthlyBudgets, data.defaultCardClosingDay ?? 5));
+      await persistRecurringItems('expenses', entries);
+      triggerNotification(`${entries.length} lançamento(s) atualizado(s). Os meses anteriores foram preservados.`);
+      return;
+    }
 
     if (storageType === 'cloud' && auth?.currentUser?.uid) {
       const uid = auth.currentUser.uid;
@@ -1188,6 +1245,12 @@ export default function App() {
   };
 
   const handleAddRevenue = async (revenueData: Omit<Revenue, 'id' | 'createdAt'>) => {
+    if (revenueData.recurrenceMonths !== undefined) {
+      const entries = createMonthlyOccurrences(revenueData, revenueData.recurrenceMonths, 'rev');
+      await persistRecurringItems('revenues', entries);
+      triggerNotification(`${entries.length} rendimentos mensais criados com o valor integral em cada mês.`);
+      return;
+    }
     if (storageType === 'cloud' && auth?.currentUser?.uid) {
       const uid = auth.currentUser.uid;
       const newId = `rev-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -1214,9 +1277,16 @@ export default function App() {
     }
   };
 
-  const handleDeleteRevenue = async (id: string) => {
+  const handleDeleteRevenue = async (id: string, scope: RecurrenceScope = 'single') => {
     const item = (data.revenues || []).find(r => r.id === id);
     if (!item) return;
+
+    if (item.recurrenceId) {
+      const entries = selectRecurringItems(data.revenues || [], item, scope);
+      await persistRecurringItems('revenues', entries, true);
+      triggerNotification(`${entries.length} rendimento(s) removido(s). Os meses anteriores foram preservados.`);
+      return;
+    }
 
     if (storageType === 'cloud' && auth?.currentUser?.uid) {
       const uid = auth.currentUser.uid;
@@ -1232,9 +1302,16 @@ export default function App() {
     }
   };
 
-  const handleUpdateRevenue = async (id: string, updatedFields: Partial<Omit<Revenue, 'id' | 'createdAt'>>) => {
+  const handleUpdateRevenue = async (id: string, updatedFields: Partial<Omit<Revenue, 'id' | 'createdAt'>>, scope: RecurrenceScope = 'single') => {
     const originalRev = (data.revenues || []).find(r => r.id === id);
     if (!originalRev) return;
+
+    if (originalRev.recurrenceId) {
+      const entries = updateRecurringItems(data.revenues || [], originalRev, updatedFields, scope);
+      await persistRecurringItems('revenues', entries);
+      triggerNotification(`${entries.length} rendimento(s) atualizado(s). Os meses anteriores foram preservados.`);
+      return;
+    }
 
     if (storageType === 'cloud' && auth?.currentUser?.uid) {
       const uid = auth.currentUser.uid;

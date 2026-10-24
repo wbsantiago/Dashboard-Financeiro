@@ -19,7 +19,9 @@ import {
   ChevronDown,
   X
 } from 'lucide-react';
-import { Expense, Revenue, MonthlyBudget, CreditCard as CreditCardType } from '../types';
+import { Expense, Revenue, MonthlyBudget, CreditCard as CreditCardType, ExpenseEditScope, RecurrenceScope } from '../types';
+import { RecurrenceControls, RecurrenceScopeSelector, EntryType } from './RecurrenceControls';
+import { validateRecurrenceMonths } from '../utils/recurrence';
 import { formatCurrency, formatDate, getInstallmentInfo, getCompetenceMonth } from '../utils/format';
 import { 
   DEFAULT_CATEGORIES, 
@@ -30,23 +32,23 @@ import {
 
 interface ExpenseTrackerProps {
   expenses: Expense[];
-  onAddExpense: (expenseData: Omit<Expense, 'id' | 'createdAt'>) => void;
-  onDeleteExpense: (id: string) => void;
+  onAddExpense: (expenseData: Omit<Expense, 'id' | 'createdAt'>) => Promise<void>;
+  onDeleteExpense: (id: string, scope?: RecurrenceScope) => Promise<void>;
   onUpdateExpense: (
     id: string, 
     updatedData: Partial<Omit<Expense, 'id' | 'createdAt'>>,
-    scope?: 'single' | 'all' | 'rebuild',
+    scope?: ExpenseEditScope,
     rebuildParams?: {
       totalInstallments: number;
       firstInstallmentInNextMonth: boolean;
       installmentValueType: 'total' | 'single';
       rawValue: number;
     }
-  ) => void;
+  ) => Promise<void>;
   revenues: Revenue[];
-  onAddRevenue: (revenueData: Omit<Revenue, 'id' | 'createdAt'>) => void;
-  onDeleteRevenue: (id: string) => void;
-  onUpdateRevenue: (id: string, updatedData: Partial<Omit<Revenue, 'id' | 'createdAt'>>) => void;
+  onAddRevenue: (revenueData: Omit<Revenue, 'id' | 'createdAt'>) => Promise<void>;
+  onDeleteRevenue: (id: string, scope?: RecurrenceScope) => Promise<void>;
+  onUpdateRevenue: (id: string, updatedData: Partial<Omit<Revenue, 'id' | 'createdAt'>>, scope?: RecurrenceScope) => Promise<void>;
   selectedMonth: string;
   monthlyBudgets?: MonthlyBudget[];
   defaultCardClosingDay?: number;
@@ -77,10 +79,16 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   const [activeTab, setActiveTab] = useState<'expenses' | 'revenues'>('expenses');
 
   // State to handle delete confirmation modal
-  const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'expense' | 'revenue'; title: string; isInstallment?: boolean } | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'expense' | 'revenue'; title: string; isInstallment?: boolean; recurrenceId?: string } | null>(null);
+  const [deleteScope, setDeleteScope] = useState<RecurrenceScope>('single');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const requestDeletion = (item: NonNullable<typeof itemToDelete>) => {
+    setDeleteScope('single');
+    setItemToDelete(item);
+  };
 
   // FILTERS (Expenses)
-  const [filterType, setFilterType] = useState<'all' | 'one-time' | 'installment'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'one-time' | 'installment' | 'recurring'>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>('all');
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<'all' | 'paid' | 'unpaid'>('all');
@@ -98,7 +106,11 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   const [customCategory, setCustomCategory] = useState('');
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [isInstallment, setIsInstallment] = useState(false);
+  const [expenseEntryType, setExpenseEntryType] = useState<EntryType>('single');
+  const isInstallment = expenseEntryType === 'installment';
+  const [recurrenceMonths, setRecurrenceMonths] = useState('12');
+  const [isSavingExpense, setIsSavingExpense] = useState(false);
+  const [isSavingRevenue, setIsSavingRevenue] = useState(false);
   const [totalInstallments, setTotalInstallments] = useState('12');
   const [currentInstallment, setCurrentInstallment] = useState('1');
   const [firstInstallmentNextMonth, setFirstInstallmentNextMonth] = useState(false);
@@ -152,7 +164,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   const [editCustomCategory, setEditCustomCategory] = useState('');
   const [isEditCustomCategory, setIsEditCustomCategory] = useState(false);
   const [editDate, setEditDate] = useState('');
-  const [editScope, setEditScope] = useState<'single' | 'all' | 'rebuild'>('single');
+  const [editScope, setEditScope] = useState<ExpenseEditScope>('single');
   const [editTotalInstallments, setEditTotalInstallments] = useState('12');
   const [editFirstInstallmentInNextMonth, setEditFirstInstallmentInNextMonth] = useState(false);
   const [editInstallmentValueType, setEditInstallmentValueType] = useState<'total' | 'single'>('single');
@@ -193,9 +205,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
     }
   };
 
-  const handleSaveEditExpense = (e: React.FormEvent) => {
+  const handleSaveEditExpense = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingExpense) return;
+    if (!editingExpense || isSavingExpense) return;
 
     const parsedValue = parseFloat(editValue);
     if (isNaN(parsedValue) || parsedValue <= 0) {
@@ -223,51 +235,58 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
         : creditCards.find(c => c.lastDigits === editCardLastDigits))
       : undefined;
 
-    if (isCurrentlyInstallment && editScope === 'rebuild') {
-      const totalInsts = parseInt(editTotalInstallments, 10);
-      if (isNaN(totalInsts) || totalInsts < 1) {
-        alert('Por favor, insira uma quantidade de parcelas válida.');
-        return;
+    setIsSavingExpense(true);
+    try {
+      if (isCurrentlyInstallment && editScope === 'rebuild') {
+        const totalInsts = parseInt(editTotalInstallments, 10);
+        if (isNaN(totalInsts) || totalInsts < 1) {
+          alert('Por favor, insira uma quantidade de parcelas válida.');
+          return;
+        }
+        await onUpdateExpense(editingExpense.id, {
+          title: editTitle.trim(),
+          category: finalCategory,
+          date: editDate,
+          paymentMethod: editPaymentMethod,
+          cardLastDigits: editPaymentMethod === 'card' ? editCardLastDigits : undefined,
+          cardId: resolvedEditCard?.id,
+          cardNickname: resolvedEditCard?.name,
+        }, 'rebuild', {
+          totalInstallments: totalInsts,
+          firstInstallmentInNextMonth: editFirstInstallmentInNextMonth,
+          installmentValueType: editInstallmentValueType,
+          rawValue: parsedValue,
+        });
+      } else if (isCurrentlyInstallment && editScope === 'all') {
+        await onUpdateExpense(editingExpense.id, {
+          title: editTitle.trim(),
+          value: parsedValue,
+          category: finalCategory,
+          date: editDate,
+          paymentMethod: editPaymentMethod,
+          cardLastDigits: editPaymentMethod === 'card' ? editCardLastDigits : undefined,
+          cardId: resolvedEditCard?.id,
+          cardNickname: resolvedEditCard?.name,
+        }, 'all');
+      } else {
+        await onUpdateExpense(editingExpense.id, {
+          title: editTitle.trim(),
+          value: parsedValue,
+          category: finalCategory,
+          date: editDate,
+          paymentMethod: editPaymentMethod,
+          cardLastDigits: editPaymentMethod === 'card' ? editCardLastDigits : undefined,
+          cardId: resolvedEditCard?.id,
+          cardNickname: resolvedEditCard?.name,
+        }, editingExpense.recurrenceId && editScope === 'future' ? 'future' : 'single');
       }
-      onUpdateExpense(editingExpense.id, {
-        title: editTitle.trim(),
-        category: finalCategory,
-        date: editDate,
-        paymentMethod: editPaymentMethod,
-        cardLastDigits: editPaymentMethod === 'card' ? editCardLastDigits : undefined,
-        cardId: resolvedEditCard?.id,
-        cardNickname: resolvedEditCard?.name,
-      }, 'rebuild', {
-        totalInstallments: totalInsts,
-        firstInstallmentInNextMonth: editFirstInstallmentInNextMonth,
-        installmentValueType: editInstallmentValueType,
-        rawValue: parsedValue,
-      });
-    } else if (isCurrentlyInstallment && editScope === 'all') {
-      onUpdateExpense(editingExpense.id, {
-        title: editTitle.trim(),
-        value: parsedValue,
-        category: finalCategory,
-        date: editDate,
-        paymentMethod: editPaymentMethod,
-        cardLastDigits: editPaymentMethod === 'card' ? editCardLastDigits : undefined,
-        cardId: resolvedEditCard?.id,
-        cardNickname: resolvedEditCard?.name,
-      }, 'all');
-    } else {
-      onUpdateExpense(editingExpense.id, {
-        title: editTitle.trim(),
-        value: parsedValue,
-        category: finalCategory,
-        date: editDate,
-        paymentMethod: editPaymentMethod,
-        cardLastDigits: editPaymentMethod === 'card' ? editCardLastDigits : undefined,
-        cardId: resolvedEditCard?.id,
-        cardNickname: resolvedEditCard?.name,
-      }, 'single');
-    }
 
-    setEditingExpense(null);
+      setEditingExpense(null);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Não foi possível salvar a despesa. Tente novamente.');
+    } finally {
+      setIsSavingExpense(false);
+    }
   };
 
   // EDIT STATE (Revenues)
@@ -278,8 +297,10 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   const [editCustomRevCategory, setEditCustomRevCategory] = useState('');
   const [isEditCustomRevCategory, setIsEditCustomRevCategory] = useState(false);
   const [editRevDate, setEditRevDate] = useState('');
+  const [editRevScope, setEditRevScope] = useState<RecurrenceScope>('single');
 
   const handleStartEditRevenue = (rev: Revenue) => {
+    setEditRevScope('single');
     setEditingRevenue(rev);
     setEditRevTitle(rev.title);
     setEditRevValue(rev.value.toString());
@@ -294,9 +315,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
     }
   };
 
-  const handleSaveEditRevenue = (e: React.FormEvent) => {
+  const handleSaveEditRevenue = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingRevenue) return;
+    if (!editingRevenue || isSavingRevenue) return;
 
     const parsedValue = parseFloat(editRevValue);
     if (isNaN(parsedValue) || parsedValue <= 0) {
@@ -315,14 +336,21 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
       return;
     }
 
-    onUpdateRevenue(editingRevenue.id, {
-      title: editRevTitle.trim(),
-      value: parsedValue,
-      category: finalCategory,
-      date: editRevDate,
-    });
+    setIsSavingRevenue(true);
+    try {
+      await onUpdateRevenue(editingRevenue.id, {
+        title: editRevTitle.trim(),
+        value: parsedValue,
+        category: finalCategory,
+        date: editRevDate,
+      }, editingRevenue.recurrenceId ? editRevScope : 'single');
 
-    setEditingRevenue(null);
+      setEditingRevenue(null);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Não foi possível salvar o rendimento. Tente novamente.');
+    } finally {
+      setIsSavingRevenue(false);
+    }
   };
 
   // FORM STATE (Revenues)
@@ -332,6 +360,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   const [customRevCategory, setCustomRevCategory] = useState('');
   const [isCustomRevCategory, setIsCustomRevCategory] = useState(false);
   const [revDate, setRevDate] = useState(new Date().toISOString().split('T')[0]);
+  const [revenueEntryType, setRevenueEntryType] = useState<EntryType>('single');
+  const [revenueRecurrenceMonths, setRevenueRecurrenceMonths] = useState('12');
 
   // CATEGORIES LISTS FOR FILTER DROPDOWNS
   const uniqueCategories = Array.from(new Set(expenses.map(e => e.category)));
@@ -373,14 +403,15 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
     const info = getInstallmentInfo(exp);
     const isInst = exp.isInstallment || info.hasInfo;
     
-    if (filterType === 'one-time' && isInst) return false;
+    if (filterType === 'one-time' && (isInst || exp.recurrenceId)) return false;
     if (filterType === 'installment' && !isInst) return false;
+    if (filterType === 'recurring' && !exp.recurrenceId) return false;
     return true;
   });
 
   const regularExpenses = baseFilteredExpenses.filter(exp => {
     const info = getInstallmentInfo(exp);
-    return !exp.isInstallment && !info.hasInfo;
+    return !exp.isInstallment && !info.hasInfo && !exp.recurrenceId;
   });
 
   const installmentExpenses = baseFilteredExpenses.filter(exp => {
@@ -475,8 +506,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   const totalFilteredRevenues = filteredRevenues.reduce((sum, item) => sum + item.value, 0);
 
   // SUBMIT HANDLERS
-  const handleExpenseSubmit = (e: React.FormEvent) => {
+  const handleExpenseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSavingExpense) return;
 
     const expenseValue = parseFloat(value);
     if (isNaN(expenseValue) || expenseValue <= 0) {
@@ -508,35 +540,45 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
         : creditCards.find(c => c.lastDigits === cardLastDigits))
       : undefined;
 
-    onAddExpense({
-      title: title.trim(),
-      value: finalValue,
-      category: finalCategory,
-      month: expenseMonth,
-      isInstallment,
-      totalInstallments: isInstallment ? parseInt(totalInstallments) : undefined,
-      currentInstallment: isInstallment ? parseInt(currentInstallment) : undefined,
-      firstInstallmentInNextMonth: isInstallment ? firstInstallmentNextMonth : undefined,
-      date,
-      paymentMethod,
-      cardLastDigits: paymentMethod === 'card' ? cardLastDigits : undefined,
-      cardId: resolvedCard?.id,
-      cardNickname: resolvedCard?.name,
-    });
+    setIsSavingExpense(true);
+    try {
+      if (expenseEntryType === 'monthly') validateRecurrenceMonths(Number(recurrenceMonths));
+      await onAddExpense({
+        title: title.trim(),
+        value: finalValue,
+        category: finalCategory,
+        month: expenseMonth,
+        isInstallment,
+        recurrenceMonths: expenseEntryType === 'monthly' ? Number(recurrenceMonths) : undefined,
+        totalInstallments: isInstallment ? parseInt(totalInstallments) : undefined,
+        currentInstallment: isInstallment ? parseInt(currentInstallment) : undefined,
+        firstInstallmentInNextMonth: isInstallment ? firstInstallmentNextMonth : undefined,
+        date,
+        paymentMethod,
+        cardLastDigits: paymentMethod === 'card' ? cardLastDigits : undefined,
+        cardId: resolvedCard?.id,
+        cardNickname: resolvedCard?.name,
+      });
 
-    setTitle('');
-    setValue('');
-    setIsInstallment(false);
-    setCustomCategory('');
-    setIsCustomCategory(false);
-    setFirstInstallmentNextMonth(false);
-    setInstallmentValueType('single');
-    setPaymentMethod('pix');
-    setCardLastDigits('');
-    setSelectedCardId('');
-    setShowInlineAddCard(false);
-    setInlineCardName('');
-    setInlineCardDigits('');
+      setTitle('');
+      setValue('');
+      setExpenseEntryType('single');
+      setRecurrenceMonths('12');
+      setCustomCategory('');
+      setIsCustomCategory(false);
+      setFirstInstallmentNextMonth(false);
+      setInstallmentValueType('single');
+      setPaymentMethod('pix');
+      setCardLastDigits('');
+      setSelectedCardId('');
+      setShowInlineAddCard(false);
+      setInlineCardName('');
+      setInlineCardDigits('');
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Não foi possível salvar a despesa. Tente novamente.');
+    } finally {
+      setIsSavingExpense(false);
+    }
   };
 
   const handleAddInlineCard = async () => {
@@ -561,8 +603,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
     }
   };
 
-  const handleRevenueSubmit = (e: React.FormEvent) => {
+  const handleRevenueSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSavingRevenue) return;
 
     const revenueValue = parseFloat(revValue);
     if (isNaN(revenueValue) || revenueValue <= 0) {
@@ -583,18 +626,29 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
 
     const revenueMonth = revDate.substring(0, 7);
 
-    onAddRevenue({
-      title: revTitle.trim(),
-      value: revenueValue,
-      category: finalRevCategory,
-      month: revenueMonth,
-      date: revDate,
-    });
+    setIsSavingRevenue(true);
+    try {
+      if (revenueEntryType === 'monthly') validateRecurrenceMonths(Number(revenueRecurrenceMonths));
+      await onAddRevenue({
+        title: revTitle.trim(),
+        value: revenueValue,
+        category: finalRevCategory,
+        month: revenueMonth,
+        date: revDate,
+        recurrenceMonths: revenueEntryType === 'monthly' ? Number(revenueRecurrenceMonths) : undefined,
+      });
 
-    setRevTitle('');
-    setRevValue('');
-    setCustomRevCategory('');
-    setIsCustomRevCategory(false);
+      setRevTitle('');
+      setRevValue('');
+      setCustomRevCategory('');
+      setIsCustomRevCategory(false);
+      setRevenueEntryType('single');
+      setRevenueRecurrenceMonths('12');
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Não foi possível salvar o rendimento. Tente novamente.');
+    } finally {
+      setIsSavingRevenue(false);
+    }
   };
 
   return (
@@ -925,25 +979,12 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                       )}
                     </div>
 
-                    {/* Compra Parcelada */}
-                    <div className="p-2.5 bg-zinc-950/30 rounded-xl border border-white/5 shadow-inner">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <CreditCard className="w-3.5 h-3.5 text-slate-500" />
-                          <div>
-                            <span className="text-[10px] font-bold text-slate-350 block leading-tight">Compra Parcelada?</span>
-                          </div>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            className="sr-only peer" 
-                            checked={isInstallment}
-                            onChange={(e) => setIsInstallment(e.target.checked)}
-                          />
-                          <div className="w-8 h-4.5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-zinc-900 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-700 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-indigo-500"></div>
-                        </label>
-                      </div>
+                    <RecurrenceControls entryType={expenseEntryType} onTypeChange={setExpenseEntryType}
+                      months={recurrenceMonths} onMonthsChange={setRecurrenceMonths} date={date} value={value}
+                      allowInstallments getMonth={date => getCompetenceMonth(date, monthlyBudgets, defaultCardClosingDay)} />
+
+                    {/* Parcelamento mantém suas opções próprias. */}
+                    <div className={isInstallment ? 'p-2.5 bg-zinc-950/30 rounded-xl border border-white/5 shadow-inner' : 'hidden'}>
 
                       {isInstallment && (
                         <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-white/5 animate-slideDown">
@@ -1055,10 +1096,11 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
 
                     <button
                       type="submit"
+                      disabled={isSavingExpense}
                       className="w-full bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-500 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/10"
                     >
                       <PlusCircle className="w-3.5 h-3.5" />
-                      Lançar Despesa
+                      {isSavingExpense ? 'Salvando...' : 'Lançar Despesa'}
                     </button>
                   </form>
                 </div>
@@ -1226,7 +1268,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                   </div>
 
                   {/* Abas internas para tipo de despesa */}
-                  <div className="flex border-b border-white/5 mb-3 pb-0.5 gap-4 text-[10px] uppercase font-bold text-slate-500" id="tabs-header">
+                  <div className="flex flex-wrap border-b border-white/5 mb-3 pb-0.5 gap-3 text-[10px] uppercase font-bold text-slate-500" id="tabs-header">
                     <button
                       onClick={() => setFilterType('all')}
                       className={`pb-1 px-1.5 outline-none tracking-wider border-b-2 transition-all cursor-pointer ${filterType === 'all' ? 'border-indigo-400 text-white' : 'border-transparent'}`}
@@ -1237,13 +1279,17 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                       onClick={() => setFilterType('one-time')}
                       className={`pb-1 px-1.5 outline-none tracking-wider border-b-2 transition-all cursor-pointer ${filterType === 'one-time' ? 'border-indigo-400 text-white' : 'border-transparent'}`}
                     >
-                      À Vista ({regularExpenses.length})
+                      Únicos ({regularExpenses.length})
                     </button>
                     <button
                       onClick={() => setFilterType('installment')}
                       className={`pb-1 px-1.5 outline-none tracking-wider border-b-2 transition-all cursor-pointer ${filterType === 'installment' ? 'border-indigo-400 text-white' : 'border-transparent'}`}
                     >
                       Parcelados ({installmentExpenses.length})
+                    </button>
+                    <button onClick={() => setFilterType('recurring')}
+                      className={`pb-1 px-1.5 outline-none tracking-wider border-b-2 transition-all cursor-pointer ${filterType === 'recurring' ? 'border-indigo-400 text-white' : 'border-transparent'}`}>
+                      Mensais ({baseFilteredExpenses.filter(exp => exp.recurrenceId).length})
                     </button>
                   </div>
 
@@ -1458,6 +1504,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                                   }`}>
                                     {exp.title}
                                   </span>
+                                  {exp.recurrenceId && <span className="rounded border border-teal-500/20 bg-teal-500/10 px-1.5 py-0.5 text-[8px] font-bold text-teal-400">Mensal · {exp.recurrenceIndex} de {exp.recurrenceMonths}</span>}
                                   {instInfo.hasInfo && (
                                     <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold font-mono border shrink-0 transition-colors ${
                                       exp.paid 
@@ -1543,10 +1590,11 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
                               <button
-                                onClick={() => setItemToDelete({ 
+                                onClick={() => requestDeletion({ 
                                   id: exp.id, 
                                   type: 'expense', 
                                   title: exp.title, 
+                                  recurrenceId: exp.recurrenceId,
                                   isInstallment: exp.isInstallment || instInfo.hasInfo 
                                 })}
                                 className="p-1.5 text-slate-500 hover:text-rose-455 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-rose-500/10"
@@ -1678,12 +1726,16 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                       )}
                     </div>
 
+                    <RecurrenceControls entryType={revenueEntryType} onTypeChange={setRevenueEntryType}
+                      months={revenueRecurrenceMonths} onMonthsChange={setRevenueRecurrenceMonths} date={revDate} value={revValue} />
+
                     <button
                       type="submit"
+                      disabled={isSavingRevenue}
                       className="w-full mt-3 bg-emerald-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-emerald-500 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-emerald-600/10"
                     >
                       <PlusCircle className="w-3.5 h-3.5" />
-                      Lançar Rendimento
+                      {isSavingRevenue ? 'Salvando...' : 'Lançar Rendimento'}
                     </button>
                   </form>
                 </div>
@@ -1759,6 +1811,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                                   <span className="font-bold text-white text-xs truncate leading-tight">
                                     {rev.title}
                                   </span>
+                                  {rev.recurrenceId && <span className="rounded border border-teal-500/20 bg-teal-500/10 px-1.5 py-0.5 text-[8px] font-bold text-teal-400">Mensal · {rev.recurrenceIndex} de {rev.recurrenceMonths}</span>}
                                 </div>
                                 <div className="flex items-center gap-1.5 text-slate-500 text-[10px] mt-0.5">
                                   <span className="font-semibold text-emerald-400 uppercase tracking-wide text-[8px] bg-zinc-900 border border-white/5 px-1 rounded">
@@ -1787,10 +1840,11 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
                               <button
-                                onClick={() => setItemToDelete({ 
+                                onClick={() => requestDeletion({ 
                                   id: rev.id, 
                                   type: 'revenue', 
-                                  title: rev.title 
+                                  title: rev.title,
+                                  recurrenceId: rev.recurrenceId,
                                 })}
                                 className="p-1.5 text-slate-505 hover:text-rose-455 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-rose-500/10"
                                 title="Remover Rendimento"
@@ -1832,6 +1886,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
             </div>
 
             <form onSubmit={handleSaveEditExpense} className="space-y-4">
+              {editingExpense.recurrenceId && <RecurrenceScopeSelector
+                value={editScope === 'future' ? 'future' : 'single'} onChange={setEditScope} />}
               {/* Descrição */}
               <div>
                 <label className="block text-[9px] font-bold text-slate-450 uppercase mb-1">
@@ -2222,9 +2278,10 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                 </button>
                 <button
                   type="submit"
+                  disabled={isSavingExpense}
                   className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all cursor-pointer shadow-md shadow-indigo-600/10"
                 >
-                  Salvar Alterações
+                  {isSavingExpense ? 'Salvando...' : 'Salvar Alterações'}
                 </button>
               </div>
             </form>
@@ -2247,6 +2304,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
             </div>
 
             <form onSubmit={handleSaveEditRevenue} className="space-y-3.5">
+              {editingRevenue.recurrenceId && <RecurrenceScopeSelector value={editRevScope} onChange={setEditRevScope} />}
               {/* Descrição */}
               <div>
                 <label className="block text-[9px] font-bold text-slate-450 uppercase mb-1">
@@ -2348,9 +2406,10 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                 </button>
                 <button
                   type="submit"
+                  disabled={isSavingRevenue}
                   className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl transition-all cursor-pointer shadow-md shadow-emerald-600/10"
                 >
-                  Salvar
+                  {isSavingRevenue ? 'Salvando...' : 'Salvar'}
                 </button>
               </div>
             </form>
@@ -2377,6 +2436,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                 Tem certeza de que deseja excluir o lançamento <span className="text-white font-extrabold">"{itemToDelete.title}"</span>?
               </p>
               
+              {itemToDelete.recurrenceId && <div className="mt-3"><RecurrenceScopeSelector value={deleteScope} onChange={setDeleteScope} /></div>}
+
               {itemToDelete.type === 'expense' && itemToDelete.isInstallment && (
                 <div className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/10 p-3 rounded-xl mt-3 flex gap-2 animate-fadeIn">
                   <AlertTriangle className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
@@ -2391,6 +2452,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
             <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/5">
               <button
                 type="button"
+                disabled={isDeleting}
                 onClick={() => setItemToDelete(null)}
                 className="px-4 py-2 text-xs font-bold text-slate-450 hover:text-white bg-zinc-900/40 hover:bg-zinc-900 rounded-xl border border-white/5 transition-colors cursor-pointer"
               >
@@ -2398,17 +2460,26 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  if (itemToDelete.type === 'expense') {
-                    onDeleteExpense(itemToDelete.id);
-                  } else {
-                    onDeleteRevenue(itemToDelete.id);
+                disabled={isDeleting}
+                onClick={async () => {
+                  if (isDeleting) return;
+                  setIsDeleting(true);
+                  try {
+                    if (itemToDelete.type === 'expense') {
+                      await onDeleteExpense(itemToDelete.id, deleteScope);
+                    } else {
+                      await onDeleteRevenue(itemToDelete.id, deleteScope);
+                    }
+                    setItemToDelete(null);
+                  } catch (error) {
+                    alert(error instanceof Error ? error.message : 'Não foi possível excluir. Tente novamente.');
+                  } finally {
+                    setIsDeleting(false);
                   }
-                  setItemToDelete(null);
                 }}
                 className="px-4 py-2 text-xs font-black text-white bg-rose-600 hover:bg-rose-500 rounded-xl transition-all cursor-pointer shadow-md shadow-rose-600/10"
               >
-                Confirmar e Excluir
+                {isDeleting ? 'Excluindo...' : 'Confirmar e Excluir'}
               </button>
             </div>
           </div>

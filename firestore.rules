@@ -19,6 +19,17 @@ service cloud.firestore {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    function isValidRecurrence(data) {
+      return !data.keys().hasAny(['recurrenceId', 'recurrenceIndex', 'recurrenceMonths']) || (
+        data.keys().hasAll(['recurrenceId', 'recurrenceIndex', 'recurrenceMonths'])
+        && data.recurrenceId is string && data.recurrenceId.size() > 0 && data.recurrenceId.size() <= 128
+        && data.recurrenceId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.recurrenceMonths is int && data.recurrenceMonths >= 1 && data.recurrenceMonths <= 120
+        && data.recurrenceIndex is int && data.recurrenceIndex >= 1 && data.recurrenceIndex <= data.recurrenceMonths
+        && (!('isInstallment' in data) || data.isInstallment == false)
+      );
+    }
+
     // Validation helper for UserProfile
     function isValidUserProfile(data) {
       return data.uid is string && data.uid.size() <= 128;
@@ -31,7 +42,8 @@ service cloud.firestore {
         && data.value is number
         && data.category is string && data.category.size() <= 80
         && data.month is string && data.month.size() <= 10
-        && data.date is string && data.date.size() <= 12;
+        && data.date is string && data.date.size() <= 12
+        && isValidRecurrence(data);
     }
 
     // Validation helper for Revenue
@@ -41,7 +53,8 @@ service cloud.firestore {
         && data.value is number
         && data.category is string && data.category.size() <= 80
         && data.month is string && data.month.size() <= 10
-        && data.date is string && data.date.size() <= 12;
+        && data.date is string && data.date.size() <= 12
+        && isValidRecurrence(data);
     }
 
     match /users/{userId} {

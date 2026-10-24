@@ -46,6 +46,16 @@ Um painel completo, interativo e extremamente polido para controle financeiro pe
 * **Transferência manual**: para copiar os dados locais para a conta conectada, abra o menu do perfil e escolha **Enviar Dados do Navegador**. Confirme a conta de destino antes do envio. Dados existentes na nuvem podem ser substituídos; a cópia local é mantida.
 * **Ao sair da conta**: o aplicativo volta ao modo local e carrega os dados deste navegador.
 
+### Lançamentos mensais recorrentes
+
+No cadastro de despesas, escolha **Único**, **Parcelado** ou **Recorrente mensal**. Nos rendimentos, escolha **Único** ou **Recorrente mensal**. A recorrência repete o valor inteiro a cada mês, sem dividi-lo em parcelas.
+
+Informe a duração de 1 a 120 meses, incluindo o primeiro lançamento, ou use os atalhos de 3, 6, 12 meses e **Até dezembro**. O formulário mostra a quantidade, o valor mensal e o período antes de salvar. Despesas recorrentes começam como não pagas; em meses sem o dia escolhido, o lançamento usa o último dia do mês.
+
+Ao editar ou excluir um lançamento mensal, escolha **Somente este mês** ou **Este mês e os próximos**. A identificação da série preserva os registros anteriores, o status de pagamento de cada mês e a separação entre séries com nomes iguais. Os dados da série também são mantidos ao exportar/importar backups e no envio manual para a nuvem.
+
+Para verificar: `npm test`, `npm run lint` e `npm run build`. As regras em `firestore.rules` incluem a validação dos campos de recorrência e devem acompanhar a implantação das regras do projeto Firebase.
+
 ---
 
 ## 🛠️ Tecnologias Utilizadas

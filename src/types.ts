@@ -3,7 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export interface Expense {
+export interface RecurrenceFields {
+  recurrenceId?: string;
+  recurrenceIndex?: number;
+  recurrenceMonths?: number;
+}
+
+export type RecurrenceScope = 'single' | 'future';
+export type ExpenseEditScope = RecurrenceScope | 'all' | 'rebuild';
+
+export interface Expense extends RecurrenceFields {
   id: string;
   title: string;
   value: number;
@@ -22,7 +31,7 @@ export interface Expense {
   cardNickname?: string;
 }
 
-export interface Revenue {
+export interface Revenue extends RecurrenceFields {
   id: string;
   title: string;
   value: number;

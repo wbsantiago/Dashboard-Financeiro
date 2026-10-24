@@ -65,7 +65,9 @@ export function getInstallmentInfo(exp: {
   isInstallment?: boolean;
   currentInstallment?: number;
   totalInstallments?: number;
+  recurrenceId?: string;
 }) {
+  if (exp.recurrenceId) return { current: 1, total: 1, remaining: 0, hasInfo: false };
   if (exp.isInstallment && exp.currentInstallment !== undefined && exp.totalInstallments !== undefined) {
     return {
       current: exp.currentInstallment,

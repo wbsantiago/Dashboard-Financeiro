@@ -4,6 +4,7 @@
  */
 
 import { AppData, Expense, Revenue, CategoryBudget, MonthlyBudget } from '../types';
+import { readRecurrenceFields } from './recurrence';
 
 const STORAGE_KEY = 'controle_financeiro_data';
 
@@ -220,7 +221,8 @@ export function importDataFromJSON(jsonString: string): AppData {
       paymentMethod: e.paymentMethod,
       cardLastDigits: e.cardLastDigits,
       cardId: e.cardId,
-      cardNickname: e.cardNickname
+      cardNickname: e.cardNickname,
+      ...readRecurrenceFields(e),
     })),
     revenues: Array.isArray(parsed.revenues)
       ? parsed.revenues.map((r: any, i: number) => ({
@@ -230,7 +232,8 @@ export function importDataFromJSON(jsonString: string): AppData {
           category: String(r.category || 'Outros Rendimentos'),
           month: String(r.month || new Date().toISOString().substring(0, 7)),
           date: String(r.date || new Date().toISOString().split('T')[0]),
-          createdAt: r.createdAt ? Number(r.createdAt) : Date.now()
+          createdAt: r.createdAt ? Number(r.createdAt) : Date.now(),
+          ...readRecurrenceFields(r),
         }))
       : [],
     categoryBudgets: parsed.categoryBudgets.map((b: any) => ({

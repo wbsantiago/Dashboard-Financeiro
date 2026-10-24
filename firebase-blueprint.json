@@ -37,7 +37,10 @@
         "currentInstallment": { "type": "number" },
         "firstInstallmentInNextMonth": { "type": "boolean" },
         "date": { "type": "string" },
-        "createdAt": { "type": "number" }
+        "createdAt": { "type": "number" },
+        "recurrenceId": { "type": "string" },
+        "recurrenceIndex": { "type": "integer", "minimum": 1 },
+        "recurrenceMonths": { "type": "integer", "minimum": 1, "maximum": 120 }
       },
       "required": ["id", "title", "value", "category", "month", "date"]
     },
@@ -52,7 +55,10 @@
         "category": { "type": "string" },
         "month": { "type": "string" },
         "date": { "type": "string" },
-        "createdAt": { "type": "number" }
+        "createdAt": { "type": "number" },
+        "recurrenceId": { "type": "string" },
+        "recurrenceIndex": { "type": "integer", "minimum": 1 },
+        "recurrenceMonths": { "type": "integer", "minimum": 1, "maximum": 120 }
       },
       "required": ["id", "title", "value", "category", "month", "date"]
     }
