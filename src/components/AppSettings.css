@@ -112,7 +112,7 @@
   margin-bottom:20px
 }
 
-.settings-action,.settings-check,.settings-account {
+.settings-action,.settings-check {
   display:flex;
   justify-content:space-between;
   align-items:center;
@@ -124,26 +124,6 @@
 .settings-action>div:first-child,.settings-check>div {
   flex:1;
   min-width:0
-}
-
-.settings-account {
-  padding:18px;
-  border:1px solid var(--line);
-  border-radius:12px;
-  background:var(--inset);
-  align-items:flex-start
-}
-
-.settings-email {
-  overflow-wrap:anywhere
-}
-
-.settings-status {
-  display:block;
-  font-size:11px;
-  font-weight:700;
-  color:var(--accent);
-  margin-bottom:8px
 }
 
 .app-settings .settings-subtitle {
@@ -436,7 +416,7 @@
     font-size:16px
   }
 
-  .compact-header-content p {
+  .compact-header-content > div:first-child p {
     font-size:8px
   }
 
@@ -474,7 +454,7 @@
     min-height:0
   }
 
-  .settings-action,.settings-account,.settings-danger-zone {
+  .settings-action,.settings-danger-zone {
     align-items:flex-start;
     flex-direction:column;
     gap:14px
@@ -496,10 +476,6 @@
     gap:16px
   }
 
-  .settings-account {
-    padding:16px
-  }
-
 }
 
 @media(pointer:coarse) {
@@ -518,7 +494,7 @@
 }
 
 @media(max-width:380px) {
-  .compact-header-content p {
+  .compact-header-content > div:first-child p {
     display:none
   }
 

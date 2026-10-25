@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Wallet, Database, ShieldCheck, Palette, CircleHelp, X, Download, Upload, Cloud, LogIn, LogOut, Trash2, Mail } from 'lucide-react';
+import { Wallet, Database, ShieldCheck, Palette, CircleHelp, X, Download, Upload, Cloud, Trash2, Mail } from 'lucide-react';
 import { APP_CONTACT } from '../config/appContact';
 import './AppSettings.css';
 
@@ -7,7 +7,7 @@ export type SettingsSection = 'budget' | 'data' | 'privacy' | 'appearance' | 'he
 const sections = [
   { id: 'budget', label: 'Orçamento do mês', icon: Wallet },
   { id: 'data', label: 'Dados e backups', icon: Database },
-  { id: 'privacy', label: 'Conta e privacidade', icon: ShieldCheck },
+  { id: 'privacy', label: 'Privacidade', icon: ShieldCheck },
   { id: 'appearance', label: 'Aparência', icon: Palette },
   { id: 'help', label: 'Ajuda e contato', icon: CircleHelp },
 ] as const;
@@ -18,9 +18,7 @@ interface Props {
   onSectionChange: (section: SettingsSection) => void;
   onClose: () => void;
   budgetContent: React.ReactNode;
-  user: { displayName?: string | null; email?: string | null } | null;
-  storageType: 'local' | 'cloud';
-  firebaseConfigured: boolean;
+  cloudConnected: boolean;
   theme: 'light' | 'dark';
   onThemeChange: (theme: 'light' | 'dark') => void;
   privacyMode: boolean;
@@ -31,8 +29,6 @@ interface Props {
   onImport: () => void;
   onUploadLocal: () => Promise<void>;
   onClearLocal: () => void;
-  onLogin: () => Promise<void>;
-  onLogout: () => Promise<void>;
   onDiagnostics: () => void;
 }
 
@@ -41,7 +37,7 @@ export function AppSettings(p: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [topic, setTopic] = useState('Dúvida sobre o aplicativo');
-  const cloud = p.storageType === 'cloud' && !!p.user;
+  const cloud = p.cloudConnected;
   useEffect(() => { heading.current?.focus({ preventScroll: true }); }, []);
   useEffect(() => { setError(''); }, [p.section]);
   async function run(action: () => Promise<void>) {
@@ -56,7 +52,7 @@ export function AppSettings(p: Props) {
     <section id="settings-panel" className="app-settings" aria-labelledby="settings-title"
       onKeyDown={e => { if (e.key === 'Escape') p.onClose(); }}>
       <div className="settings-heading">
-        <div><h2 id="settings-title" ref={heading} tabIndex={-1}>Configurações</h2><p>Seu planejamento, sua conta e suas preferências.</p></div>
+        <div><h2 id="settings-title" ref={heading} tabIndex={-1}>Configurações</h2><p>Seu planejamento, seus dados e suas preferências.</p></div>
         <button type="button" className="settings-icon-button" onClick={p.onClose} aria-label="Fechar configurações"><X size={20} /></button>
       </div>
       <div className="settings-layout">
@@ -77,9 +73,7 @@ export function AppSettings(p: Props) {
             {cloud && <div className="settings-action"><div><h4>Enviar dados do navegador</h4><p>Envio manual para a conta conectada. Você confirma o destino antes de continuar; configurações e registros com o mesmo identificador podem ser substituídos.</p></div><button type="button" className="settings-secondary" disabled={busy} onClick={() => run(p.onUploadLocal)}><Cloud size={16} />Enviar</button></div>}
           </>}
           {p.section === 'privacy' && <>
-            <div className="settings-account"><div><span className="settings-status">{cloud ? 'Conta Google conectada' : 'Uso neste navegador'}</span><h4>{p.user?.displayName || 'Seus dados, sob seu controle'}</h4>{p.user?.email && <p className="settings-email">{p.user.email}</p>}<p>{cloud ? 'Os lançamentos em uso são sincronizados com sua conta no Firebase.' : 'Os lançamentos em uso ficam salvos neste navegador e neste dispositivo.'}</p></div>
-              {p.user ? <button type="button" className="settings-secondary" disabled={busy} onClick={() => run(p.onLogout)}><LogOut size={16} />Sair da conta</button> : p.firebaseConfigured && <button type="button" className="settings-primary" disabled={busy} onClick={() => run(p.onLogin)}><LogIn size={16} />Conectar com Google</button>}
-            </div>
+            <p className="settings-description">{p.demoMode ? 'Você está explorando exemplos fictícios. Seus dados salvos permanecem separados da demonstração.' : cloud ? 'Os dados em uso são armazenados na nuvem, na conta conectada.' : 'Os dados em uso ficam neste navegador e neste dispositivo.'}</p>
             <h4 className="settings-subtitle">Como seus dados são usados</h4>
             <ul className="settings-info-list">
               <li>O aplicativo usa os lançamentos, orçamentos e apelidos de cartões para organizar seu controle financeiro. Cadastre somente os quatro últimos dígitos do cartão.</li>

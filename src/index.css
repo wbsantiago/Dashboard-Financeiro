@@ -88,8 +88,8 @@
 }
 
 .theme-light #main-app-header h1,
-.theme-light #main-app-header span,
-.theme-light #main-app-header p {
+.theme-light #main-app-header span:not(:where(.account-panel *)),
+.theme-light #main-app-header p:not(:where(.account-panel *)) {
   color: #0f172a !important;
 }
 
@@ -223,13 +223,13 @@
 }
 
 /* Primary/Secondary Buttons */
-.theme-light button:not(:where(.app-settings *)):not(.bg-indigo-600):not(.bg-rose-500):not(.bg-emerald-500):not(.bg-amber-500):not(.bg-rose-600):not(.bg-emerald-600):not([class*="bg-indigo"]):not([class*="bg-rose"]):not([class*="bg-emerald"]) {
+.theme-light button:not(:where(.app-settings *, .account-menu *)):not(.bg-indigo-600):not(.bg-rose-500):not(.bg-emerald-500):not(.bg-amber-500):not(.bg-rose-600):not(.bg-emerald-600):not([class*="bg-indigo"]):not([class*="bg-rose"]):not([class*="bg-emerald"]) {
   background-color: #ffffff !important;
   color: #334155 !important;
   border-color: #cbd5e1 !important;
 }
 
-.theme-light button:not(:where(.app-settings *)):not(.bg-indigo-600):not(.bg-rose-500):not(.bg-emerald-500):not(.bg-amber-500):not(.bg-rose-600):not(.bg-emerald-600):not([class*="bg-indigo"]):not([class*="bg-rose"]):not([class*="bg-emerald"]):hover {
+.theme-light button:not(:where(.app-settings *, .account-menu *)):not(.bg-indigo-600):not(.bg-rose-500):not(.bg-emerald-500):not(.bg-amber-500):not(.bg-rose-600):not(.bg-emerald-600):not([class*="bg-indigo"]):not([class*="bg-rose"]):not([class*="bg-emerald"]):hover {
   background-color: #f1f5f9 !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;

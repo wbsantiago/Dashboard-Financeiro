@@ -17,7 +17,6 @@ import {
   Eye,
   EyeOff,
   Sliders,
-  LogIn,
   Cloud,
   Plus,
   X,
@@ -57,6 +56,7 @@ import { ExpenseTracker } from './components/ExpenseTracker';
 import { ChartsView } from './components/ChartsView';
 import { AnnualSummary } from './components/AnnualSummary';
 import { AppSettings, type SettingsSection } from './components/AppSettings';
+import { AccountMenu } from './components/AccountMenu';
 
 export default function App() {
   // Cloud Sync or Client-Side Local Storage toggle
@@ -1665,10 +1665,11 @@ export default function App() {
               aria-label="Configurações" title="Configurações">
               <Settings size={18} /><span className="compact-header-label">Configurações</span>
             </button>
-            <button type="button" className="compact-header-button compact-header-avatar"
-              onClick={() => openSettings('privacy')} aria-label="Conta e privacidade" title={user ? 'Conta e privacidade' : 'Conectar conta'}>
-              {user?.photoURL ? <img src={user.photoURL} alt="" referrerPolicy="no-referrer" /> : user ? <span>{(user.displayName || user.email || 'U').slice(0, 1).toUpperCase()}</span> : <LogIn size={18} />}
-            </button>
+            <AccountMenu
+              user={user} cloudConnected={storageType === 'cloud' && !!user}
+              firebaseConfigured={!demoMode && isFirebaseConfigured} demoMode={demoMode}
+              onLogin={handleLogin} onLogout={handleLogout} onOpenSettings={openSettings}
+            />
           </div>
         </div>
       </header>
@@ -1677,13 +1678,13 @@ export default function App() {
       {showConfigPanel && (
         <AppSettings
           demoMode={demoMode} section={settingsSection} onSectionChange={setSettingsSection} onClose={closeSettings}
-          user={user} storageType={storageType} firebaseConfigured={!demoMode && isFirebaseConfigured}
+          cloudConnected={storageType === 'cloud' && !!user}
           theme={theme} onThemeChange={changeTheme}
           privacyMode={privacyMode} onPrivacyModeChange={setPrivacyMode}
           hideMobileBudgets={hideMobileBudgets} onHideMobileBudgetsChange={setHideMobileBudgets}
           onExport={handleExportData} onImport={handleImportButtonClick}
           onUploadLocal={async () => { if (user) await handleMergeLocalDataToCloud(user.uid); }}
-          onClearLocal={handleClearData} onLogin={handleLogin} onLogout={handleLogout}
+          onClearLocal={handleClearData}
           onDiagnostics={() => { closeSettings(); setShowDiagnosticModal(true); runFirebaseDiagnostics(); }}
           budgetContent={<>
             <form onSubmit={handleSaveMonthConfig} className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-end">
