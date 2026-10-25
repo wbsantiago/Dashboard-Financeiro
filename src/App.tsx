@@ -57,12 +57,61 @@ import { ChartsView } from './components/ChartsView';
 import { AnnualSummary } from './components/AnnualSummary';
 import { AppSettings, type SettingsSection } from './components/AppSettings';
 import { AccountMenu } from './components/AccountMenu';
+import { CookieConsent } from './components/CookieConsent';
+import { COOKIE_CHOICE_KEY, readNecessaryPreference, writeNecessaryPreference, readCookieChoice, saveCookieChoice, synchronizeCookieChoice, readDisplayPreference, writeDisplayPreference, type CookieChoice, type ChoiceSource } from './utils/cookieConsent';
 
 export default function App() {
+  const [cookieChoice, setCookieChoice] = useState<CookieChoice | null>(() => demoMode ? null : readCookieChoice());
+  const [cookieManagerOpen, setCookieManagerOpen] = useState(false);
+  const [cookieNotice, setCookieNotice] = useState('');
+  const temporaryCookieChoice = useRef(false);
+
+  const chooseCookies = (preferences: boolean, source: ChoiceSource) => {
+    const result = demoMode ? saveCookieChoice(preferences, source, null) : saveCookieChoice(preferences, source);
+    temporaryCookieChoice.current = !result.persisted;
+    setCookieChoice(result.choice);
+    if (!demoMode && result.persisted && preferences) {
+      writeDisplayPreference('app-theme', theme, result.choice);
+      writeDisplayPreference('hide-mobile-budgets', String(hideMobileBudgets), result.choice);
+    }
+    setCookieManagerOpen(false);
+    setCookieNotice(demoMode ? 'Escolha aplicada somente nesta demonstração.'
+      : !result.persisted ? 'O navegador não permitiu guardar sua escolha. Ela vale apenas nesta visita; os opcionais não serão gravados.'
+      : !result.cleared ? 'Escolha registrada. O navegador impediu a remoção das preferências antigas; elas não serão usadas.'
+      : '');
+  };
+
+  useEffect(() => {
+    if (demoMode) return;
+    const synchronize = () => {
+      if (temporaryCookieChoice.current) return;
+      const next = synchronizeCookieChoice();
+      setCookieChoice(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
+    };
+    const changed = (event: StorageEvent) => {
+      if (event.key === COOKIE_CHOICE_KEY || event.key === null) synchronize();
+    };
+    synchronize();
+    const timer = window.setInterval(synchronize, 60 * 60 * 1000);
+    window.addEventListener('storage', changed);
+    window.addEventListener('focus', synchronize);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('storage', changed);
+      window.removeEventListener('focus', synchronize);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!cookieNotice) return;
+    const timer = window.setTimeout(() => setCookieNotice(''), 10000);
+    return () => window.clearTimeout(timer);
+  }, [cookieNotice]);
+
   // Cloud Sync or Client-Side Local Storage toggle
   const [storageType, setStorageType] = useState<'local' | 'cloud'>(() => {
     if (demoMode) return 'local';
-    return (localStorage.getItem('storage-type') || 'local') as 'local' | 'cloud';
+    return readNecessaryPreference('storage-type', 'local') as 'local' | 'cloud';
   });
   const [user, setUser] = useState<any>(null);
 
@@ -98,12 +147,12 @@ export default function App() {
   const [newCardDigits, setNewCardDigits] = useState<string>('');
   const [showNotification, setShowNotification] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    return (localStorage.getItem('app-theme') as 'light' | 'dark') || 'dark';
+    return !demoMode && readDisplayPreference('app-theme', 'dark', cookieChoice) === 'light' ? 'light' : 'dark';
   });
 
   const changeTheme = (nextTheme: 'light' | 'dark') => {
     setTheme(nextTheme);
-    if (!demoMode) localStorage.setItem('app-theme', nextTheme);
+    if (!demoMode) writeDisplayPreference('app-theme', nextTheme, cookieChoice);
     
     // Also dispatch an event so other components or styling can react immediately if needed
     window.dispatchEvent(new CustomEvent('app-theme-changed', { detail: nextTheme }));
@@ -118,12 +167,17 @@ export default function App() {
 
   const [privacyMode, setPrivacyMode] = useState<boolean>(() => {
     if (demoMode) return false;
-    return localStorage.getItem('privacy-mode') === 'true';
+    return readNecessaryPreference('privacy-mode', 'false') === 'true';
   });
   const [hideMobileBudgets, setHideMobileBudgets] = useState<boolean>(() => {
     if (demoMode) return false;
-    return localStorage.getItem('hide-mobile-budgets') === 'true';
+    return readDisplayPreference('hide-mobile-budgets', 'false', cookieChoice) === 'true';
   });
+  const changeHideMobileBudgets = (value: boolean) => {
+    setHideMobileBudgets(value);
+    if (!demoMode) writeDisplayPreference('hide-mobile-budgets', String(value), cookieChoice);
+  };
+
 
   // Mobile Floating Menu States
   const [isTrackerVisible, setIsTrackerVisible] = useState<boolean>(false);
@@ -254,7 +308,7 @@ export default function App() {
     const result = await signInWithPopup(auth, new GoogleAuthProvider());
     setUser(result.user);
     setStorageType('cloud');
-    localStorage.setItem('storage-type', 'cloud');
+    writeNecessaryPreference('storage-type', 'cloud');
     triggerNotification('Conta Google conectada.', 'success');
   };
 
@@ -263,7 +317,7 @@ export default function App() {
     await signOut(auth);
     setUser(null);
     setStorageType('local');
-    localStorage.setItem('storage-type', 'local');
+    writeNecessaryPreference('storage-type', 'local');
     triggerNotification('Desconectado com sucesso.', 'info');
   };
 
@@ -594,10 +648,10 @@ export default function App() {
       setUser(currentUser);
       if (currentUser) {
         setStorageType('cloud');
-        localStorage.setItem('storage-type', 'cloud');
+        writeNecessaryPreference('storage-type', 'cloud');
       } else {
         setStorageType('local');
-        localStorage.setItem('storage-type', 'local');
+        writeNecessaryPreference('storage-type', 'local');
       }
     });
 
@@ -698,12 +752,8 @@ export default function App() {
   // uploadDataToCloud and handleMergeLocalDataToCloud have been relocated above the listening effects.
 
   useEffect(() => {
-    if (!demoMode) localStorage.setItem('privacy-mode', String(privacyMode));
+    if (!demoMode) writeNecessaryPreference('privacy-mode', String(privacyMode));
   }, [privacyMode]);
-
-  useEffect(() => {
-    if (!demoMode) localStorage.setItem('hide-mobile-budgets', String(hideMobileBudgets));
-  }, [hideMobileBudgets]);
 
   // Load active month config values into inputs
   useEffect(() => {
@@ -1519,7 +1569,7 @@ export default function App() {
     : totalSpent;
 
   return (
-    <div className={`min-h-screen bg-[#0a0a0a] flex flex-col items-center text-white ${privacyMode ? 'privacy-mode-active' : ''} ${theme === 'light' ? 'theme-light light' : 'theme-dark dark'}`}>
+    <div className={`min-h-screen bg-[#0a0a0a] flex flex-col items-center text-white ${!cookieChoice ? 'cookie-choice-pending' : ''} ${privacyMode ? 'privacy-mode-active' : ''} ${theme === 'light' ? 'theme-light light' : 'theme-dark dark'}`}>
       
       {demoMode && (
         <div role="status" className="w-full bg-indigo-950 text-indigo-100 border-b border-indigo-400/30 px-4 py-2 text-xs flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
@@ -1681,9 +1731,10 @@ export default function App() {
           cloudConnected={storageType === 'cloud' && !!user}
           theme={theme} onThemeChange={changeTheme}
           privacyMode={privacyMode} onPrivacyModeChange={setPrivacyMode}
-          hideMobileBudgets={hideMobileBudgets} onHideMobileBudgetsChange={setHideMobileBudgets}
+          hideMobileBudgets={hideMobileBudgets} onHideMobileBudgetsChange={changeHideMobileBudgets}
           onExport={handleExportData} onImport={handleImportButtonClick}
           onUploadLocal={async () => { if (user) await handleMergeLocalDataToCloud(user.uid); }}
+          onOpenCookiePreferences={() => setCookieManagerOpen(true)} rememberAppearance={cookieChoice?.preferences === true && !temporaryCookieChoice.current}
           onClearLocal={handleClearData}
           onDiagnostics={() => { closeSettings(); setShowDiagnosticModal(true); runFirebaseDiagnostics(); }}
           budgetContent={<>
@@ -2004,6 +2055,8 @@ export default function App() {
           {/* Links de navegação do usuário */}
           <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-[11px] font-semibold text-slate-500">
             <button type="button" onClick={() => openSettings('privacy')} className="hover:text-indigo-400 transition-colors cursor-pointer">Privacidade dos dados</button>
+            <span className="text-slate-700/60 font-normal">|</span>
+            <button type="button" id="cookie-preferences-trigger" onClick={() => setCookieManagerOpen(true)} className="hover:text-indigo-400 transition-colors cursor-pointer">Cookies e preferências</button>
             <span className="text-slate-700/60 font-normal">|</span>
             <button type="button" onClick={() => openSettings('help')} className="hover:text-indigo-400 transition-colors cursor-pointer">Ajuda e contato</button>
           </div>
@@ -2471,6 +2524,10 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
+
+      <CookieConsent choice={cookieChoice} managerOpen={cookieManagerOpen} demoMode={demoMode} notice={cookieNotice}
+        onOpenManager={() => setCookieManagerOpen(true)} onCloseManager={() => setCookieManagerOpen(false)}
+        onChoose={chooseCookies} onPrivacy={() => openSettings('privacy')} />
 
     </div>
   );

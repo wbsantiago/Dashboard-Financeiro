@@ -5,7 +5,7 @@
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, Auth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { getFirestore, Firestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getFirestore, Firestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { demoMode } from './demoMode';
 
@@ -26,12 +26,6 @@ if (isFirebaseConfigured && !demoMode) {
     db = getFirestore(app, dbId);
     auth = getAuth(app);
     
-    // Test connection on startup per Firebase skill guidelines
-    getDocFromServer(doc(db, 'test', 'connection')).catch((error) => {
-      if (error instanceof Error && error.message.includes('the client is offline')) {
-        console.warn("Conexão inicial com Firebase offline:", error.message);
-      }
-    });
   } catch (err) {
     console.error('Erro ao inicializar os serviços do Firebase:', err);
   }

@@ -138,7 +138,7 @@ export function loadAppData(): AppData {
       // Force clean reload if loading outdated categories format
       const hasOldFormat = !parsed.categoryBudgets || !parsed.categoryBudgets.some((cb: any) => cb.category === 'Presentes');
       if (hasOldFormat) {
-        localStorage.clear();
+        // Do not remove account state, privacy choices, or unrelated application storage.
         saveAppData(INITIAL_MOCK_DATA);
         return INITIAL_MOCK_DATA;
       }

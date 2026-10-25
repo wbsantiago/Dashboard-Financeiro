@@ -29,6 +29,8 @@ interface Props {
   onImport: () => void;
   onUploadLocal: () => Promise<void>;
   onClearLocal: () => void;
+  rememberAppearance: boolean;
+  onOpenCookiePreferences: () => void;
   onDiagnostics: () => void;
 }
 
@@ -74,6 +76,7 @@ export function AppSettings(p: Props) {
           </>}
           {p.section === 'privacy' && <>
             <p className="settings-description">{p.demoMode ? 'Você está explorando exemplos fictícios. Seus dados salvos permanecem separados da demonstração.' : cloud ? 'Os dados em uso são armazenados na nuvem, na conta conectada.' : 'Os dados em uso ficam neste navegador e neste dispositivo.'}</p>
+            <div className="settings-action"><div><h4>Cookies e armazenamento</h4><p>Reveja as finalidades e permita ou revogue a gravação das preferências opcionais. Sua escolha não apaga os dados financeiros nem encerra a sessão.</p></div><button type="button" className="settings-secondary" onClick={p.onOpenCookiePreferences}>Gerenciar escolhas</button></div>
             <h4 className="settings-subtitle">Como seus dados são usados</h4>
             <ul className="settings-info-list">
               <li>O aplicativo usa os lançamentos, orçamentos e apelidos de cartões para organizar seu controle financeiro. Cadastre somente os quatro últimos dígitos do cartão.</li>
@@ -87,7 +90,8 @@ export function AppSettings(p: Props) {
             <div className="settings-danger-zone"><div><h4>{p.demoMode ? 'Dados da demonstração' : 'Dados deste navegador'}</h4><p>{p.demoMode ? 'Limpa os exemplos desta visualização. Atualize a página para carregá-los novamente.' : 'Apaga somente a cópia financeira local, incluindo cartões e orçamentos. Os dados da nuvem e os backups baixados permanecem. Você confirma na próxima etapa.'}</p></div><button type="button" className="settings-danger" onClick={p.onClearLocal}><Trash2 size={16} />{p.demoMode ? 'Limpar exemplos' : 'Apagar cópia local'}</button></div>
           </>}
           {p.section === 'appearance' && <>
-            <p className="settings-description">Estas preferências ficam salvas neste navegador.</p>
+            <p className="settings-description">{p.rememberAppearance ? 'Tema e exibição dos orçamentos podem ser lembrados neste navegador, conforme sua escolha de cookies.' : 'Tema e exibição dos orçamentos valem nesta visita. Para lembrá-los entre visitas, autorize as preferências opcionais.'} A opção de ocultar valores é mantida para respeitar sua privacidade na tela.</p>
+            <button type="button" className="settings-text-button" onClick={p.onOpenCookiePreferences}>Rever preferências de cookies</button>
             <div className="settings-action"><div><h4>Tema</h4><p>Escolha a aparência mais confortável para você.</p></div><div className="settings-theme-options" role="group" aria-label="Tema">{(['light', 'dark'] as const).map(t => <button type="button" key={t} className="settings-secondary" aria-pressed={p.theme === t} onClick={() => p.onThemeChange(t)}>{t === 'light' ? 'Claro' : 'Escuro'}</button>)}</div></div>
             <label className="settings-check"><div><h4>Ocultar valores</h4><p>Oculta os valores em reais e a escala numérica dos gráficos. Categorias, percentuais e gráficos continuam visíveis. Campos de valor são revelados durante a edição. Isso não altera nem protege o arquivo salvo.</p></div><input type="checkbox" checked={p.privacyMode} onChange={e => p.onPrivacyModeChange(e.target.checked)} /></label>
             <label className="settings-check"><div><h4>Recolher orçamentos no celular</h4><p>Deixe a visão mensal mais enxuta em telas pequenas.</p></div><input type="checkbox" checked={p.hideMobileBudgets} onChange={e => p.onHideMobileBudgetsChange(e.target.checked)} /></label>

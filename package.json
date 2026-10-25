@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "test": "tsx --test tests/recurrence.test.ts tests/recurrence-flow.test.ts tests/settings.test.ts",
+    "test": "tsx --test tests/recurrence.test.ts tests/recurrence-flow.test.ts tests/settings.test.ts tests/cookie-consent.test.ts",
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",

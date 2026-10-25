@@ -107,3 +107,13 @@ npm run build
 ### Demonstração local com dados fictícios
 
 Com o servidor de desenvolvimento aberto, acesse `http://127.0.0.1:3000/?demo=2026` para visualizar despesas, receitas, cartões e orçamentos de janeiro a dezembro. Essa demonstração só funciona em desenvolvimento: não inicializa o Firebase e mantém as alterações apenas na memória, sem substituir os dados salvos no navegador. Atualizar a página restaura os exemplos; o link **Voltar aos meus dados** abre o uso normal.
+
+### Cookies e armazenamento
+
+O aviso inicial oferece rejeição dos opcionais, aceite e personalização, sem bloquear o planejamento nem considerar a navegação como consentimento. Os opcionais começam desativados. A área **Privacidade → Gerenciar escolhas** e o link **Cookies e preferências** no rodapé permitem rever ou revogar a decisão.
+
+A categoria opcional controla somente `app-theme` e `hide-mobile-budgets`. Sem autorização válida, essas preferências funcionam durante a visita, sem leitura ou gravação persistente. A revogação remove apenas essas chaves e é respeitada pelas demais abas. O planejamento financeiro, a sessão, o modo local/nuvem e a escolha de ocultar valores não são apagados.
+
+A decisão é registrada localmente em `financas10-cookie-choice`, com finalidade, origem da escolha, versão do aviso, data e validade de 180 dias (prazo adotado pelo aplicativo, não prazo legal obrigatório). Mudanças de finalidades devem atualizar `COOKIE_POLICY_VERSION` e exigir nova escolha. A demonstração mantém as decisões apenas em memória. O aplicativo não inclui ferramentas de publicidade ou análise de audiência; novas integrações precisam de avaliação e bloqueio efetivo antes de qualquer consentimento aplicável.
+
+A implementação usa como referência o [Guia de Cookies da ANPD](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/materiais-educativos-e-publicacoes/guia_orientativo_cookies_e_protecao_de_dados_pessoais). O aviso não substitui a definição das bases legais do tratamento, a identificação do responsável, o atendimento aos titulares ou as demais medidas de adequação à LGPD.
