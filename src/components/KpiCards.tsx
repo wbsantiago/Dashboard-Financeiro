@@ -4,17 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { 
-  TrendingUp, 
-  PiggyBank, 
-  Wallet, 
-  Calculator, 
-  Sparkles,
-  Info,
-  CheckCircle,
-  AlertTriangle,
-  X
-} from 'lucide-react';
+import { Calculator, X } from 'lucide-react';
 import { formatCurrency, getInstallmentInfo, formatMonthName } from '../utils/format';
 import { Expense } from '../types';
 
@@ -27,6 +17,7 @@ interface KpiCardsProps {
   futureInstallmentsDebt?: number;
   expenses?: Expense[];
   totalCategoryLimits?: number;
+  onEditBudget: () => void;
 }
 
 export const KpiCards: React.FC<KpiCardsProps> = ({
@@ -38,6 +29,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
   futureInstallmentsDebt = 0,
   expenses = [],
   totalCategoryLimits,
+  onEditBudget,
 }) => {
   const [showDebtDetails, setShowDebtDetails] = useState(false);
   const totalRevenue = extraIncome; // O rendimento do mês é estritamente a somatória de todas as entradas reais cadastradas
@@ -89,191 +81,31 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
   }).filter((item): item is NonNullable<typeof item> => item !== null);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5" id="kpi-cards-grid">
-      {/* CARD 1: SALÁRIO IDEAL DEFINIDO (FIXO) */}
-      <div 
-        className="bg-[#161616] rounded-2xl p-5 border border-white/5 shadow-xs relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:border-white/10"
-        id="kpi-card-salary-ideal"
-      >
-        <div className="flex justify-between items-start">
-          <div>
-            <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Salário Ideal (Fixo)</p>
-            <h3 className="text-2xl font-bold text-white mt-1 font-sans privacy-blur">
-              {formatCurrency(salary)}
-            </h3>
-          </div>
-          <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/10">
-            <Calculator className="w-5 h-5" />
-          </div>
+    <div className="sereno-kpis" id="kpi-cards-grid">
+      <section className="sereno-totals" aria-label="Resumo do mês">
+        <div><p>Entradas do mês</p><strong className="privacy-blur">{formatCurrency(totalRevenue)}</strong></div>
+        <div><p>Despesas lançadas</p><strong className="privacy-blur">{formatCurrency(totalSpent)}</strong></div>
+        <div><p>Saldo do mês</p><strong className={'privacy-blur ' + (balance < 0 ? 'sereno-danger-text' : 'sereno-good-text')}>{formatCurrency(balance)}</strong><small>Entradas menos despesas lançadas</small></div>
+      </section>
+      <section className="sereno-panel sereno-planning" aria-labelledby="planning-title">
+        <div className="sereno-section-heading"><h2 id="planning-title">Seu planejamento</h2><button type="button" className="sereno-link" onClick={onEditBudget}>Ajustar</button></div>
+        <div className="sereno-plan-grid">
+          <div><p>Renda planejada</p><strong className="privacy-blur">{formatCurrency(salary)}</strong></div>
+          <div><p>Meta para guardar ({targetSavingsPercentage}%)</p><strong className="privacy-blur">{formatCurrency(plannedSavings)}</strong></div>
+          <div><p>Limite de gastos do mês</p><strong className="privacy-blur">{formatCurrency(adjustedMaxSpentAllowed)}</strong></div>
+          <div><p>Parcelas dos próximos meses</p><button type="button" className="sereno-debt-link" onClick={() => setShowDebtDetails(true)}><span className="privacy-blur">{formatCurrency(futureInstallmentsDebt)}</span><span aria-hidden="true">›</span></button></div>
         </div>
-        <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
-          <span>Poupança Ideal: <strong className="text-indigo-400 font-mono font-bold">{targetSavingsPercentage}%</strong></span>
-          <span className="text-slate-600">|</span>
-          <span>Guardar: <strong className="text-white font-mono font-bold privacy-blur">{formatCurrency(plannedSavings)}</strong></span>
-        </div>
-        <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between text-xs text-slate-400">
-          <span>Teto Estipulado:</span>
-          <strong className="text-indigo-300 font-mono font-bold privacy-blur" title="Somatória das metas limites das categorias">
-            {formatCurrency(totalCategoryLimits || 0)}
-          </strong>
-        </div>
-        <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500"></div>
-      </div>
-
-      {/* CARD 2: RECENT TOTAL REVENUES (SALÁRIO + PLUS EXTRA) */}
-      <div 
-        className="bg-[#161616] rounded-2xl p-5 border border-white/5 shadow-xs relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:border-white/10"
-        id="kpi-card-revenues-total"
-      >
-        <div className="flex justify-between items-start">
-          <div>
-            <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Rendimento do Mês</p>
-            <h3 className="text-2xl font-bold text-white mt-1 font-sans privacy-blur">
-              {formatCurrency(totalRevenue)}
-            </h3>
-          </div>
-          <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/10">
-            <PiggyBank className="w-5 h-5" />
-          </div>
-        </div>
-        <div className="mt-3.5 flex flex-col gap-2">
-          <div className="flex items-center text-[10px] text-slate-400 justify-between w-full">
-            {totalRevenue === 0 ? (
-              <span className="text-slate-500 font-medium font-sans">Sem entradas cadastradas neste mês</span>
-            ) : revenueVsIdealDiff < 0 ? (
-              <span className="text-slate-400 font-sans leading-tight">
-                Faltam <strong className="text-amber-400 font-mono font-bold privacy-blur">{formatCurrency(Math.abs(revenueVsIdealDiff))}</strong> para atingir o salário ideal
-              </span>
-            ) : (
-              <span className="text-slate-400 font-sans leading-tight">
-                Receita real superou o ideal planejado em <strong className="text-emerald-400 font-mono font-bold privacy-blur">+{formatCurrency(revenueVsIdealDiff)}</strong>
-              </span>
-            )}
-          </div>
-          
-          <div className="border-t border-white/5 pt-2 flex items-center justify-between text-[11px] bg-white/2 rounded-lg p-1.5">
-            <span className="font-semibold text-slate-300 flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              Sobra (Poupar):
-            </span>
-            <span className={`font-mono font-extrabold text-[13px] privacy-blur ${balance >= 0 ? 'text-emerald-400' : 'text-rose-450'}`}>
-              {formatCurrency(balance)}
-            </span>
-          </div>
-        </div>
-        <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-400"></div>
-      </div>
-
-      {/* CARD 3: GASTOS TOTAIS MENSAL */}
-      <div 
-        className="bg-[#161616] rounded-2xl p-5 border border-white/5 shadow-xs relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:border-white/10"
-        id="kpi-card-expenses"
-      >
-        <div className="flex justify-between items-start">
-          <div>
-            <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Gastos Mensais</p>
-            <h3 className="text-2xl font-bold text-white mt-1 font-sans privacy-blur">
-              {formatCurrency(totalSpent)}
-            </h3>
-          </div>
-          <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/10">
-            <TrendingUp className="w-5 h-5" />
-          </div>
-        </div>
-        <div className="mt-3.5 flex items-center justify-between text-xs text-slate-400">
-          <span>Teto Recomendado:</span>
-          <span className="font-semibold text-slate-300 font-mono privacy-blur">
-            {formatCurrency(maxSpentAllowed)}
-          </span>
-        </div>
-        {futureInstallmentsDebt > 0 && (
-          <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-400">
-            <div className="flex items-center gap-1">
-              <span>Dívida Futura (Cartão):</span>
-              <button
-                type="button"
-                onClick={() => setShowDebtDetails(true)}
-                className="text-slate-500 hover:text-indigo-400 transition-colors p-0.5 rounded cursor-pointer"
-                title="Clique para ver detalhamento das parcelas"
-              >
-                <Info className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            <span 
-              onClick={() => setShowDebtDetails(true)}
-              className="font-bold text-indigo-400 font-mono privacy-blur hover:underline cursor-pointer"
-              title="Clique para ver detalhamento das parcelas"
-            >
-              {formatCurrency(futureInstallmentsDebt)}
-            </span>
-          </div>
-        )}
-        <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-500"></div>
-      </div>
-
-      {/* CARD 4: DIAGNÓSTICO DO PLANEJAMENTO (DENTRO OU ACIMA DO PLANO) */}
-      <div 
-        className={`rounded-2xl p-5 border shadow-xs relative overflow-hidden transition-all duration-200 bg-[#161616] hover:shadow-lg group ${
-          isOverBudget 
-            ? 'border-rose-500/20' 
-            : 'border-emerald-500/20'
-        }`}
-        id="kpi-card-status-plan"
-      >
-        <div className="flex justify-between items-start">
-          <div>
-            <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Status do Teto</p>
-            <h3 className={`text-xl font-extrabold mt-1.5 font-sans flex items-center gap-1.5 ${
-              isOverBudget ? 'text-rose-400 animate-pulse' : 'text-emerald-450'
-            }`}>
-              {isOverBudget ? (
-                <>
-                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-                  Acima do Plano
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-                  Dentro do Plano
-                </>
-              )}
-            </h3>
-          </div>
-          <div className={`p-2.5 rounded-xl ${
-            isOverBudget 
-              ? 'bg-rose-500/10 text-rose-400 border border-rose-500/10' 
-              : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10'
-          }`}>
-            <Wallet className="w-5 h-5" />
-          </div>
-        </div>
-        <div className="mt-3.5 flex flex-col gap-2 text-xs">
-          <div className="flex justify-between items-center">
-            <span className="text-slate-400 text-[10px]">
-              {isOverBudget ? 'Orçamento estourado em:' : 'Margem de segurança:'}
-            </span>
-            <span className={`font-mono font-bold text-xs privacy-blur ${isOverBudget ? 'text-rose-400' : 'text-emerald-400'}`}>
-              {isOverBudget ? '' : '+'}{formatCurrency(budgetDiff)}
-            </span>
-          </div>
-
-          <div className="border-t border-white/5 pt-2 flex justify-between items-center bg-white/2 rounded-lg p-1.5 mt-0.5">
-            <span className="text-slate-300 text-[11px] flex items-center gap-1 font-semibold">
-              <Wallet className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              Sobra Real:
-            </span>
-            <span className={`font-mono font-extrabold text-[13px] privacy-blur ${balance >= 0 ? 'text-emerald-400' : 'text-rose-400 font-bold'}`}>
-              {formatCurrency(balance)}
-            </span>
-          </div>
-        </div>
-        <div className={`absolute top-0 left-0 w-1.5 h-full ${isOverBudget ? 'bg-rose-500' : 'bg-emerald-400'}`}></div>
-      </div>
-
+        <p className={isOverBudget ? 'sereno-danger-text sereno-margin' : 'sereno-good-text sereno-margin'}>{isOverBudget ? 'Acima do limite do mês: ' : 'Margem no limite do mês: '}<span className="privacy-blur">{formatCurrency(Math.abs(budgetDiff))}</span></p>
+        <details className="sereno-plan-details"><summary>Como esse planejamento é calculado</summary><div>
+          <p>A renda planejada menos a meta para guardar define o limite base de gastos. Entradas acima da renda planejada ampliam esse limite, mantendo a meta em reais.</p>
+          <p>Entradas em relação ao planejado: <span className="privacy-blur">{formatCurrency(revenueVsIdealDiff)}</span>. Limites por categoria somados: <span className="privacy-blur">{formatCurrency(totalCategoryLimits || 0)}</span>.</p>
+          <p>O saldo considera todas as despesas lançadas no mês, inclusive as ainda não pagas. Ele não representa o saldo da sua conta bancária.</p>
+        </div></details>
+      </section>
       {/* MODAL DE DETALHAMENTO DA DÍVIDA FUTURA */}
       {showDebtDetails && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-[#141414] border border-white/5 max-w-2xl w-full rounded-2xl p-6 shadow-2xl flex flex-col gap-4 max-h-[85vh]">
+          <div role="dialog" aria-modal="true" aria-label="Detalhamento da dívida futura" className="bg-[#141414] border border-white/5 max-w-2xl w-full rounded-2xl p-6 shadow-2xl flex flex-col gap-4 max-h-[85vh]">
             <div className="flex justify-between items-center pb-3 border-b border-white/5">
               <div className="flex items-center gap-2">
                 <Calculator className="w-5 h-5 text-indigo-400" />

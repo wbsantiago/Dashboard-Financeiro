@@ -57,7 +57,8 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
         color: CATEGORY_COLORS[cat] || '#6b7280',
       };
     })
-    .filter(item => item.value > 0), [expensesByCategory]);
+    .filter(item => item.value > 0)
+    .sort((a, b) => b.value - a.value), [expensesByCategory]);
 
   const totalExpenseInMonth = pieChartData.reduce((sum, item) => sum + item.value, 0);
 
@@ -87,198 +88,24 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
   };
 
   return (
-    <div 
-      className="bg-[#161616] rounded-2xl border border-white/5 p-4.5 shadow-xs flex flex-col lg:h-[569px] overflow-hidden" 
-      id="category-budgets-card"
-    >
-      {/* HEADER SECTION */}
-      <div className="flex items-center justify-between pb-3.5 border-b border-white/5 shrink-0 gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="p-1 px-1.5 rounded-lg bg-pink-500/10 text-pink-400 border border-pink-500/10 shrink-0">
-            <PieIcon className="w-4 h-4" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="text-xs font-bold text-white truncate">Distribuição por Categoria</h3>
-            <p className="text-[10px] text-slate-400 font-medium truncate">Mês Corrente</p>
-          </div>
-        </div>
-
-        {/* ACTIONS CONTAINER */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          {/* Donut vs Bars View Toggle */}
-          {pieChartData.length > 0 && (
-            <div className="flex bg-[#111111] border border-white/5 p-0.5 rounded-xl shrink-0">
-              <button
-                type="button"
-                onClick={() => setDistView('donut')}
-                className={`p-1 px-1.5 rounded-lg text-[9px] uppercase font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                  distView === 'donut'
-                    ? 'bg-zinc-800 text-pink-400'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="Visualizar em Gráfico de Pizza"
-              >
-                <PieIcon className="w-3 h-3" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setDistView('bars')}
-                className={`p-1 px-1.5 rounded-lg text-[9px] uppercase font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                  distView === 'bars'
-                    ? 'bg-zinc-800 text-pink-400'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="Visualizar em Lista de Progresso"
-              >
-                <List className="w-3 h-3" />
-              </button>
-            </div>
-          )}
-
-          {/* Edit / Config limits button */}
-          <button
-            type="button"
-            onClick={handleOpenModal}
-            className="p-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/10 transition-colors flex items-center justify-center cursor-pointer font-bold text-[10px] gap-1 shrink-0"
-            title="Ajustar Tetos de Gastos"
-          >
-            <Sliders className="w-3 h-3" />
-            <span className="hidden xs:inline uppercase tracking-wider">Ajustar Tetos</span>
-          </button>
-        </div>
-      </div>
-
-
-
-      {/* CORE GRAPHIC OR LIST SECTION */}
-      <div className="flex-1 flex flex-col min-h-0 py-4 justify-center">
-        {pieChartData.length === 0 ? (
-          <div className="flex flex-col justify-center items-center text-center text-slate-550 py-12">
-            <p className="font-semibold text-slate-400">Nenhum dado financeiro</p>
-            <p className="text-[10px] mt-0.5 text-slate-500">Registre despesas para ver a distribuição.</p>
-          </div>
-        ) : distView === 'donut' ? (
-          <div className="flex-grow flex flex-col min-h-0 animate-fadeIn h-full justify-between">
-             {/* Expanded Center Donut Graphic */}
-            <div className="flex-grow w-full min-h-[200px] relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieChartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={72}
-                    outerRadius={100}
-                    paddingAngle={2.5}
-                    dataKey="value"
-                    onMouseEnter={(_, index) => setActiveIndex(index)}
-                    onMouseLeave={() => setActiveIndex(null)}
-                  >
-                    {pieChartData.map((entry, index) => {
-                      const isHovered = activeIndex === index;
-                      return (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={entry.color}
-                          opacity={activeIndex === null || isHovered ? 1 : 0.35}
-                          style={{
-                            transition: 'all 0.15s ease-out',
-                            cursor: 'pointer',
-                          }}
-                          stroke={isHovered ? '#ffffff' : 'none'}
-                          strokeWidth={isHovered ? 2 : 0}
-                        />
-                      );
-                    })}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-
-              {/* Dynamic center interactive reading */}
-              <div 
-                className="absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none flex flex-col items-center justify-center select-none w-full max-w-[210px]"
-                id="donut-center-interactive-label"
-              >
-                {activeIndex !== null && pieChartData[activeIndex] ? (
-                  <div className="animate-fadeIn flex flex-col items-center justify-center pb-1">
-                    <span 
-                      className="text-xs uppercase font-black tracking-wider truncate max-w-[190px] transition-colors"
-                      style={{ color: pieChartData[activeIndex].color }}
-                    >
-                      {pieChartData[activeIndex].name}
-                    </span>
-                    <span className="text-lg md:text-xl font-black text-white mt-1 block font-mono privacy-blur">
-                      {formatCurrency(pieChartData[activeIndex].value)}
-                    </span>
-                    <span className="text-[10px] md:text-xs font-bold text-slate-300 font-mono mt-1 bg-zinc-950/80 px-2 py-0.5 rounded border border-white/5 shadow-md">
-                      {((pieChartData[activeIndex].value / totalExpenseInMonth) * 100).toFixed(1)}%
-                    </span>
-                  </div>
-                ) : (
-                  <div className="animate-fadeIn flex flex-col items-center justify-center">
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-[#888888]">
-                      Total Pago
-                    </span>
-                    <span className="text-lg md:text-xl font-black text-white font-sans mt-0.5 block privacy-blur">
-                      {formatCurrency(totalExpenseInMonth)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Grid-based, two columns legend layout instead of wrap-centered */}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 mt-3 shrink-0 text-xs w-full px-1">
-              {pieChartData.map((item, idx) => {
-                const pct = ((item.value / totalExpenseInMonth) * 100).toFixed(0);
-                return (
-                  <div key={idx} className="flex items-center justify-between gap-1.5 font-bold hover:text-slate-100 transition-colors min-w-0">
-                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                      <span className="text-xs text-slate-300 font-bold truncate block" title={item.name}>{item.name}</span>
-                    </div>
-                    <span className="font-mono text-slate-400 text-[10px] shrink-0 ml-1 font-medium">{pct}%</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          /* FINTECH PROGRESS BARS LIST VIEW */
-          <div className="flex-1 overflow-y-auto max-h-[440px] pr-1 space-y-3.5 scrollbar-thin animate-fadeIn">
-            {[...pieChartData]
-              .sort((a, b) => b.value - a.value)
-              .map((item, idx) => {
-                const pct = totalExpenseInMonth > 0 ? ((item.value / totalExpenseInMonth) * 100).toFixed(1) : '0';
-                return (
-                  <div key={idx} className="space-y-1.5 group">
-                    <div className="flex justify-between items-center text-xs font-semibold">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                        <span className="text-slate-200 truncate font-sans text-xs sm:text-[12.5px] group-hover:text-white transition-colors">{item.name}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px] sm:text-xs">
-                        <span className="text-white font-bold privacy-blur">{formatCurrency(item.value)}</span>
-                        <span className="text-indigo-400 bg-indigo-500/10 px-1 py-0.5 rounded font-extrabold text-[10px]">{pct}%</span>
-                      </div>
-                    </div>
-                    {/* Progress slider bar */}
-                    <div className="w-full h-2 bg-zinc-900/80 rounded-full overflow-hidden border border-white/5">
-                      <div
-                        className="h-full rounded-full transition-all duration-500 ease-out"
-                        style={{
-                          backgroundColor: item.color,
-                          width: `${pct}%`
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        )}
-      </div>
-
+    <div className="sereno-panel sereno-distribution" id="category-budgets-card">
+      <div className="sereno-section-heading"><h2>Para onde foi</h2><div className="sereno-chart-actions">
+        <button type="button" aria-label="Ver gráfico de categorias" aria-pressed={distView === 'donut'} onClick={() => setDistView('donut')}><PieIcon size={17} /></button>
+        <button type="button" aria-label="Ver lista de categorias" aria-pressed={distView === 'bars'} onClick={() => setDistView('bars')}><List size={17} /></button>
+        <button type="button" id="edit-category-limits" aria-label="Ajustar limites por categoria" onClick={handleOpenModal}><Sliders size={17} /></button>
+      </div></div>
+      {pieChartData.length === 0 ? <p className="sereno-empty">Ainda não há despesas neste mês. Adicione uma despesa para ver a distribuição.</p> : <>
+        {distView === 'donut' && <div className="sereno-donut-figure">
+          <ResponsiveContainer width="100%" height={220}><PieChart><Pie data={pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={78} outerRadius={104} paddingAngle={1.5} stroke="none" isAnimationActive={false} onMouseEnter={(_, index) => setActiveIndex(index)} onMouseLeave={() => setActiveIndex(null)} onClick={(_, index) => setActiveIndex(index)}>
+            {pieChartData.map((item, index) => <Cell key={item.name} fill={item.color} opacity={1} stroke={index === activeIndex ? 'var(--sereno-ink)' : 'none'} strokeWidth={index === activeIndex ? 2 : 0} />)}
+          </Pie></PieChart></ResponsiveContainer>
+          <div className="sereno-donut-center" aria-live="polite"><span>{activeIndex !== null && pieChartData[activeIndex] ? pieChartData[activeIndex].name : 'Total de despesas'}</span><strong className="privacy-blur">{formatCurrency(activeIndex !== null && pieChartData[activeIndex] ? pieChartData[activeIndex].value : totalExpenseInMonth)}</strong>{activeIndex !== null && pieChartData[activeIndex] && <small>{(pieChartData[activeIndex].value / totalExpenseInMonth * 100).toFixed(1).replace('.', ',')}%</small>}</div>
+        </div>}
+        <div className="sereno-category-legend">{pieChartData.map((item, index) => <button type="button" key={item.name} aria-pressed={activeIndex === index} onMouseEnter={() => setActiveIndex(index)} onMouseLeave={() => setActiveIndex(null)} onFocus={() => setActiveIndex(index)} onBlur={() => setActiveIndex(null)} onClick={() => setActiveIndex(index)}>
+          <i style={{ backgroundColor: item.color }} /><span>{item.name}</span><span>{distView === 'bars' && <span className="privacy-blur">{formatCurrency(item.value)} </span>}{(item.value / totalExpenseInMonth * 100).toFixed(1).replace('.', ',')}%</span>
+        </button>)}</div>
+        <p className="sereno-chart-note">Passe o mouse sobre uma fatia ou toque em uma categoria para consultar seu valor e percentual.</p>
+      </>}
       {/* FULLSCREEN DIMMED MODAL FOR CATEGORY LIMITS CONFIGURATION */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-55 flex items-center justify-center p-4">

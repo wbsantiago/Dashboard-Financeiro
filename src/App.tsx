@@ -53,7 +53,7 @@ import { collection, doc, setDoc, onSnapshot, writeBatch, deleteDoc, runTransact
 import { KpiCards } from './components/KpiCards';
 import { CategoryBudgets } from './components/CategoryBudgets';
 import { ExpenseTracker } from './components/ExpenseTracker';
-import { ChartsView } from './components/ChartsView';
+import { ChartsView, SpendingHistory } from './components/ChartsView';
 import { AnnualSummary } from './components/AnnualSummary';
 import { AppSettings, type SettingsSection } from './components/AppSettings';
 import { AccountMenu } from './components/AccountMenu';
@@ -71,7 +71,7 @@ export default function App() {
     temporaryCookieChoice.current = !result.persisted;
     setCookieChoice(result.choice);
     if (!demoMode && result.persisted && preferences) {
-      writeDisplayPreference('app-theme', theme, result.choice);
+      writeDisplayPreference('app-theme', themePreference, result.choice);
       writeDisplayPreference('hide-mobile-budgets', String(hideMobileBudgets), result.choice);
     }
     setCookieManagerOpen(false);
@@ -126,7 +126,9 @@ export default function App() {
   });
   
   // UI States
-  const [activeView, setActiveView] = useState<'monthly' | 'annual'>('monthly');
+  const [activeView, setActiveView] = useState<'monthly' | 'entries' | 'annual'>('monthly');
+  const [entryRequest, setEntryRequest] = useState<{ tab: 'expenses' | 'revenues'; id: number }>();
+  const requestEntry = (tab: 'expenses' | 'revenues') => { setActiveView('entries'); setEntryRequest({ tab, id: Date.now() }); };
   const [showConfigPanel, setShowConfigPanel] = useState<boolean>(false);
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('budget');
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
@@ -146,19 +148,28 @@ export default function App() {
   const [newCardName, setNewCardName] = useState<string>('');
   const [newCardDigits, setNewCardDigits] = useState<string>('');
   const [showNotification, setShowNotification] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    return !demoMode && readDisplayPreference('app-theme', 'dark', cookieChoice) === 'light' ? 'light' : 'dark';
+  const [themePreference, setThemePreference] = useState<'light' | 'dark' | 'system'>(() => {
+    const saved = demoMode ? 'dark' : readDisplayPreference('app-theme', 'dark', cookieChoice);
+    return saved === 'light' || saved === 'system' ? saved : 'dark';
   });
+  const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(() => window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-color-scheme: light)');
+    const update = () => setSystemTheme(query.matches ? 'light' : 'dark');
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  const theme = themePreference === 'system' ? systemTheme : themePreference;
 
-  const changeTheme = (nextTheme: 'light' | 'dark') => {
-    setTheme(nextTheme);
+  const changeTheme = (nextTheme: 'light' | 'dark' | 'system') => {
+    setThemePreference(nextTheme);
     if (!demoMode) writeDisplayPreference('app-theme', nextTheme, cookieChoice);
     
     // Also dispatch an event so other components or styling can react immediately if needed
-    window.dispatchEvent(new CustomEvent('app-theme-changed', { detail: nextTheme }));
+    window.dispatchEvent(new CustomEvent('app-theme-changed', { detail: nextTheme === 'system' ? systemTheme : nextTheme }));
 
     triggerNotification(
-      nextTheme === 'light' 
+      nextTheme === 'system' ? 'Tema automático ativado. A aparência acompanha seu dispositivo.' : nextTheme === 'light'
         ? 'Modo claro ativado! Ajustado para ambientes iluminados.' 
         : 'Modo escuro ativado! Conforto ocular para ambientes escuros.', 
       'info'
@@ -221,7 +232,7 @@ export default function App() {
 
   // Viewport observer to hide the Mobile floating menu when the user scrolls to the manual transaction entry logs
   useEffect(() => {
-    if (activeView !== 'monthly') {
+    if (activeView !== 'entries') {
       setIsTrackerVisible(false);
       return;
     }
@@ -1569,7 +1580,7 @@ export default function App() {
     : totalSpent;
 
   return (
-    <div className={`min-h-screen bg-[#0a0a0a] flex flex-col items-center text-white ${!cookieChoice ? 'cookie-choice-pending' : ''} ${privacyMode ? 'privacy-mode-active' : ''} ${theme === 'light' ? 'theme-light light' : 'theme-dark dark'}`}>
+    <div className={`sereno-app min-h-screen bg-[#0a0a0a] flex flex-col items-center text-white ${!cookieChoice ? 'cookie-choice-pending' : ''} ${privacyMode ? 'privacy-mode-active' : ''} ${theme === 'light' ? 'theme-light light' : 'theme-dark dark'}`}>
       
       {demoMode && (
         <div role="status" className="w-full bg-indigo-950 text-indigo-100 border-b border-indigo-400/30 px-4 py-2 text-xs flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
@@ -1729,7 +1740,7 @@ export default function App() {
         <AppSettings
           demoMode={demoMode} section={settingsSection} onSectionChange={setSettingsSection} onClose={closeSettings}
           cloudConnected={storageType === 'cloud' && !!user}
-          theme={theme} onThemeChange={changeTheme}
+          theme={themePreference} onThemeChange={changeTheme}
           privacyMode={privacyMode} onPrivacyModeChange={setPrivacyMode}
           hideMobileBudgets={hideMobileBudgets} onHideMobileBudgetsChange={changeHideMobileBudgets}
           onExport={handleExportData} onImport={handleImportButtonClick}
@@ -1905,98 +1916,81 @@ export default function App() {
       )}
 
       {/* ÁREA DE CONTEÚDO PRINCIPAL (DASHBOARD) */}
-      <main className="w-full max-w-[95%] lg:max-w-[85%] xl:max-w-[75%] 2xl:max-w-[70%] mx-auto px-4 py-4 sm:px-6 flex-1 space-y-4" id="dashboard-main-area">
-        
-        {/* VIEW SELECTOR TAB BAR */}
-        <div className="flex bg-[#121212] p-1 rounded-xl border border-white/5 max-w-[325px]" id="view-selector-tabs">
-          <button
-            onClick={() => setActiveView('monthly')}
-            type="button"
-            className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer text-center ${
-              activeView === 'monthly'
-                ? 'bg-[#1c1c1c] text-white border border-white/5 shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Painel Mensal
-          </button>
-          <button
-            onClick={() => setActiveView('annual')}
-            type="button"
-            className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer text-center ${
-              activeView === 'annual'
-                ? 'bg-[#1c1c1c] text-white border border-white/5 shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Resumo Anual ({selectedMonth.substring(0, 4)})
-          </button>
+      <main className="sereno-main" id="dashboard-main-area">
+        <div className="sereno-page-heading">
+          <div>
+            <h1>{formatMonthName(selectedMonth)}</h1>
+            <p>Seu planejamento e seus gastos, em uma visão só.</p>
+          </div>
+          <div className="sereno-entry-actions">
+            <button type="button" className="sereno-secondary" onClick={() => requestEntry('revenues')}>Adicionar entrada</button>
+            <button type="button" className="sereno-primary" onClick={() => requestEntry('expenses')}><Plus size={16} />Adicionar despesa</button>
+          </div>
         </div>
-
-        {activeView === 'monthly' ? (
-          <>
-            {/* ROW 1: CARDS GERAIS DE CONTROLE */}
-            <KpiCards 
-              totalSpent={totalSpent}
-              salary={activeBudget.salary}
-              targetSavingsPercentage={activeBudget.targetSavingsPercentage}
-              extraIncome={totalRevenues}
-              selectedMonth={selectedMonth}
-              futureInstallmentsDebt={futureInstallmentsDebt}
+        <nav className="sereno-tabs" id="view-selector-tabs" aria-label="Visões do planejamento">
+          {([
+            ['monthly', 'Visão geral'], ['entries', 'Lançamentos do mês'], ['annual', 'Visão do ano']
+          ] as const).map(([view, label]) => (
+            <button type="button" key={view} aria-current={activeView === view ? 'page' : undefined} onClick={() => setActiveView(view)}>{label}</button>
+          ))}
+        </nav>
+        <div hidden={activeView !== 'monthly'} className="sereno-overview">
+          <KpiCards
+            totalSpent={totalSpent}
+            salary={activeBudget.salary}
+            targetSavingsPercentage={activeBudget.targetSavingsPercentage}
+            extraIncome={totalRevenues}
+            selectedMonth={selectedMonth}
+            futureInstallmentsDebt={futureInstallmentsDebt}
+            expenses={data.expenses}
+            totalCategoryLimits={totalCategoryLimits}
+            onEditBudget={() => openSettings('budget')}
+          />
+          <div className="sereno-charts-grid" id="middle-dashboard-layout">
+            <ChartsView
               expenses={data.expenses}
-              totalCategoryLimits={totalCategoryLimits}
+              categoryBudgets={data.categoryBudgets}
+              selectedMonth={selectedMonth}
+              onEditLimits={() => document.getElementById('edit-category-limits')?.click()}
             />
-
-            {/* ROW 2: GRÁFICOS INTERATIVOS E TETOS POR CATEGORIA */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="middle-dashboard-layout">
-              {/* Gráficos Recharts (8 colunas) */}
-              <div className="lg:col-span-8">
-                <ChartsView 
-                  expenses={data.expenses}
-                  categoryBudgets={data.categoryBudgets}
-                  selectedMonth={selectedMonth}
-                />
-              </div>
-
-              {/* Planejamento de Metas Limites por Categoria (4 colunas) */}
-              <div className={`lg:col-span-4 lg:h-[590px] ${hideMobileBudgets ? 'hidden lg:block' : ''}`}>
-                <CategoryBudgets 
-                  categoryBudgets={data.categoryBudgets}
-                  expensesByCategory={expensesByCategory}
-                  onUpdateBudgets={handleUpdateCategoryBudgets}
-                />
-              </div>
-            </div>
-
-            {/* ROW 3: TABELA DE LANÇAMENTOS E ADICIONAR DESPESA */}
-            <div className="p-px rounded-3xl bg-transparent" id="bottom-tracker-layout">
-              <ExpenseTracker 
-                expenses={data.expenses}
-                onAddExpense={handleAddExpense}
-                onDeleteExpense={handleDeleteExpense}
-                onUpdateExpense={handleUpdateExpense}
-                revenues={data.revenues || []}
-                onAddRevenue={handleAddRevenue}
-                onDeleteRevenue={handleDeleteRevenue}
-                onUpdateRevenue={handleUpdateRevenue}
-                selectedMonth={selectedMonth}
-                monthlyBudgets={data.monthlyBudgets}
-                defaultCardClosingDay={data.defaultCardClosingDay}
-                creditCards={data.creditCards || []}
-                onAddCreditCard={handleAddCreditCard}
-                onDeleteCreditCard={handleDeleteCreditCard}
-                onPayCardBill={handlePayCardBill}
+            <div className={hideMobileBudgets ? 'sereno-hide-mobile-distribution' : ''}>
+              <CategoryBudgets
+                categoryBudgets={data.categoryBudgets}
+                expensesByCategory={expensesByCategory}
+                onUpdateBudgets={handleUpdateCategoryBudgets}
               />
             </div>
-          </>
-        ) : (
-          <AnnualSummary 
-            expenses={data.expenses} 
-            revenues={data.revenues || []} 
-            selectedYear={selectedMonth.substring(0, 4)} 
+          </div>
+          <SpendingHistory expenses={data.expenses} selectedMonth={selectedMonth} />
+        </div>
+        <div hidden={activeView !== 'entries'} id="bottom-tracker-layout">
+          <ExpenseTracker
+            entryRequest={entryRequest}
+            expenses={data.expenses}
+            onAddExpense={handleAddExpense}
+            onDeleteExpense={handleDeleteExpense}
+            onUpdateExpense={handleUpdateExpense}
+            revenues={data.revenues || []}
+            onAddRevenue={handleAddRevenue}
+            onDeleteRevenue={handleDeleteRevenue}
+            onUpdateRevenue={handleUpdateRevenue}
+            selectedMonth={selectedMonth}
+            monthlyBudgets={data.monthlyBudgets}
+            defaultCardClosingDay={data.defaultCardClosingDay}
+            creditCards={data.creditCards || []}
+            onAddCreditCard={handleAddCreditCard}
+            onDeleteCreditCard={handleDeleteCreditCard}
+            onPayCardBill={handlePayCardBill}
+          />
+        </div>
+        {activeView === 'annual' && (
+          <AnnualSummary
+            expenses={data.expenses}
+            revenues={data.revenues || []}
+            selectedYear={selectedMonth.substring(0, 4)}
+            onSelectMonth={month => { setSelectedMonth(month); setActiveView('entries'); }}
           />
         )}
-
       </main>
 
       {/* FOOTER */}
@@ -2245,7 +2239,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => {
-                    setMobileModalType('revenue');
+                    requestEntry('revenues');
                     setShowMobileFabMenu(false);
                   }}
                   className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3.5 rounded-full shadow-lg shadow-emerald-600/30 text-xs active:scale-95 transition-all cursor-pointer"
@@ -2258,7 +2252,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => {
-                    setMobileModalType('expense');
+                    requestEntry('expenses');
                     setShowMobileFabMenu(false);
                   }}
                   className="flex items-center gap-2 bg-rose-600 hover:bg-rose-500 text-white font-bold py-2 px-3.5 rounded-full shadow-lg shadow-rose-600/30 text-xs active:scale-95 transition-all cursor-pointer"

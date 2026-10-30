@@ -27,20 +27,20 @@ export const DEFAULT_CATEGORIES = [
 ];
 
 export const CATEGORY_COLORS: Record<string, string> = {
-  'Alimentação': '#ef4444',             // Vermelho
-  'Presentes': '#ec4899',               // Rosa
-  'Saúde': '#10b981',                   // Esmeralda
-  'Moradia': '#3b82f6',                 // Azul
-  'Transporte': '#06b6d4',              // Ciano
-  'Vestuário': '#a855f7',               // Roxo
-  'Lazer & Entretenimento': '#f59e0b',  // Âmbar
-  'Serviços de utilidade pública': '#14b8a6', // Teal
-  'Viagens': '#eab308',                 // Amarelo
-  'Tecnologia & Eletrônicos': '#6366f1', // Indigo
-  'Cuidados Pessoais': '#f43f5e',       // Rose
-  'Assinaturas': '#84cc16',             // Limão
-  'Educação & Profissional': '#d946ef',  // Fúcsia
-  'Outros': '#6b7280',                  // Cinza
+  'Alimentação': '#fb4e63',             // Vermelho
+  'Presentes': '#f54da2',               // Rosa
+  'Saúde': '#16c784',                   // Esmeralda
+  'Moradia': '#398bff',                 // Azul
+  'Transporte': '#00bfdd',              // Ciano
+  'Vestuário': '#ad63ff',               // Roxo
+  'Lazer & Entretenimento': '#ffb020',  // Âmbar
+  'Serviços de utilidade pública': '#00bfa5', // Teal
+  'Viagens': '#f5cc27',                 // Amarelo
+  'Tecnologia & Eletrônicos': '#7b78ff', // Indigo
+  'Cuidados Pessoais': '#ff6d7f',       // Rose
+  'Assinaturas': '#99d52e',             // Limão
+  'Educação & Profissional': '#e95cfa',  // Fúcsia
+  'Outros': '#94a3b8',                  // Cinza
 };
 
 export const CATEGORY_BG_COLORS: Record<string, string> = {
@@ -87,11 +87,11 @@ export const DEFAULT_REVENUE_CATEGORIES = [
 ];
 
 export const REVENUE_CATEGORY_COLORS: Record<string, string> = {
-  'Poupança': '#10b981',       // Emerald
-  'Pagamento': '#3b82f6',       // Blue
-  'FreeLancer': '#06b6d4',      // Cyan
-  'VA': '#eab308',              // Yellow
-  'Outros': '#6b7280',          // Gray
+  'Poupança': '#16c784',       // Emerald
+  'Pagamento': '#398bff',       // Blue
+  'FreeLancer': '#00bfdd',      // Cyan
+  'VA': '#f5cc27',              // Yellow
+  'Outros': '#94a3b8',          // Gray
 };
 
 export const REVENUE_CATEGORY_BG_COLORS: Record<string, string> = {

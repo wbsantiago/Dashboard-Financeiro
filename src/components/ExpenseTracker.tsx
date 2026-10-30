@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   PlusCircle, 
   Trash2, 
@@ -31,6 +31,7 @@ import {
 } from '../utils/storage';
 
 interface ExpenseTrackerProps {
+  entryRequest?: { tab: 'expenses' | 'revenues'; id: number };
   expenses: Expense[];
   onAddExpense: (expenseData: Omit<Expense, 'id' | 'createdAt'>) => Promise<void>;
   onDeleteExpense: (id: string, scope?: RecurrenceScope) => Promise<void>;
@@ -60,6 +61,7 @@ interface ExpenseTrackerProps {
 
 export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   expenses,
+  entryRequest,
   onAddExpense,
   onDeleteExpense,
   onUpdateExpense,
@@ -77,6 +79,29 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
 }) => {
   // Navigation Tabs at top: expenses (Saídas) or revenues (Entradas)
   const [activeTab, setActiveTab] = useState<'expenses' | 'revenues'>('expenses');
+  const [showEntryForm, setShowEntryForm] = useState(false);
+  const entryDialog = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (entryRequest) { setActiveTab(entryRequest.tab); setShowEntryForm(true); }
+  }, [entryRequest]);
+  useEffect(() => {
+    if (!showEntryForm) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const frame = requestAnimationFrame(() => entryDialog.current?.querySelector<HTMLElement>('input, button')?.focus());
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowEntryForm(false);
+      if (event.key !== 'Tab') return;
+      const controls = [...(entryDialog.current?.querySelectorAll<HTMLElement>('button, input, select, textarea, [tabindex="0"]') || [])].filter(el => !el.hasAttribute('disabled') && el.getClientRects().length > 0);
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => { cancelAnimationFrame(frame); document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', onKey); previous?.focus(); };
+  }, [showEntryForm, activeTab]);
+
 
   // State to handle delete confirmation modal
   const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'expense' | 'revenue'; title: string; isInstallment?: boolean; recurrenceId?: string } | null>(null);
@@ -574,6 +599,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
       setShowInlineAddCard(false);
       setInlineCardName('');
       setInlineCardDigits('');
+      setShowEntryForm(false);
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Não foi possível salvar a despesa. Tente novamente.');
     } finally {
@@ -644,6 +670,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
       setIsCustomRevCategory(false);
       setRevenueEntryType('single');
       setRevenueRecurrenceMonths('12');
+      setShowEntryForm(false);
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Não foi possível salvar o rendimento. Tente novamente.');
     } finally {
@@ -667,7 +694,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
           title="Ver Despesas"
         >
           <TrendingDown className={`w-3.5 h-3.5 shrink-0 transition-colors duration-300 ${activeTab === 'expenses' ? 'text-rose-500 dark:text-rose-455' : 'text-slate-400 dark:text-slate-500'}`} />
-          <span className="tracking-wide">Saídas / Despesas</span>
+          <span className="tracking-wide">Despesas</span>
         </button>
 
         <button
@@ -681,7 +708,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
           title="Ver Entradas"
         >
           <ArrowUpRight className={`w-3.5 h-3.5 shrink-0 transition-colors duration-300 ${activeTab === 'revenues' ? 'text-emerald-500 dark:text-emerald-450' : 'text-slate-400 dark:text-slate-500'}`} />
-          <span className="tracking-wide">Entradas / Rendimentos</span>
+          <span className="tracking-wide">Entradas</span>
         </button>
       </div>
 
@@ -691,15 +718,16 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
         {activeTab === 'expenses' && (
           <>
             {/* COLUNA 1: ADICIONAR NOVA DESPESA (4 Cols no Desktop) */}
-            <div className="lg:col-span-4" id="add-expense-container">
-              <div className="bg-[#161616] rounded-2xl border border-white/5 p-4.5 shadow-xs h-full flex flex-col justify-between">
+            <div className="sereno-entry-overlay" hidden={!showEntryForm} id="add-expense-container">
+              <div ref={entryDialog} role="dialog" aria-modal="true" aria-label="Nova despesa" className="sereno-entry-dialog bg-[#161616] rounded-2xl border border-white/5 p-4.5 shadow-xs flex flex-col justify-between">
+                <button type="button" className="sereno-entry-close" aria-label="Fechar formulário" onClick={() => setShowEntryForm(false)}><X size={20} /></button>
                 <div>
                   <div className="flex items-center gap-2 mb-3.5">
                     <div className="p-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/10">
                       <PlusCircle className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-white">Nova Despesa</h3>
+                      <h3 className="text-sm font-bold text-white">Nova despesa</h3>
                       <p className="text-[10px] text-slate-400">Registre saídas no mês selecionado</p>
                     </div>
                   </div>
@@ -1618,15 +1646,16 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
         {activeTab === 'revenues' && (
           <>
             {/* COLUNA 1: ADICIONAR NOVO RENDIMENTO (4 Cols no Desktop) */}
-            <div className="lg:col-span-4" id="add-revenue-container">
-              <div className="bg-[#161616] rounded-2xl border border-white/5 p-4.5 shadow-xs h-full flex flex-col justify-between">
+            <div className="sereno-entry-overlay" hidden={!showEntryForm} id="add-revenue-container">
+              <div ref={entryDialog} role="dialog" aria-modal="true" aria-label="Nova entrada" className="sereno-entry-dialog bg-[#161616] rounded-2xl border border-white/5 p-4.5 shadow-xs flex flex-col justify-between">
+                <button type="button" className="sereno-entry-close" aria-label="Fechar formulário" onClick={() => setShowEntryForm(false)}><X size={20} /></button>
                 <div>
                   <div className="flex items-center gap-2 mb-3.5">
                     <div className="p-1 rounded-lg bg-emerald-500/10 text-emerald-450 border border-emerald-500/10">
                       <PlusCircle className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-white">Novo Rendimento</h3>
+                      <h3 className="text-sm font-bold text-white">Nova entrada</h3>
                       <p className="text-[10px] text-emerald-400">Registre Pagamento, FreeLancer, VA, etc.</p>
                     </div>
                   </div>

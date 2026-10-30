@@ -4,11 +4,13 @@ Um painel completo, interativo e extremamente polido para controle financeiro pe
 
 ---
 
-## 🎨 Visual Preview & Design Philosophy
-* **Interface Tech-Dark**: Paleta de cores escura e sofisticada, usando fundos profundos em tons de cinza carvão (`#141414`/`#161616`) e detalhes de alto contraste.
-* **Tipografia Consistente**: Uso combinado de fontes versáteis para legibilidade e fontes mono-espaçadas nas áreas de dados financeiros estruturados.
-* **Componentes Responsivos**: Alinhamento geométrico perfeito projetado para desktops de alta resolução, mantendo adaptabilidade total para dispositivos móveis com áreas de toque otimizadas.
-* **Efeitos e Micro-interações**: Hover integrado, feedbacks visuais precisos e animações suaves de entrada em tabs e modais interativos.
+## 🎨 Interface Sereno
+
+* **Três visões**: **Visão geral** reúne resumo mensal, planejamento, gastos e limites, distribuição por categoria e histórico do ano. **Lançamentos do mês** mantém busca, filtros, pagamento individual e quitação de faturas por cartão e competência. **Visão do ano** permite escolher o ano e abrir os lançamentos de um mês pela tabela.
+* **Aparência**: em **Configurações → Aparência**, escolha Claro, Escuro ou Automático. O tema escuro usa azul mineral (`#0d141c`/`#151e29`). A escolha só é persistida quando as preferências opcionais forem autorizadas.
+* **Tipografia local**: Manrope é servida pelo próprio aplicativo em `public/fonts/`, com licença SIL OFL incluída. Não há requisição ao Google Fonts na navegação.
+* **Cadastro em formulário**: os botões **Adicionar entrada** e **Adicionar despesa** abrem os formulários completos em uma janela, incluindo recorrência, parcelamento e cartões. Os filtros dos lançamentos são preservados ao alternar as visões.
+* **Cores dos gráficos**: categorias usam cores vivas e estáveis nos dois temas. Passar o mouse ou tocar na legenda da pizza mostra categoria, valor e percentual, sem desbotar as demais fatias.
 
 ---
 
@@ -31,10 +33,10 @@ Um painel completo, interativo e extremamente polido para controle financeiro pe
 ### 3. 🍩 Gráfico de pizza interativo e Orçamento por Categorias
 * **Donut interativo de Alta Resolução**: Exibe a distribuição exata dos gastos em gráficos pizza/donut aumentados e otimizados, exibindo detalhes visuais e proporções percentuais ao passar o cursor sobre as fatias.
 * **Legendas Legíveis**: Legendas com fonte ampliada e legível, facilitando a identificação imediata das maiores categorias de consumo.
-* **Visualização Alternativa**: Alterna instantaneamente entre o formato de gráfico ou barras de progresso lineares de alta qualidade, que indicam de forma visual se o orçamento estipulado para cada categoria específica foi ultrapassado.
+* **Visualização alternativa**: alterna entre pizza e lista de valores e percentuais. O gráfico **Gastos e limites** compara o gasto e o limite planejado com barras horizontais, incluindo categorias personalizadas sem limite cadastrado.
 
 ### 4. 📈 Gráficos de Evolução e Históricos
-* **Evolução Temporal Acumulada**: Um gráfico de área detalhado construído com **Recharts** que exibe o histórico de gastos acumulados, com altura e área ajustadas e visualização limpa nas janelas de tempos.
+* **Histórico de gastos no ano**: mostra o total lançado em cada um dos 12 meses do ano selecionado, incluindo meses sem despesas. O valor aparece diretamente junto ao ponto, ao passar o mouse, tocar ou usar as setas do teclado. O gráfico mantém 190 px de altura e não soma anos diferentes.
 * **Histórico de Entrada x Saída**: Gráficos de barra que traçam a comparação geral mês a mês para análises de tendências financeiras a longo prazo.
 
 ---

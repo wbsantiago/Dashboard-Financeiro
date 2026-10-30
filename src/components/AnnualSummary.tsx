@@ -29,12 +29,14 @@ interface AnnualSummaryProps {
   expenses: Expense[];
   revenues: Revenue[];
   selectedYear: string; // e.g. "2026"
+  onSelectMonth: (month: string) => void;
 }
 
 export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
   expenses,
   revenues,
   selectedYear,
+  onSelectMonth,
 }) => {
   const monthsList = [
     { num: '01', name: 'Jan' },
@@ -164,13 +166,13 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
         <div>
           <h2 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-1.5 uppercase tracking-wider">
             <Coins className="w-4 h-4 text-amber-500" />
-            Consolidado Anual de {displayYear}
+            Visão do ano de {displayYear}
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">Dados do ano base {displayYear}, integrando todas as tabelas mensais</p>
         </div>
         <div className="flex items-center gap-2" id="annual-year-picker-container">
           <label className="text-xs font-bold text-slate-400 uppercase tracking-wider" htmlFor="annual-year-select">
-            Exibir Ano Fiscal:
+            Ano:
           </label>
           <select
             id="annual-year-select"
@@ -272,8 +274,8 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
               <BarChart3 className="w-3.5 h-3.5" />
             </div>
             <div>
-              <h3 className="text-xs sm:text-[13.5px] font-bold text-white">Cronograma Comparativo Trimestral / Mensal</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Fluxos de caixa consolidados ao longo dos meses aplicados</p>
+              <h3 className="text-xs sm:text-[13.5px] font-bold text-white">Entradas, despesas e saldo</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Comparativo mensal do ano selecionado</p>
             </div>
           </div>
 
@@ -285,9 +287,9 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
                 <YAxis tick={{ fill: '#64748b', fontSize: 10, className: 'privacy-axis-value' }} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomChartTooltip />} />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, fontWeight: 500, color: '#94a3b8', paddingTop: 6 }} />
-                <Bar dataKey="Entradas" fill="#10b981" radius={[3, 3, 0, 0]} maxBarSize={16} />
-                <Bar dataKey="Saídas" fill="#312e81" radius={[3, 3, 0, 0]} maxBarSize={16} />
-                <Line type="monotone" dataKey="Saldo" stroke="#818cf8" strokeWidth={1.5} dot={false} />
+                <Bar dataKey="Entradas" fill="var(--sereno-good)" radius={[3, 3, 0, 0]} maxBarSize={16} isAnimationActive={false} />
+                <Bar dataKey="Saídas" fill="var(--sereno-bar)" radius={[3, 3, 0, 0]} maxBarSize={16} isAnimationActive={false} />
+                <Line type="monotone" dataKey="Saldo" stroke="var(--sereno-action)" strokeWidth={2} dot={false} isAnimationActive={false} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -383,7 +385,7 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
 
                 return (
                   <tr key={dataRow.monthKey} className="hover:bg-white/[0.02] transition-colors">
-                    <td className="py-3 px-3 text-white font-bold">{dataRow.monthLabel}</td>
+                    <td className="py-3 px-3 text-white font-bold"><button type="button" className="sereno-link" onClick={() => onSelectMonth(dataRow.monthKey)} aria-label={`Ver lançamentos de ${dataRow.monthLabel} de ${displayYear}`}>{dataRow.monthLabel}</button></td>
                     <td className="py-3 px-3 text-right font-mono text-emerald-400 font-bold text-xs sm:text-[13.5px]">
                       {dataRow.Entradas > 0 ? <span className="privacy-blur">{formatCurrency(dataRow.Entradas)}</span> : '-'}
                     </td>
