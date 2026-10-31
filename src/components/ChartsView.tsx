@@ -1,5 +1,6 @@
 import { PrivateValue } from './PrivateValue';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Curve } from 'recharts';
 import { CategoryBudget, Expense } from '../types';
 import { categoryBudgetUsage } from '../utils/categories';
 import { formatCurrency } from '../utils/format';
@@ -50,6 +51,7 @@ export const ChartsView: React.FC<ChartProps & { categoryBudgets: CategoryBudget
 const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 export function SpendingHistory({ expenses, selectedMonth }: ChartProps) {
   const plot = useRef<HTMLDivElement>(null);
+  const gradientId = useId();
   const [width, setWidth] = useState(800);
   const [active, setActive] = useState<number | null>(null);
   const year = selectedMonth.slice(0, 4);
@@ -62,18 +64,22 @@ export function SpendingHistory({ expenses, selectedMonth }: ChartProps) {
     return () => observer.disconnect();
   }, []);
   useEffect(() => setActive(null), [selectedMonth]);
-  const left = width < 420 ? 42 : 58, right = 17, top = 20, bottom = 157;
+  const height = 280;
+  const left = width < 420 ? 42 : 58, right = 17, top = 44, bottom = height - 38;
   const max = Math.max(1, ...data.map(d => d.value));
   const magnitude = Math.pow(10, Math.floor(Math.log10(max)));
-  const ceiling = Math.ceil(max / magnitude) * magnitude;
-  const point = (i: number) => ({ x: left + i * (width - left - right) / 11, y: bottom - data[i].value / ceiling * (bottom - top) });
+  const ceiling = Math.ceil(max * 1.18 / magnitude) * magnitude;
+  const step = Math.max(1, width - left - right) / data.length;
+  const point = (i: number) => ({ x: left + (i + .5) * step, y: bottom - data[i].value / ceiling * (bottom - top) });
+  const points = data.map((_, i) => point(i));
   const selected = active === null ? null : { ...point(active), ...data[active] };
   const showNearest = (clientX: number) => {
     const rect = plot.current?.getBoundingClientRect();
-    if (rect) setActive(Math.max(0, Math.min(11, Math.round((clientX - rect.left - left) / (width - left - right) * 11))));
+    if (rect) setActive(Math.max(0, Math.min(11, Math.floor((clientX - rect.left - left) / step))));
   };
   return <section className="sereno-panel sereno-history" aria-labelledby="history-title">
     <div className="sereno-section-heading"><div><h2 id="history-title">Histórico de gastos no ano</h2><p>Total de despesas lançado em cada mês de {year}</p></div><span>{year}</span></div>
+    <div className="sereno-history-key"><i aria-hidden="true" />Despesas mensais</div>
     <div ref={plot} className="sereno-history-plot" tabIndex={0} role="group" aria-label="Gastos mensais. Use as setas para consultar os valores." onPointerMove={e => { if (e.pointerType === 'mouse') showNearest(e.clientX); }} onPointerLeave={e => { if (e.pointerType === 'mouse') setActive(null); }} onClick={e => showNearest(e.clientX)} onBlur={() => setActive(null)} onKeyDown={e => {
       if (e.key === 'Escape') setActive(null);
       if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
@@ -81,14 +87,20 @@ export function SpendingHistory({ expenses, selectedMonth }: ChartProps) {
         setActive(current => e.key === 'Home' ? 0 : e.key === 'End' ? 11 : current === null ? (e.key === 'ArrowRight' ? 0 : 11) : Math.max(0, Math.min(11, current + (e.key === 'ArrowRight' ? 1 : -1))));
       }
     }}>
-      <svg viewBox={`0 0 ${width} 190`} width="100%" height="190" aria-hidden="true">
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} aria-hidden="true">
+        <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--sereno-bar)" stopOpacity=".42" />
+          <stop offset="100%" stopColor="var(--sereno-bar)" stopOpacity=".025" />
+        </linearGradient></defs>
         <text x="2" y="12" className="sereno-axis-label">R$</text>
-        {[0, .5, 1].map(f => <g key={f}><line x1={left} x2={width - right} y1={bottom - f * (bottom - top)} y2={bottom - f * (bottom - top)} className="sereno-grid-line" /><text x={left - 8} y={bottom - f * (bottom - top) + 4} textAnchor="end" className="sereno-axis-label privacy-axis-value">{new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(ceiling * f)}</text></g>)}
-        <polyline points={data.map((_, i) => `${point(i).x},${point(i).y}`).join(' ')} className="sereno-history-line" />
-        {data.map((d, i) => <text key={d.name} x={point(i).x} y="181" textAnchor="middle" className="sereno-axis-label">{width < 400 && i % 2 === 1 && i !== 11 ? '' : d.name}</text>)}
-        {selected && <g><line x1={selected.x} x2={selected.x} y1={selected.y} y2={bottom} className="sereno-history-guide" /><circle cx={selected.x} cy={selected.y} r="4" className="sereno-history-dot" /></g>}
+        {[0, .25, .5, .75, 1].map(f => <g key={f}><line x1={left} x2={width - right} y1={bottom - f * (bottom - top)} y2={bottom - f * (bottom - top)} className="sereno-grid-line" /><text x={left - 8} y={bottom - f * (bottom - top) + 4} textAnchor="end" className="sereno-axis-label privacy-axis-value">{new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(ceiling * f)}</text></g>)}
+        <Curve type="monotoneX" points={points} baseLine={bottom} fill={`url(#${gradientId})`} stroke="none" />
+        <Curve type="monotoneX" points={points} className="sereno-history-line" />
+        {points.map((p, i) => <circle key={data[i].name} cx={p.x} cy={p.y} r="3.5" className="sereno-history-month-dot" />)}
+        {data.map((d, i) => <text key={d.name} x={point(i).x} y={height - 12} textAnchor="middle" className="sereno-axis-label">{width < 360 ? ([0, 3, 7, 11].includes(i) ? d.name : '') : width < 550 && i % 2 === 1 && i !== 11 ? '' : d.name}</text>)}
+        {selected && <g><line x1={selected.x} x2={selected.x} y1={top} y2={bottom} className="sereno-history-guide" /><circle cx={selected.x} cy={selected.y} r="6" className="sereno-history-dot" /></g>}
       </svg>
-      {selected && <div className="sereno-history-tooltip" role="status" style={{ left: Math.max(0, Math.min(width - 150, selected.x - 75)), top: selected.y >= 55 ? selected.y - 49 : selected.y + 14 }}><PrivateValue as="span" className="privacy-value">{formatCurrency(selected.value)}</PrivateValue></div>}
+      {selected && <div className="sereno-history-tooltip" role="status" style={{ left: Math.max(0, Math.min(width - 150, selected.x - 75)), top: Math.max(4, selected.y - 49) }}><PrivateValue as="span" className="privacy-value">{formatCurrency(selected.value)}</PrivateValue></div>}
     </div>
     <p className="sereno-chart-note">Passe o mouse ou toque em um mês para ver o valor no gráfico.</p>
   </section>;

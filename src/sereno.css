@@ -93,12 +93,15 @@
 .sereno-category-legend button>span:last-child { color:var(--sereno-muted); text-align:right; }
 .sereno-category-legend i { width:8px; height:8px; border-radius:50%; }
 .sereno-empty { color:var(--sereno-muted); padding:35px 0; line-height:1.7; }
-.sereno-history-plot { width:100%; height:190px; position:relative; touch-action:pan-y; }
+.sereno-history-key { display:flex; align-items:center; gap:8px; color:var(--sereno-muted); font-size:12px; margin-bottom:6px; }
+.sereno-history-key i { width:18px; height:3px; border-radius:3px; background:var(--sereno-bar); }
+.sereno-history-plot { width:100%; height:280px; position:relative; touch-action:pan-y; }
 .sereno-axis-label { fill:var(--sereno-muted); font-size:12px; }
 .sereno-grid-line { stroke:var(--sereno-line); stroke-width:1; }
-.sereno-history-line { stroke:var(--sereno-bar); stroke-width:2.5; fill:none; stroke-linejoin:round; }
-.sereno-history-guide { stroke:var(--sereno-limit); stroke-width:1; }
-.sereno-history-dot { fill:var(--sereno-action); }
+.sereno-history-line { stroke:var(--sereno-bar); stroke-width:3; fill:none; stroke-linejoin:round; stroke-linecap:round; }
+.sereno-history-month-dot { fill:var(--sereno-panel); stroke:var(--sereno-bar); stroke-width:2; }
+.sereno-history-guide { stroke:var(--sereno-muted); stroke-width:1; stroke-dasharray:3 5; opacity:.55; }
+.sereno-history-dot { fill:var(--sereno-action); stroke:var(--sereno-panel); stroke-width:3; }
 .sereno-history-tooltip { position:absolute; width:150px; text-align:center; padding:9px 7px; background:var(--sereno-panel); color:var(--sereno-ink); border:1px solid var(--sereno-line); border-radius:9px; box-shadow:0 4px 15px #0002; pointer-events:none; font-size:13px; font-weight:600; white-space:nowrap; }
 
 /* Skin existing forms and transaction controls without changing their behavior.
