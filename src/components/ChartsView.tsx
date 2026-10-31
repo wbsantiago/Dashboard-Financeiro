@@ -4,6 +4,7 @@ import { Curve } from 'recharts';
 import { CategoryBudget, Expense } from '../types';
 import { categoryBudgetUsage } from '../utils/categories';
 import { formatCurrency } from '../utils/format';
+import { useChartEntrance } from '../hooks/useChartEntrance';
 
 interface ChartProps { expenses: Expense[]; selectedMonth: string; }
 
@@ -20,13 +21,14 @@ export const ChartsView: React.FC<ChartProps & { categoryBudgets: CategoryBudget
     return [...values].map(([category, values]) => ({ category, ...values })).sort((a, b) => b.spent - a.spent);
   }, [expenses, categoryBudgets, selectedMonth]);
   const active = rows.find(r => r.category === activeCategory);
+  const entrance = useChartEntrance(rows.some(row => row.spent > 0));
   return <section className="sereno-panel sereno-comparison" aria-labelledby="comparison-title">
     <div className="sereno-section-heading"><div><h2 id="comparison-title">Gastos e limites</h2><p>Quanto do limite de cada categoria já foi usado</p></div><button type="button" className="sereno-link" onClick={onEditLimits}>Ajustar limites</button></div>
     <div className="sereno-bar-key"><span><i />Gasto do limite</span><span><i />Limite da categoria (100%)</span></div>
     <div className="category-usage-chart">
       <div className="category-usage-axis" aria-hidden="true"><span>100%</span><span>50%</span><span>0%</span></div>
       <div className="category-usage-scroll" role="region" aria-label="Comparativo por categoria" tabIndex={0}>
-        <div className="category-usage-columns" style={{ gridTemplateColumns: 'repeat(' + rows.length + ', minmax(var(--category-column-min), 1fr))' }}>
+        <div className="category-usage-columns" data-chart-entering={entrance.isEntering || undefined} onAnimationEnd={entrance.finish} style={{ gridTemplateColumns: 'repeat(' + rows.length + ', minmax(var(--category-column-min), 1fr))' }}>
           {rows.map(row => {
             const usage = categoryBudgetUsage(row.spent, row.limit);
             return <button type="button" key={row.category} className="category-usage-column" data-category={row.category} data-exceeded={usage.exceeded || undefined}
@@ -56,6 +58,8 @@ export function SpendingHistory({ expenses, selectedMonth }: ChartProps) {
   const [active, setActive] = useState<number | null>(null);
   const year = selectedMonth.slice(0, 4);
   const data = useMemo(() => MONTHS.map((name, i) => ({ name, value: expenses.filter(e => e.month === `${year}-${String(i + 1).padStart(2, '0')}`).reduce((sum, e) => sum + e.value, 0) })), [expenses, year]);
+  const entrance = useChartEntrance(data.some(month => month.value > 0));
+  const revealId = useId();
   useEffect(() => {
     const element = plot.current;
     if (!element) return;
@@ -87,16 +91,18 @@ export function SpendingHistory({ expenses, selectedMonth }: ChartProps) {
         setActive(current => e.key === 'Home' ? 0 : e.key === 'End' ? 11 : current === null ? (e.key === 'ArrowRight' ? 0 : 11) : Math.max(0, Math.min(11, current + (e.key === 'ArrowRight' ? 1 : -1))));
       }
     }}>
-      <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} aria-hidden="true">
-        <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} aria-hidden="true" data-chart-entering={entrance.isEntering || undefined}>
+        <defs><clipPath id={revealId}><rect className="sereno-history-reveal" width={width} height={height} onAnimationEnd={entrance.finish} /></clipPath><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="var(--sereno-bar)" stopOpacity=".42" />
           <stop offset="100%" stopColor="var(--sereno-bar)" stopOpacity=".025" />
         </linearGradient></defs>
         <text x="2" y="12" className="sereno-axis-label">R$</text>
         {[0, .25, .5, .75, 1].map(f => <g key={f}><line x1={left} x2={width - right} y1={bottom - f * (bottom - top)} y2={bottom - f * (bottom - top)} className="sereno-grid-line" /><text x={left - 8} y={bottom - f * (bottom - top) + 4} textAnchor="end" className="sereno-axis-label privacy-axis-value">{new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(ceiling * f)}</text></g>)}
-        <Curve type="monotoneX" points={points} baseLine={bottom} fill={`url(#${gradientId})`} stroke="none" />
-        <Curve type="monotoneX" points={points} className="sereno-history-line" />
-        {points.map((p, i) => <circle key={data[i].name} cx={p.x} cy={p.y} r="3.5" className="sereno-history-month-dot" />)}
+        <g clipPath={`url(#${revealId})`}>
+          <Curve type="monotoneX" points={points} baseLine={bottom} fill={`url(#${gradientId})`} stroke="none" />
+          <Curve type="monotoneX" points={points} className="sereno-history-line" />
+          {points.map((p, i) => <circle key={data[i].name} cx={p.x} cy={p.y} r="3.5" className="sereno-history-month-dot" />)}
+        </g>
         {data.map((d, i) => <text key={d.name} x={point(i).x} y={height - 12} textAnchor="middle" className="sereno-axis-label">{width < 360 ? ([0, 3, 7, 11].includes(i) ? d.name : '') : width < 550 && i % 2 === 1 && i !== 11 ? '' : d.name}</text>)}
         {selected && <g><line x1={selected.x} x2={selected.x} y1={top} y2={bottom} className="sereno-history-guide" /><circle cx={selected.x} cy={selected.y} r="6" className="sereno-history-dot" /></g>}
       </svg>

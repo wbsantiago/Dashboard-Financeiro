@@ -11,6 +11,7 @@ Um painel completo, interativo e extremamente polido para controle financeiro pe
 * **Tipografia local**: Manrope é servida pelo próprio aplicativo em `public/fonts/`, com licença SIL OFL incluída. Não há requisição ao Google Fonts na navegação.
 * **Cadastro em formulário**: os botões **Adicionar entrada** e **Adicionar despesa** abrem os formulários completos em uma janela, incluindo recorrência, parcelamento e cartões. Os filtros dos lançamentos são preservados ao alternar as visões.
 * **Cores dos gráficos**: categorias usam cores vivas e estáveis nos dois temas. Passar o mouse ou tocar nas fatias da pizza mostra categoria, valor e percentual, sem desbotar as demais fatias. A lista fica disponível pelo botão abaixo do gráfico, com valor e percentual em colunas separadas.
+* **Entrada dos gráficos**: as barras crescem, a pizza se forma e o histórico é revelado da esquerda para a direita ao carregar os dados. A visão anual também anima sua primeira exibição. As animações são curtas, não reiniciam ao consultar valores e respeitam a preferência de movimento reduzido do dispositivo.
 
 ---
 

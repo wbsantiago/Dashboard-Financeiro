@@ -73,6 +73,8 @@
 .category-usage-percent[data-no-limit] { white-space:normal; max-width:100%; }
 .category-usage-track { display:block; position:relative; width:15px; height:var(--category-bar-height); background:var(--sereno-limit); border-radius:4px; overflow:hidden; }
 .category-usage-fill { display:block; position:absolute; inset:auto 0 0; background:var(--sereno-bar); border-radius:4px 4px 0 0; }
+.category-usage-columns[data-chart-entering] .category-usage-fill { transform-origin:center bottom; animation:sereno-bars-form 850ms cubic-bezier(.22,1,.36,1) both; }
+@keyframes sereno-bars-form { from { transform:scaleY(0); } to { transform:scaleY(1); } }
 .category-usage-column[data-exceeded] .category-usage-fill { background:var(--sereno-danger); }
 .category-usage-column[data-exceeded] .category-usage-percent { color:var(--sereno-danger); font-weight:650; }
 .category-usage-track[data-no-limit] { background:transparent; border:1px dashed var(--sereno-line); }
@@ -107,6 +109,9 @@
 .sereno-grid-line { stroke:var(--sereno-line); stroke-width:1; }
 .sereno-history-line { stroke:var(--sereno-bar); stroke-width:3; fill:none; stroke-linejoin:round; stroke-linecap:round; }
 .sereno-history-month-dot { fill:var(--sereno-panel); stroke:var(--sereno-bar); stroke-width:2; }
+.sereno-history-plot svg[data-chart-entering] .sereno-history-reveal { transform-box:fill-box; transform-origin:left center; animation:sereno-history-form 1100ms cubic-bezier(.22,1,.36,1) both; }
+@keyframes sereno-history-form { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+#annual-category-summary[data-chart-entering] .sereno-annual-category-fill { transform-origin:left center; animation:sereno-history-form 900ms cubic-bezier(.22,1,.36,1) both; }
 .sereno-history-guide { stroke:var(--sereno-muted); stroke-width:1; stroke-dasharray:3 5; opacity:.55; }
 .sereno-history-dot { fill:var(--sereno-action); stroke:var(--sereno-panel); stroke-width:3; }
 .sereno-history-tooltip { position:absolute; width:150px; text-align:center; padding:9px 7px; background:var(--sereno-panel); color:var(--sereno-ink); border:1px solid var(--sereno-line); border-radius:9px; box-shadow:0 4px 15px #0002; pointer-events:none; font-size:13px; font-weight:600; white-space:nowrap; }

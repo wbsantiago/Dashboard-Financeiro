@@ -14,6 +14,7 @@ import {
 import { Expense, Revenue } from '../types';
 import { formatCurrency } from '../utils/format';
 import { getCategoryColor } from '../utils/categories';
+import { useChartEntrance } from '../hooks/useChartEntrance';
 import { 
   ResponsiveContainer, 
   ComposedChart, 
@@ -55,6 +56,7 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
   ];
 
   const [displayYear, setDisplayYear] = useState<string>(selectedYear);
+  const entrance = useChartEntrance(expenses.some(e => e.month?.startsWith(displayYear + '-')) || revenues.some(r => r.month?.startsWith(displayYear + '-')));
 
   useEffect(() => {
     setDisplayYear(selectedYear);
@@ -288,16 +290,16 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
                 <YAxis tick={{ fill: '#64748b', fontSize: 10, className: 'privacy-axis-value' }} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomChartTooltip />} />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, fontWeight: 500, color: '#94a3b8', paddingTop: 6 }} />
-                <Bar dataKey="Entradas" fill="var(--sereno-good)" radius={[3, 3, 0, 0]} maxBarSize={16} isAnimationActive={false} />
-                <Bar dataKey="Saídas" fill="var(--sereno-bar)" radius={[3, 3, 0, 0]} maxBarSize={16} isAnimationActive={false} />
-                <Line type="monotone" dataKey="Saldo" stroke="var(--sereno-action)" strokeWidth={2} dot={false} isAnimationActive={false} />
+                <Bar dataKey="Entradas" fill="var(--sereno-good)" radius={[3, 3, 0, 0]} maxBarSize={16} isAnimationActive={entrance.isEntering} animationBegin={0} animationDuration={900} animationEasing="ease-out" />
+                <Bar dataKey="Saídas" fill="var(--sereno-bar)" radius={[3, 3, 0, 0]} maxBarSize={16} isAnimationActive={entrance.isEntering} animationBegin={0} animationDuration={900} animationEasing="ease-out" />
+                <Line type="monotone" dataKey="Saldo" stroke="var(--sereno-action)" strokeWidth={2} dot={false} isAnimationActive={entrance.isEntering} animationBegin={0} animationDuration={1100} animationEasing="ease-out" />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* ACUMULADO POR CATEGORIA NO ANO */}
-        <div className="lg:col-span-4 bg-[#161616] rounded-2xl border border-white/5 p-4 sm:p-5 flex flex-col h-[320px]" id="annual-category-summary">
+        <div className="lg:col-span-4 bg-[#161616] rounded-2xl border border-white/5 p-4 sm:p-5 flex flex-col h-[320px]" id="annual-category-summary" data-chart-entering={entrance.isEntering || undefined}>
           <div className="flex items-center gap-2 mb-4 shrink-0">
             <div className="p-1 rounded-lg bg-pink-500/10 text-pink-400 border border-pink-500/10">
               <Sliders className="w-3.5 h-3.5" />
@@ -331,7 +333,7 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
                       </div>
                     </div>
                     <div className="w-full bg-[#202020] h-1.5 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${percent}%`, backgroundColor: item.color }} />
+                      <div className="h-full rounded-full sereno-annual-category-fill" style={{ width: `${percent}%`, backgroundColor: item.color }} />
                     </div>
                   </div>
                 );

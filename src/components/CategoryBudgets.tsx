@@ -20,6 +20,7 @@ import {
 import { CategoryBudget } from '../types';
 import { formatCurrency } from '../utils/format';
 import { categoryBudgetUsage, getCategoryColor } from '../utils/categories';
+import { useChartEntrance } from '../hooks/useChartEntrance';
 
 interface CategoryBudgetsProps {
   categoryBudgets: CategoryBudget[];
@@ -66,6 +67,7 @@ export const CategoryBudgets = forwardRef<CategoryBudgetsHandle, CategoryBudgets
     .sort((a, b) => b.value - a.value), [expensesByCategory]);
 
   const totalExpenseInMonth = pieChartData.reduce((sum, item) => sum + item.value, 0);
+  const entrance = useChartEntrance(pieChartData.length > 0);
 
   // Setup modal with existing budget limits
   const handleOpenModal = () => {
@@ -99,13 +101,14 @@ export const CategoryBudgets = forwardRef<CategoryBudgetsHandle, CategoryBudgets
       <div className="sereno-distribution-body">
       {pieChartData.length === 0 ? <p className="sereno-empty">Ainda não há despesas neste mês. Adicione uma despesa para ver a distribuição.</p> : <>
         {distView === 'donut' && <div className="sereno-donut-figure" role="group" tabIndex={0} aria-label="Distribuição de despesas por categoria. Use as setas para consultar valores e percentuais." onPointerLeave={e => { if (e.pointerType === 'mouse') setActiveIndex(null); }} onBlur={e => { if (e.target === e.currentTarget) setActiveIndex(null); }} onKeyDown={e => {
+          entrance.finish();
           if (e.key === 'Escape') setActiveIndex(null);
           if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
             e.preventDefault();
             setActiveIndex(current => e.key === 'Home' ? 0 : e.key === 'End' ? pieChartData.length - 1 : current === null ? (e.key === 'ArrowRight' ? 0 : pieChartData.length - 1) : (current + (e.key === 'ArrowRight' ? 1 : -1) + pieChartData.length) % pieChartData.length);
           }
         }}>
-          <ResponsiveContainer width="100%" height="100%"><PieChart accessibilityLayer={false}><Pie data={pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius="68%" outerRadius="92%" paddingAngle={1.5} stroke="none" isAnimationActive={false} onMouseEnter={(_, index) => setActiveIndex(index)} onClick={(_, index) => setActiveIndex(index)}>
+          <ResponsiveContainer width="100%" height="100%"><PieChart accessibilityLayer={false}><Pie data={pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius="68%" outerRadius="92%" paddingAngle={1.5} stroke="none" isAnimationActive={entrance.isEntering} animationBegin={0} animationDuration={950} animationEasing="ease-out" onMouseEnter={(_, index) => { entrance.finish(); setActiveIndex(index); }} onClick={(_, index) => { entrance.finish(); setActiveIndex(index); }}>
             {pieChartData.map((item, index) => <Cell key={item.name} fill={item.color} opacity={1} stroke={index === activeIndex ? 'var(--sereno-ink)' : 'none'} strokeWidth={index === activeIndex ? 2 : 0} />)}
           </Pie></PieChart></ResponsiveContainer>
           <div className="sereno-donut-center" aria-live="polite"><span>{activeIndex !== null && pieChartData[activeIndex] ? pieChartData[activeIndex].name : 'Total de despesas'}</span><PrivateValue as="strong" className="privacy-value">{formatCurrency(activeIndex !== null && pieChartData[activeIndex] ? pieChartData[activeIndex].value : totalExpenseInMonth)}</PrivateValue>{activeIndex !== null && pieChartData[activeIndex] && <small>{(pieChartData[activeIndex].value / totalExpenseInMonth * 100).toFixed(1).replace('.', ',')}%</small>}</div>
