@@ -35,12 +35,26 @@ interface Props {
 }
 
 export function AppSettings(p: Props) {
+  const dialog = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [topic, setTopic] = useState('Dúvida sobre o aplicativo');
   const cloud = p.cloudConnected;
-  useEffect(() => { heading.current?.focus({ preventScroll: true }); }, []);
+  useEffect(() => {
+    const element = dialog.current;
+    const overflow = document.body.style.overflow;
+    const previousFocus = document.activeElement;
+    element?.showModal();
+    document.body.style.overflow = 'hidden';
+    heading.current?.focus({ preventScroll: true });
+    return () => {
+      element?.close();
+      document.body.style.overflow = overflow;
+      if (previousFocus instanceof HTMLElement && previousFocus !== document.body && previousFocus.isConnected) previousFocus.focus({ preventScroll: true });
+      else document.querySelector<HTMLButtonElement>('[aria-controls="settings-panel"]')?.focus({ preventScroll: true });
+    };
+  }, []);
   useEffect(() => { setError(''); }, [p.section]);
   async function run(action: () => Promise<void>) {
     setBusy(true);
@@ -51,10 +65,25 @@ export function AppSettings(p: Props) {
   }
 
   return (
-    <section id="settings-panel" className="app-settings" aria-labelledby="settings-title"
-      onKeyDown={e => { if (e.key === 'Escape') p.onClose(); }}>
+    <dialog ref={dialog} id="settings-panel" className="app-settings" aria-labelledby="settings-title" aria-describedby="settings-description"
+      onCancel={e => { e.preventDefault(); p.onClose(); }}
+      onClick={e => {
+        if (e.target !== e.currentTarget) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) p.onClose();
+      }}
+      onKeyDown={e => {
+        if (e.key !== 'Tab') return;
+        const controls = [...(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], summary, [tabindex="0"]') ?? [])].filter(el => el.getClientRects().length > 0);
+        const first = controls[0], last = controls[controls.length - 1];
+        if (e.shiftKey && (document.activeElement === first || !controls.includes(document.activeElement as HTMLElement))) {
+          e.preventDefault(); last?.focus();
+        } else if (!e.shiftKey && (document.activeElement === last || !controls.includes(document.activeElement as HTMLElement))) {
+          e.preventDefault(); first?.focus();
+        }
+      }}>
       <div className="settings-heading">
-        <div><h2 id="settings-title" ref={heading} tabIndex={-1}>Configurações</h2><p>Seu planejamento, seus dados e suas preferências.</p></div>
+        <div><h2 id="settings-title" ref={heading} tabIndex={-1}>Configurações</h2><p id="settings-description">Seu planejamento, seus dados e suas preferências.</p></div>
         <button type="button" className="settings-icon-button" onClick={p.onClose} aria-label="Fechar configurações"><X size={20} /></button>
       </div>
       <div className="settings-layout">
@@ -104,6 +133,10 @@ export function AppSettings(p: Props) {
           </>}
         </div>
       </div>
-    </section>
+      <div className="settings-footer">
+        <button type="button" className="settings-secondary" onClick={p.onClose}>{p.section === 'budget' ? 'Cancelar' : 'Fechar'}</button>
+        {p.section === 'budget' && <button type="submit" form="settings-month-budget-form" className="settings-primary">Salvar Orçamento</button>}
+      </div>
+    </dialog>
   );
 }

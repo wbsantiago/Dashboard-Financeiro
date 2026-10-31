@@ -135,11 +135,10 @@ export default function App() {
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('budget');
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
   const categoryBudgetsRef = useRef<CategoryBudgetsHandle>(null);
-  const closeSettings = () => { setShowConfigPanel(false); settingsButtonRef.current?.focus(); };
+  const closeSettings = () => { setShowConfigPanel(false); };
   const openSettings = (section: SettingsSection) => {
     setSettingsSection(section);
     setShowConfigPanel(true);
-    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   };
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [showDiagnosticModal, setShowDiagnosticModal] = useState<boolean>(false);
@@ -152,8 +151,8 @@ export default function App() {
   const [newCardDigits, setNewCardDigits] = useState<string>('');
   const [showNotification, setShowNotification] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
   const [themePreference, setThemePreference] = useState<'light' | 'dark' | 'system'>(() => {
-    const saved = demoMode ? 'dark' : readDisplayPreference('app-theme', 'dark', cookieChoice);
-    return saved === 'light' || saved === 'system' ? saved : 'dark';
+    const saved = demoMode ? 'system' : readDisplayPreference('app-theme', 'system', cookieChoice);
+    return saved === 'light' || saved === 'dark' ? saved : 'system';
   });
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(() => window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
   useEffect(() => {
@@ -1727,7 +1726,7 @@ export default function App() {
               {privacyMode ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
             <button type="button" ref={settingsButtonRef} className="compact-header-button"
-              aria-controls="settings-panel" aria-expanded={showConfigPanel}
+              aria-controls="settings-panel" aria-expanded={showConfigPanel} aria-haspopup="dialog"
               onClick={() => showConfigPanel ? closeSettings() : openSettings('budget')}
               aria-label="Configurações" title="Configurações">
               <Settings size={18} /><span className="compact-header-label">Configurações</span>
@@ -1751,11 +1750,11 @@ export default function App() {
           hideMobileBudgets={hideMobileBudgets} onHideMobileBudgetsChange={changeHideMobileBudgets}
           onExport={handleExportData} onImport={handleImportButtonClick}
           onUploadLocal={async () => { if (user) await handleMergeLocalDataToCloud(user.uid); }}
-          onOpenCookiePreferences={() => setCookieManagerOpen(true)} rememberAppearance={cookieChoice?.preferences === true && !temporaryCookieChoice.current}
-          onClearLocal={handleClearData}
+          onOpenCookiePreferences={() => { closeSettings(); setCookieManagerOpen(true); }} rememberAppearance={cookieChoice?.preferences === true && !temporaryCookieChoice.current}
+          onClearLocal={() => { closeSettings(); handleClearData(); }}
           onDiagnostics={() => { closeSettings(); setShowDiagnosticModal(true); runFirebaseDiagnostics(); }}
           budgetContent={<>
-            <form onSubmit={handleSaveMonthConfig} className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-end">
+            <form id="settings-month-budget-form" onSubmit={handleSaveMonthConfig} className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-end">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
                   Salário Ideal / Rendimento Fixo (R$) — {formatMonthName(selectedMonth)}
@@ -1818,22 +1817,6 @@ export default function App() {
                 </span>
               </div>
 
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2 px-4 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-1"
-                >
-                  <Check className="w-4 h-4" />
-                  Salvar Orçamento
-                </button>
-                <button
-                  type="button"
-                  onClick={closeSettings}
-                  className="px-4 py-2 bg-[#1c1c1c] hover:bg-[#252525] text-slate-300 rounded-xl text-xs font-bold transition-all"
-                >
-                  Cancelar
-                </button>
-              </div>
             </form>
 
             {/* GERENCIAMENTO DE CARTÕES CADASTRADOS */}

@@ -111,7 +111,7 @@ export const CategoryBudgets = forwardRef<CategoryBudgetsHandle, CategoryBudgets
           <div className="sereno-donut-center" aria-live="polite"><span>{activeIndex !== null && pieChartData[activeIndex] ? pieChartData[activeIndex].name : 'Total de despesas'}</span><PrivateValue as="strong" className="privacy-value">{formatCurrency(activeIndex !== null && pieChartData[activeIndex] ? pieChartData[activeIndex].value : totalExpenseInMonth)}</PrivateValue>{activeIndex !== null && pieChartData[activeIndex] && <small>{(pieChartData[activeIndex].value / totalExpenseInMonth * 100).toFixed(1).replace('.', ',')}%</small>}</div>
         </div>}
         {distView === 'bars' && <div className="sereno-category-legend">{pieChartData.map((item, index) => <button type="button" key={item.name} aria-pressed={activeIndex === index} onMouseEnter={() => setActiveIndex(index)} onMouseLeave={() => setActiveIndex(null)} onFocus={() => setActiveIndex(index)} onBlur={() => setActiveIndex(null)} onClick={() => setActiveIndex(index)}>
-          <i style={{ backgroundColor: item.color }} /><span>{item.name}</span><span><PrivateValue as="span" className="privacy-value">{formatCurrency(item.value)} </PrivateValue>{(item.value / totalExpenseInMonth * 100).toFixed(1).replace('.', ',')}%</span>
+          <i style={{ backgroundColor: item.color }} /><span className="sereno-category-name">{item.name}</span><PrivateValue as="span" className="privacy-value sereno-category-amount">{formatCurrency(item.value)}</PrivateValue><span className="sereno-category-percent">{(item.value / totalExpenseInMonth * 100).toFixed(1).replace('.', ',')}%</span>
         </button>)}</div>}
       </>}
       </div>

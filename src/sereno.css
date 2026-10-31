@@ -93,9 +93,11 @@
 .sereno-donut-center strong { color:var(--sereno-ink); font-size:20px; font-weight:600; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .sereno-donut-center small { color:var(--sereno-muted); font-size:12px; }
 .sereno-category-legend { display:flex; flex-direction:column; gap:5px; }
-.sereno-category-legend button { display:grid; grid-template-columns:9px minmax(0,1fr) auto; align-items:center; gap:8px; padding:5px 0; text-align:left; font-size:12px; line-height:1.4; color:var(--sereno-ink); }
+.sereno-category-legend button { display:grid; grid-template-columns:9px minmax(0,1fr) auto 8ch; align-items:center; gap:10px; padding:5px 0; text-align:left; font-size:12px; line-height:1.4; color:var(--sereno-ink); }
 .sereno-category-legend button[aria-pressed=true]>span:first-of-type { font-weight:650; }
-.sereno-category-legend button>span:last-child { color:var(--sereno-muted); text-align:right; }
+.sereno-category-name { min-width:0; overflow-wrap:anywhere; }
+.sereno-category-amount,.sereno-category-percent { color:var(--sereno-muted); text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.sereno-category-percent { border-left:1px solid var(--sereno-line); padding-left:12px; }
 .sereno-category-legend i { width:8px; height:8px; border-radius:50%; }
 .sereno-empty { color:var(--sereno-muted); padding:35px 0; line-height:1.7; }
 .sereno-history-key { display:flex; align-items:center; gap:8px; color:var(--sereno-muted); font-size:12px; margin-bottom:6px; }
@@ -143,7 +145,7 @@
 .sereno-app #month-navigation p { display:none; }
 .sereno-app #month-navigation>div>span:first-child { display:none; }
 .sereno-app #month-navigation span { color:var(--sereno-ink); font-size:13px; text-transform:none; }
-.sereno-app .app-settings { --surface:var(--sereno-panel); --inset:var(--sereno-bg); --line:var(--sereno-line); --text:var(--sereno-ink); --muted:var(--sereno-muted); --accent:var(--sereno-action); box-shadow:none; }
+.sereno-app .app-settings { --surface:var(--sereno-panel); --inset:var(--sereno-bg); --line:var(--sereno-line); --text:var(--sereno-ink); --muted:var(--sereno-muted); --accent:var(--sereno-action); }
 .sereno-app .account-panel { --account-surface:var(--sereno-panel); --account-text:var(--sereno-ink); --account-muted:var(--sereno-muted); --account-line:var(--sereno-line); --account-accent:var(--sereno-action); }
 .sereno-app .app-settings :is(.settings-nav button[aria-current],.settings-theme-options button[aria-pressed=true]) { color:var(--sereno-action)!important; background:var(--sereno-soft)!important; border-color:var(--sereno-line)!important; }
 .sereno-app .app-settings .settings-text-button { color:var(--sereno-action)!important; }

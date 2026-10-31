@@ -7,10 +7,10 @@ Um painel completo, interativo e extremamente polido para controle financeiro pe
 ## 🎨 Interface Sereno
 
 * **Três visões**: **Visão geral** reúne resumo mensal, planejamento, gastos e limites, distribuição por categoria e histórico do ano. **Lançamentos do mês** mantém busca, filtros, pagamento individual e quitação de faturas por cartão e competência. **Visão do ano** permite escolher o ano e abrir os lançamentos de um mês pela tabela.
-* **Aparência**: em **Configurações → Aparência**, escolha Claro, Escuro ou Automático. O tema escuro usa azul mineral (`#0d141c`/`#151e29`). A escolha só é persistida quando as preferências opcionais forem autorizadas.
+* **Aparência**: em **Configurações → Aparência**, escolha Claro, Escuro ou Automático. Sem uma preferência salva, o padrão é Automático: acompanha o tema do sistema e suas mudanças durante o uso. Escolhas existentes de Claro ou Escuro são preservadas. O tema escuro usa azul mineral (`#0d141c`/`#151e29`). A escolha só é persistida quando as preferências opcionais forem autorizadas.
 * **Tipografia local**: Manrope é servida pelo próprio aplicativo em `public/fonts/`, com licença SIL OFL incluída. Não há requisição ao Google Fonts na navegação.
 * **Cadastro em formulário**: os botões **Adicionar entrada** e **Adicionar despesa** abrem os formulários completos em uma janela, incluindo recorrência, parcelamento e cartões. Os filtros dos lançamentos são preservados ao alternar as visões.
-* **Cores dos gráficos**: categorias usam cores vivas e estáveis nos dois temas. Passar o mouse ou tocar na legenda da pizza mostra categoria, valor e percentual, sem desbotar as demais fatias.
+* **Cores dos gráficos**: categorias usam cores vivas e estáveis nos dois temas. Passar o mouse ou tocar nas fatias da pizza mostra categoria, valor e percentual, sem desbotar as demais fatias. A lista fica disponível pelo botão abaixo do gráfico, com valor e percentual em colunas separadas.
 
 ---
 
@@ -52,7 +52,7 @@ Um painel completo, interativo e extremamente polido para controle financeiro pe
 
 ### Topo compacto e preferências
 
-O topo reúne a navegação mensal, o botão de ocultar valores, as configurações e o perfil. O perfil abre um cartão compacto para conectar ou sair da conta, com atalhos para os dados, backups e privacidade. O painel de configurações organiza orçamento e cartões, dados e backups, privacidade, aparência e ajuda, sem repetir as ações de login. A opção **Apagar cópia local** exige confirmação e limpa somente os dados financeiros deste navegador, preservando a sessão, as preferências e os dados da nuvem.
+O topo reúne a navegação mensal, o botão de ocultar valores, as configurações e o perfil. O perfil abre um cartão compacto para conectar ou sair da conta, com atalhos para os dados, backups e privacidade. As configurações abrem em uma janela sobre o dashboard, com fundo escurecido, rolagem interna e ações fixas. Feche pelo X, pela tecla Esc ou pelo fundo para voltar à mesma posição da página. A janela organiza orçamento e cartões, dados e backups, privacidade, aparência e ajuda, sem repetir as ações de login. A opção **Apagar cópia local** exige confirmação e limpa somente os dados financeiros deste navegador, preservando a sessão, as preferências e os dados da nuvem.
 
 Ao ocultar valores, os gráficos continuam nítidos e interativos, com categorias, meses e percentuais visíveis. Os valores monetários, inclusive os detalhes ao passar o mouse, são substituídos por asteriscos (****); a escala numérica dos gráficos fica oculta. Campos de valor são revelados durante a edição. Essa opção altera somente a apresentação na tela.
 
