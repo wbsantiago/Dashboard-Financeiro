@@ -1,8 +1,8 @@
+import { PrivateValue, PrivateAmountInput } from './PrivateValue';
 import React, { useEffect, useRef, useState } from 'react';
 import { 
   PlusCircle, 
   Trash2, 
-  Search, 
   CreditCard, 
   Calendar, 
   HelpCircle, 
@@ -15,14 +15,14 @@ import {
   Zap,
   FileText,
   Filter,
-  SlidersHorizontal,
-  ChevronDown,
   X
 } from 'lucide-react';
 import { Expense, Revenue, MonthlyBudget, CreditCard as CreditCardType, ExpenseEditScope, RecurrenceScope } from '../types';
 import { RecurrenceControls, RecurrenceScopeSelector, EntryType } from './RecurrenceControls';
+import { EntryFilters } from './EntryFilters';
+import { getCardFilterOptions, matchesCardFilter } from '../utils/expenseFilters';
 import { validateRecurrenceMonths } from '../utils/recurrence';
-import { formatCurrency, formatDate, getInstallmentInfo, getCompetenceMonth } from '../utils/format';
+import { formatCurrency, formatMonthName, formatDate, getInstallmentInfo, getCompetenceMonth } from '../utils/format';
 import { 
   DEFAULT_CATEGORIES, 
   CATEGORY_COLORS, 
@@ -89,7 +89,12 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
     const previous = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    const frame = requestAnimationFrame(() => entryDialog.current?.querySelector<HTMLElement>('input, button')?.focus());
+    const frame = requestAnimationFrame(() => {
+      const dialog = entryDialog.current;
+      if (dialog && !dialog.contains(document.activeElement)) {
+        dialog.querySelector<HTMLElement>('input:not([disabled]), select, textarea, button')?.focus();
+      }
+    });
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setShowEntryForm(false);
       if (event.key !== 'Tab') return;
@@ -115,9 +120,10 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   // FILTERS (Expenses)
   const [filterType, setFilterType] = useState<'all' | 'one-time' | 'installment' | 'recurring'>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterCard, setFilterCard] = useState('all');
   const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>('all');
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<'all' | 'paid' | 'unpaid'>('all');
-  const [showFilterDropdown, setShowFilterDropdown] = useState<boolean>(false);
+  const [showFilterDropdown, setShowFilterDropdown] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   // FILTERS (Revenues)
@@ -389,9 +395,14 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   const [revenueRecurrenceMonths, setRevenueRecurrenceMonths] = useState('12');
 
   // CATEGORIES LISTS FOR FILTER DROPDOWNS
-  const uniqueCategories = Array.from(new Set(expenses.map(e => e.category)));
-  const uniqueRevenueCategories = Array.from(new Set(revenues.map(r => r.category)));
-  const activeFiltersCount = (filterCategory !== 'all' ? 1 : 0) + (filterPaymentMethod !== 'all' ? 1 : 0) + (filterPaymentStatus !== 'all' ? 1 : 0);
+  const uniqueCategories = Array.from(new Set<string>(expenses.map(e => e.category))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const uniqueRevenueCategories = Array.from(new Set<string>(revenues.map(r => r.category))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const cardFilterOptions = React.useMemo(() => getCardFilterOptions(expenses, creditCards), [expenses, creditCards]);
+  const clearFilters = () => {
+    if (activeTab === 'revenues') { setRevenueSearchTerm(''); setFilterRevenueCategory('all'); return; }
+    setSearchTerm(''); setFilterCategory('all'); setFilterPaymentMethod('all');
+    setFilterCard('all'); setFilterPaymentStatus('all'); setFilterType('all');
+  };
 
   // FILTER LOGIC FOR EXPENSES
   const baseFilteredExpenses = expenses.filter(exp => {
@@ -406,11 +417,10 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
         if (exp.paymentMethod !== 'boleto') return false;
       } else if (filterPaymentMethod === 'card') {
         if (exp.paymentMethod !== 'card' && !exp.cardLastDigits) return false;
-      } else if (filterPaymentMethod.startsWith('card-')) {
-        const lastDigits = filterPaymentMethod.replace('card-', '');
-        if (exp.cardLastDigits !== lastDigits) return false;
       }
     }
+
+    if (!matchesCardFilter(exp, filterCard, cardFilterOptions)) return false;
 
     if (filterPaymentStatus !== 'all') {
       if (filterPaymentStatus === 'paid' && !exp.paid) return false;
@@ -461,7 +471,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
 
   // Detalhamento de cartões do mês corrente
   const creditCardsThisMonth = React.useMemo(() => {
-    const cardExpenses = filteredExpenses.filter(e => e.paymentMethod === 'card' && e.cardLastDigits);
+    // Bill totals and confirmation cover the whole month, independent of search/type/status filters.
+    const cardExpenses = expenses.filter(e => e.month === selectedMonth && (e.paymentMethod === 'card' || e.cardLastDigits) && e.cardLastDigits);
     const cardsMap: { [digits: string]: { totalValue: number; count: number; unpaidCount: number; unpaidValue: number } } = {};
     
     cardExpenses.forEach(e => {
@@ -485,7 +496,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
         ...info
       };
     });
-  }, [filteredExpenses, creditCards]);
+  }, [expenses, creditCards, selectedMonth]);
 
   // Função para abrir o modal de confirmação de quitação da fatura
   const handlePayWholeCard = (digits: string, count: number, name?: string, unpaidValue: number = 0) => {
@@ -681,7 +692,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   return (
     <div className="flex flex-col gap-0" id="tracker-component-root">
       
-      {/* SELETOR DE ABAS - ABALIZADO COM CANETA MARCA-TEXTO / MARCA-PÁGINA DO CADERNO */}
+      <div className="entry-ledger-heading">
+        <div><h2>Todos os lançamentos</h2><p>{formatMonthName(selectedMonth)}</p></div>
       <div className="flex items-center gap-2 select-none border-b border-slate-200/10 dark:border-white/5 pb-2 ml-1" id="tracker-tabs">
         <button
           onClick={() => setActiveTab('expenses')}
@@ -692,6 +704,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
               : 'text-slate-500 hover:text-slate-800 dark:text-slate-450 dark:hover:text-slate-200 bg-transparent'
           }`}
           title="Ver Despesas"
+          aria-pressed={activeTab === 'expenses'}
         >
           <TrendingDown className={`w-3.5 h-3.5 shrink-0 transition-colors duration-300 ${activeTab === 'expenses' ? 'text-rose-500 dark:text-rose-455' : 'text-slate-400 dark:text-slate-500'}`} />
           <span className="tracking-wide">Despesas</span>
@@ -706,11 +719,26 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
               : 'text-slate-500 hover:text-slate-800 dark:text-slate-450 dark:hover:text-slate-200 bg-transparent'
           }`}
           title="Ver Entradas"
+          aria-pressed={activeTab === 'revenues'}
         >
           <ArrowUpRight className={`w-3.5 h-3.5 shrink-0 transition-colors duration-300 ${activeTab === 'revenues' ? 'text-emerald-500 dark:text-emerald-450' : 'text-slate-400 dark:text-slate-500'}`} />
           <span className="tracking-wide">Entradas</span>
         </button>
       </div>
+      </div>
+      <EntryFilters
+        revenues={activeTab === 'revenues'} expanded={showFilterDropdown}
+        onToggle={() => setShowFilterDropdown(open => !open)}
+        search={activeTab === 'expenses' ? searchTerm : revenueSearchTerm}
+        onSearchChange={activeTab === 'expenses' ? setSearchTerm : setRevenueSearchTerm}
+        category={activeTab === 'expenses' ? filterCategory : filterRevenueCategory}
+        categories={activeTab === 'expenses' ? uniqueCategories : uniqueRevenueCategories}
+        onCategoryChange={activeTab === 'expenses' ? setFilterCategory : setFilterRevenueCategory}
+        method={filterPaymentMethod} onMethodChange={method => { setFilterPaymentMethod(method); if (method !== 'card') setFilterCard('all'); }}
+        card={filterCard} cards={cardFilterOptions}
+        onCardChange={card => { setFilterCard(card); if (card !== 'all') setFilterPaymentMethod('card'); }}
+        status={filterPaymentStatus} onStatusChange={setFilterPaymentStatus} onClear={clearFilters}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5" id="expense-tracker-section">
         
@@ -755,13 +783,13 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                         <label className="block text-[10px] font-bold text-slate-450 uppercase mb-1">
                           Valor (R$)
                         </label>
-                        <input
+                        <PrivateAmountInput
                           type="number"
                           step="0.01"
                           placeholder="250.00"
                           value={value}
                           onChange={(e) => setValue(e.target.value)}
-                          className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors placeholder:text-zinc-650 privacy-blur"
+                          className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors placeholder:text-zinc-650 privacy-value"
                           required
                           min="0"
                         />
@@ -1069,16 +1097,16 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                               {installmentValueType === 'single' ? (
                                 <p className="leading-relaxed">
                                   Serão geradas <span className="text-white font-bold">{totalInstallments}</span> parcelas de{' '}
-                                  <span className="text-indigo-400 font-extrabold privacy-blur">{formatCurrency(parseFloat(value))}</span> cada uma.{' '}
-                                  (Total: <span className="privacy-blur">{formatCurrency(parseFloat(value) * parseInt(totalInstallments || '1'))}</span>)
+                                  <PrivateValue as="span" className="text-indigo-400 font-extrabold privacy-value">{formatCurrency(parseFloat(value))}</PrivateValue> cada uma.{' '}
+                                  (Total: <PrivateValue as="span" className="privacy-value">{formatCurrency(parseFloat(value) * parseInt(totalInstallments || '1'))}</PrivateValue>)
                                 </p>
                               ) : (
                                 <p className="leading-relaxed">
-                                  Um total de <span className="text-white font-bold privacy-blur">{formatCurrency(parseFloat(value))}</span> será dividido em{' '}
+                                  Um total de <PrivateValue as="span" className="text-white font-bold privacy-value">{formatCurrency(parseFloat(value))}</PrivateValue> será dividido em{' '}
                                   <span className="text-white font-bold">{totalInstallments}</span> parcelas de{' '}
-                                  <span className="text-amber-400 font-extrabold privacy-blur">
+                                  <PrivateValue as="span" className="text-amber-400 font-extrabold privacy-value">
                                     {formatCurrency(parseFloat(value) / parseInt(totalInstallments || '1', 10))}
-                                  </span>{' '}
+                                  </PrivateValue>{' '}
                                   cada uma.
                                 </p>
                               )}
@@ -1139,162 +1167,6 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
             <div className="lg:col-span-8 flex flex-col" id="expenses-logs-container">
               <div className="bg-[#161616] rounded-2xl border border-white/5 p-4.5 shadow-xs flex-1 flex flex-col justify-between">
                 <div>
-                  <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center mb-4 bg-zinc-950/20 p-2.5 rounded-xl border border-white/5">
-                    <div>
-                      <h3 className="text-xs font-bold text-white uppercase tracking-wider">Histórico de Saídas</h3>
-                      <p className="text-[10px] text-slate-400 mt-0.5 leading-none">
-                        Comprometido no Mês:{' '}
-                        <span className="font-extrabold text-indigo-400 font-mono privacy-blur">
-                          {formatCurrency(totalFilteredValue)}
-                        </span>
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                      <div className="relative flex-1 sm:flex-none">
-                        <input
-                          type="text"
-                          placeholder="Pesquisar..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full sm:w-36 pl-7 pr-2.5 py-1 text-[11px] border border-white/10 bg-zinc-900 text-white rounded-lg outline-none focus:border-indigo-500 placeholder:text-zinc-650"
-                        />
-                        <Search className="w-3 h-3 text-slate-500 absolute left-2 top-1/2 -translate-y-1/2" />
-                      </div>
-
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                          className={`px-3 py-1 text-[11px] font-bold border rounded-lg outline-none flex items-center gap-1.5 transition-all cursor-pointer ${
-                            activeFiltersCount > 0
-                              ? 'border-indigo-500/50 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20'
-                              : 'border-white/10 bg-zinc-900 text-zinc-300 hover:bg-zinc-800'
-                          }`}
-                        >
-                          <SlidersHorizontal className="w-3 h-3 text-indigo-400 font-bold" />
-                          <span>Filtros</span>
-                          {activeFiltersCount > 0 && (
-                            <span className="flex items-center justify-center bg-indigo-500 text-white font-extrabold font-mono text-[9px] px-1.5 py-0.5 rounded-full leading-none">
-                              {activeFiltersCount}
-                            </span>
-                          )}
-                          <ChevronDown className={`w-3 h-3 transition-transform duration-205 ${showFilterDropdown ? 'rotate-180 text-white' : 'text-slate-500'}`} />
-                        </button>
-
-                        {showFilterDropdown && (
-                          <>
-                            {/* Backdrop to close when clicking outside */}
-                            <div 
-                              className="fixed inset-0 z-40" 
-                              onClick={() => setShowFilterDropdown(false)} 
-                            />
-                            
-                            {/* Popover Card */}
-                            <div className="absolute right-0 mt-2 w-64 bg-[#141414] border border-white/10 rounded-2xl p-4 shadow-2xl z-50 flex flex-col gap-3.5 animate-scaleUp">
-                              <div className="flex items-center justify-between pb-1.5 border-b border-white/5">
-                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                                  Filtrar Lançamentos
-                                </span>
-                                <button 
-                                  type="button" 
-                                  onClick={() => setShowFilterDropdown(false)}
-                                  className="text-slate-500 hover:text-white transition-colors cursor-pointer"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-
-                              {/* Categoria Selector */}
-                              <div className="space-y-1.5 text-left">
-                                <label className="block text-[8.5px] font-black uppercase tracking-wider text-slate-500 mb-0.5">
-                                  Filtrar por Setor (Categoria)
-                                </label>
-                                <select
-                                  value={filterCategory}
-                                  onChange={(e) => setFilterCategory(e.target.value)}
-                                  className="w-full px-2.5 py-1.5 text-xs border border-white/10 bg-zinc-900 text-zinc-300 rounded-lg outline-none font-medium cursor-pointer"
-                                >
-                                  <option value="all">Todos os setores</option>
-                                  {uniqueCategories.map(cat => (
-                                    <option key={cat} value={cat} className="bg-zinc-900 text-white">{cat}</option>
-                                  ))}
-                                </select>
-                              </div>
-
-                              {/* Forma de Pagamento Selector */}
-                              <div className="space-y-1.5 text-left">
-                                <label className="block text-[8.5px] font-black uppercase tracking-wider text-slate-500 mb-0.5">
-                                  Filtrar por Pagamento
-                                </label>
-                                <select
-                                  value={filterPaymentMethod}
-                                  onChange={(e) => setFilterPaymentMethod(e.target.value)}
-                                  className="w-full px-2.5 py-1.5 text-xs border border-white/10 bg-zinc-900 text-zinc-300 rounded-lg outline-none font-medium cursor-pointer"
-                                >
-                                  <option value="all">Todas as formas</option>
-                                  <optgroup label="Opções Padrão" className="bg-zinc-950 text-indigo-400 text-[9px] font-bold uppercase tracking-wider">
-                                    <option value="pix" className="bg-zinc-900 text-white">⚡ Pix</option>
-                                    <option value="boleto" className="bg-zinc-900 text-white">📄 Boleto</option>
-                                    <option value="card" className="bg-zinc-900 text-white">💳 Cartão (Todos)</option>
-                                  </optgroup>
-                                  {creditCards.length > 0 && (
-                                    <optgroup label="Meus Cartões" className="bg-zinc-950 text-indigo-400 text-[9px] font-bold uppercase tracking-wider">
-                                      {creditCards.map(card => (
-                                        <option key={card.id} value={`card-${card.lastDigits}`} className="bg-zinc-900 text-white">
-                                          💳 {card.name} (•••• {card.lastDigits})
-                                        </option>
-                                      ))}
-                                    </optgroup>
-                                  )}
-                                </select>
-                              </div>
-
-                              {/* Status de Pagamento Selector */}
-                              <div className="space-y-1.5 text-left">
-                                <label className="block text-[8.5px] font-black uppercase tracking-wider text-slate-500 mb-0.5">
-                                  Filtrar por Status
-                                </label>
-                                <select
-                                  value={filterPaymentStatus}
-                                  onChange={(e) => setFilterPaymentStatus(e.target.value as 'all' | 'paid' | 'unpaid')}
-                                  className="w-full px-2.5 py-1.5 text-xs border border-white/10 bg-zinc-900 text-zinc-300 rounded-lg outline-none font-medium cursor-pointer"
-                                >
-                                  <option value="all">Todos os status</option>
-                                  <option value="paid" className="bg-zinc-900 text-white">🟢 Pagas</option>
-                                  <option value="unpaid" className="bg-zinc-900 text-white">🟡 Pendentes (Não pagas)</option>
-                                </select>
-                              </div>
-
-                              {/* Actions inside filter */}
-                              <div className="flex items-center justify-between pt-2 border-t border-t-white/5 text-[9.5px]">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setFilterCategory('all');
-                                    setFilterPaymentMethod('all');
-                                    setFilterPaymentStatus('all');
-                                  }}
-                                  disabled={activeFiltersCount === 0}
-                                  className="text-red-400 hover:text-red-300 font-extrabold uppercase disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-                                >
-                                  Limpar Filtros
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setShowFilterDropdown(false)}
-                                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 font-black text-white rounded-lg uppercase tracking-wider transition-colors cursor-pointer"
-                                >
-                                  Aplicar
-                                </button>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Abas internas para tipo de despesa */}
                   <div className="flex flex-wrap border-b border-white/5 mb-3 pb-0.5 gap-3 text-[10px] uppercase font-bold text-slate-500" id="tabs-header">
                     <button
@@ -1307,7 +1179,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                       onClick={() => setFilterType('one-time')}
                       className={`pb-1 px-1.5 outline-none tracking-wider border-b-2 transition-all cursor-pointer ${filterType === 'one-time' ? 'border-indigo-400 text-white' : 'border-transparent'}`}
                     >
-                      Únicos ({regularExpenses.length})
+                      À vista ({regularExpenses.length})
                     </button>
                     <button
                       onClick={() => setFilterType('installment')}
@@ -1323,10 +1195,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
 
                   {/* Quitar faturas de cartões cadastrados */}
                   {creditCardsThisMonth.length > 0 && (
-                    <div className="bg-zinc-950/20 border border-white/5 rounded-xl p-3.5 mb-3.5 animate-fade-in flex flex-col gap-2.5">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                        Controle e Quitação de Faturas
-                      </span>
+                    <details className="entry-card-payments bg-zinc-950/20 border border-white/5 rounded-xl p-3.5 mb-3.5">
+                      <summary>Pagamento dos cartões deste mês</summary>
                       <div className="flex flex-col gap-2.5">
                         {creditCardsThisMonth.map(card => (
                           <div 
@@ -1353,9 +1223,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                               <div className="min-w-[110px]">
                                 <span className="text-[8px] text-slate-500 block uppercase font-bold tracking-wider mb-0.5">Total Faturado</span>
                                 <div className="flex items-baseline gap-1">
-                                  <span className="font-extrabold text-white font-mono privacy-blur">
+                                  <PrivateValue as="span" className="font-extrabold text-white font-mono privacy-value">
                                     {formatCurrency(card.totalValue)}
-                                  </span>
+                                  </PrivateValue>
                                   <span className="text-[9px] text-slate-500 leading-none">({card.count}x)</span>
                                 </div>
                               </div>
@@ -1364,9 +1234,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                                 <span className="text-[8px] text-slate-550 block uppercase font-bold tracking-wider mb-0.5">Status de Quitação</span>
                                 {card.unpaidCount > 0 ? (
                                   <div className="flex flex-col">
-                                    <span className="font-extrabold text-amber-500 font-mono privacy-blur">
+                                    <PrivateValue as="span" className="font-extrabold text-amber-500 font-mono privacy-value">
                                       {formatCurrency(card.unpaidValue)}
-                                    </span>
+                                    </PrivateValue>
                                     <span className="text-[9px] text-amber-500/80 font-medium">
                                       {card.unpaidCount} {card.unpaidCount === 1 ? 'pendente' : 'pendentes'}
                                     </span>
@@ -1398,7 +1268,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                           </div>
                         ))}
                       </div>
-                    </div>
+                    </details>
                   )}
 
                   {/* Projeção Financeira de Compras Parceladas */}
@@ -1418,14 +1288,14 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                       <div className="grid grid-cols-2 gap-2 w-full sm:w-auto font-mono text-right text-[11px]">
                         <div className="bg-zinc-950/45 px-2.5 py-1 rounded-lg border border-white/5">
                           <span className="text-[8px] text-slate-550 block uppercase font-sans font-semibold mb-0.5">Dívida Futura</span>
-                          <span className="font-extrabold text-indigo-400 text-xs privacy-blur">
+                          <PrivateValue as="span" className="font-extrabold text-indigo-400 text-xs privacy-value">
                             {formatCurrency(
                               installmentExpenses.reduce((sum, exp) => {
                                 const info = getInstallmentInfo(exp);
                                 return sum + (exp.value * info.remaining);
                               }, 0)
                             )}
-                          </span>
+                          </PrivateValue>
                         </div>
                         <div className="bg-zinc-950/45 px-2.5 py-1 rounded-lg border border-white/5">
                           <span className="text-[8px] text-slate-550 block uppercase font-sans font-semibold mb-0.5">Parc. Pendentes</span>
@@ -1468,8 +1338,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                       </div>
 
                       <div className="flex justify-between items-center text-[9px] text-slate-500">
-                        <span>Pago: <strong className="text-emerald-400 font-mono privacy-blur">{formatCurrency(totalPaidSum)}</strong></span>
-                        <span>Pendente: <strong className="text-rose-400 font-mono privacy-blur">{formatCurrency(totalFilteredValue - totalPaidSum)}</strong></span>
+                        <span>Pago: <PrivateValue as="strong" className="text-emerald-400 font-mono privacy-value">{formatCurrency(totalPaidSum)}</PrivateValue></span>
+                        <span>Pendente: <PrivateValue as="strong" className="text-rose-400 font-mono privacy-value">{formatCurrency(totalFilteredValue - totalPaidSum)}</PrivateValue></span>
                       </div>
                     </div>
                   )}
@@ -1594,7 +1464,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                                     <>
                                       <span>•</span>
                                       <span className="text-indigo-400 font-bold font-mono text-[8.5px] bg-indigo-500/5 px-1.5 py-0.5 rounded border border-indigo-500/10 shrink-0">
-                                        Restam {instInfo.remaining}x (Total restante: <span className="privacy-blur">{formatCurrency(exp.value * instInfo.remaining)}</span>)
+                                        Restam {instInfo.remaining}x (Total restante: <PrivateValue as="span" className="privacy-value">{formatCurrency(exp.value * instInfo.remaining)}</PrivateValue>)
                                       </span>
                                     </>
                                   )}
@@ -1604,11 +1474,11 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
 
                             <div className="flex items-center gap-1 shrink-0">
                               <div className="text-right mr-1.5 animate-fadeIn">
-                                <span className={`font-extrabold text-xs block font-mono privacy-blur transition-all ${
+                                <PrivateValue as="span" className={`font-extrabold text-xs block font-mono privacy-value transition-all ${
                                   exp.paid ? 'text-slate-500 font-medium line-through' : 'text-white'
                                 }`}>
                                   {formatCurrency(exp.value)}
-                                </span>
+                                </PrivateValue>
                               </div>
                               <button
                                 onClick={() => handleStartEditExpense(exp)}
@@ -1683,13 +1553,13 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                         <label className="block text-[10px] font-bold text-slate-450 uppercase mb-1">
                           Valor Recebido (R$)
                         </label>
-                        <input
+                        <PrivateAmountInput
                           type="number"
                           step="0.01"
                           placeholder="Ex: 1500.00"
                           value={revValue}
                           onChange={(e) => setRevValue(e.target.value)}
-                          className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-colors placeholder:text-zinc-650 privacy-blur"
+                          className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-colors placeholder:text-zinc-650 privacy-value"
                           required
                           min="0"
                         />
@@ -1775,41 +1645,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
             <div className="lg:col-span-8 flex flex-col" id="revenues-logs-container">
               <div className="bg-[#161616] rounded-2xl border border-white/5 p-4.5 shadow-xs flex-1 flex flex-col justify-between">
                 <div>
-                  <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center mb-4 bg-[#14231b] p-3 p-2.5 rounded-xl border border-emerald-500/15">
-                    <div>
-                      <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Histórico de Entradas</h3>
-                      <p className="text-[10px] text-slate-300 mt-0.5 leading-none">
-                        Total Recebido no Mês:{' '}
-                        <span className="font-extrabold text-emerald-400 font-mono privacy-blur">
-                          {formatCurrency(totalFilteredRevenues)}
-                        </span>
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                      <div className="relative flex-1 sm:flex-none">
-                        <input
-                          type="text"
-                          placeholder="Buscar renda..."
-                          value={revenueSearchTerm}
-                          onChange={(e) => setRevenueSearchTerm(e.target.value)}
-                          className="w-full sm:w-36 pl-7 pr-2.5 py-1 text-[11px] border border-white/10 bg-zinc-900 text-white rounded-lg outline-none focus:border-emerald-500 placeholder:text-zinc-650"
-                        />
-                        <Search className="w-3 h-3 text-slate-550 absolute left-2 top-1/2 -translate-y-1/2" />
-                      </div>
-
-                      <select
-                        value={filterRevenueCategory}
-                        onChange={(e) => setFilterRevenueCategory(e.target.value)}
-                        className="px-2 py-1 text-[11px] border border-white/10 bg-zinc-900 text-zinc-350 rounded-lg outline-none font-medium text-center cursor-pointer"
-                      >
-                        <option value="all">Filtro Origem</option>
-                        {uniqueRevenueCategories.map(cat => (
-                          <option key={cat} value={cat} className="bg-zinc-900">{cat}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
+                  <p className="entry-filter-total">Total das entradas exibidas: <PrivateValue as="span" className="privacy-value">{formatCurrency(totalFilteredRevenues)}</PrivateValue></p>
 
                   {/* Lista com Scroller Expandido (Garante o mesmo tamanho com pelo menos 5 lançamentos visíveis) */}
                   <div className="overflow-y-auto h-[480px] min-h-[480px] pr-1 space-y-2 scrollbar-thin animate-fade-in" id="revenues-scroller">
@@ -1857,9 +1693,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
 
                             <div className="flex items-center gap-1.5 shrink-0">
                               <div className="text-right mr-1.5">
-                                <span className="font-extrabold text-emerald-400 text-xs block font-mono privacy-blur">
+                                <PrivateValue as="span" className="font-extrabold text-emerald-400 text-xs block font-mono privacy-value">
                                   +{formatCurrency(rev.value)}
-                                </span>
+                                </PrivateValue>
                               </div>
                               <button
                                 onClick={() => handleStartEditRevenue(rev)}
@@ -1940,12 +1776,12 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                       ? 'Valor Total (R$)' 
                       : 'Valor (R$)'}
                   </label>
-                  <input
+                  <PrivateAmountInput
                     type="number"
                     step="0.01"
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors privacy-blur"
+                    className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors privacy-value"
                     required
                     min="0"
                   />
@@ -2277,15 +2113,15 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                           {editInstallmentValueType === 'single' ? (
                             <p>
                               Serão geradas <span className="text-white font-bold">{editTotalInstallments}</span> parcelas de{' '}
-                              <span className="text-indigo-400 font-extrabold"><span className="privacy-blur">{formatCurrency(parseFloat(editValue))}</span></span> cada.{' '}
-                              (Total: <span className="privacy-blur">{formatCurrency(parseFloat(editValue) * parseInt(editTotalInstallments || '1'))}</span>)
+                              <span className="text-indigo-400 font-extrabold"><PrivateValue as="span" className="privacy-value">{formatCurrency(parseFloat(editValue))}</PrivateValue></span> cada.{' '}
+                              (Total: <PrivateValue as="span" className="privacy-value">{formatCurrency(parseFloat(editValue) * parseInt(editTotalInstallments || '1'))}</PrivateValue>)
                             </p>
                           ) : (
                             <p>
-                              Total de <span className="text-white font-bold"><span className="privacy-blur">{formatCurrency(parseFloat(editValue))}</span></span> dividido em{' '}
+                              Total de <span className="text-white font-bold"><PrivateValue as="span" className="privacy-value">{formatCurrency(parseFloat(editValue))}</PrivateValue></span> dividido em{' '}
                               <span className="text-white font-bold">{editTotalInstallments}</span> parcelas de{' '}
                               <span className="text-amber-400 font-extrabold">
-                                <span className="privacy-blur">{formatCurrency(parseFloat(editValue) / parseInt(editTotalInstallments || '1', 10))}</span>
+                                <PrivateValue as="span" className="privacy-value">{formatCurrency(parseFloat(editValue) / parseInt(editTotalInstallments || '1', 10))}</PrivateValue>
                               </span>{' '}
                               cada uma.
                             </p>
@@ -2355,12 +2191,12 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                   <label className="block text-[9px] font-bold text-slate-450 uppercase mb-1">
                     Valor Recebido (R$)
                   </label>
-                  <input
+                  <PrivateAmountInput
                     type="number"
                     step="0.01"
                     value={editRevValue}
                     onChange={(e) => setEditRevValue(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-colors privacy-blur"
+                    className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-colors privacy-value"
                     required
                     min="0"
                   />
@@ -2542,9 +2378,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
 
               <div className="bg-zinc-950/30 border border-white/5 p-3 rounded-xl flex items-center justify-between">
                 <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 leading-none">Total da Quitação:</span>
-                <span className="text-sm font-black font-mono text-emerald-400 privacy-blur">
+                <PrivateValue as="span" className="text-sm font-black font-mono text-emerald-400 privacy-value">
                   {formatCurrency(billToPay.unpaidValue)}
-                </span>
+                </PrivateValue>
               </div>
             </div>
 

@@ -1,3 +1,4 @@
+import { PrivateValue } from './PrivateValue';
 import React from 'react';
 import { formatCurrency, formatMonthName } from '../utils/format';
 import { MAX_RECURRENCE_MONTHS, shiftMonthlyDate } from '../utils/recurrence';
@@ -29,7 +30,7 @@ export function RecurrenceControls({ entryType, onTypeChange, months, onMonthsCh
   try {
     if (validCount && Number(value) > 0) {
       const lastDate = shiftMonthlyDate(date, count - 1);
-      summary = <>{count} lançamento{count === 1 ? '' : 's'} de <span className="privacy-blur">{formatCurrency(Number(value))}</span>, de {formatMonthName(getMonth(date))} a {formatMonthName(getMonth(lastDate))}.</>;
+      summary = <>{count} lançamento{count === 1 ? '' : 's'} de <PrivateValue as="span" className="privacy-value">{formatCurrency(Number(value))}</PrivateValue>, de {formatMonthName(getMonth(date))} a {formatMonthName(getMonth(lastDate))}.</>;
     }
   } catch { /* Wait for a complete, valid date before showing the preview. */ }
   const untilDecember = /^\d{4}-\d{2}-\d{2}$/.test(date) ? 13 - Number(date.slice(5, 7)) : 0;

@@ -1,3 +1,4 @@
+import { PrivateValue, PrivateAmountInput } from './PrivateValue';
 import React, { useMemo, useState } from 'react';
 import { 
   PieChart, 
@@ -99,10 +100,10 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
           <ResponsiveContainer width="100%" height={220}><PieChart><Pie data={pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={78} outerRadius={104} paddingAngle={1.5} stroke="none" isAnimationActive={false} onMouseEnter={(_, index) => setActiveIndex(index)} onMouseLeave={() => setActiveIndex(null)} onClick={(_, index) => setActiveIndex(index)}>
             {pieChartData.map((item, index) => <Cell key={item.name} fill={item.color} opacity={1} stroke={index === activeIndex ? 'var(--sereno-ink)' : 'none'} strokeWidth={index === activeIndex ? 2 : 0} />)}
           </Pie></PieChart></ResponsiveContainer>
-          <div className="sereno-donut-center" aria-live="polite"><span>{activeIndex !== null && pieChartData[activeIndex] ? pieChartData[activeIndex].name : 'Total de despesas'}</span><strong className="privacy-blur">{formatCurrency(activeIndex !== null && pieChartData[activeIndex] ? pieChartData[activeIndex].value : totalExpenseInMonth)}</strong>{activeIndex !== null && pieChartData[activeIndex] && <small>{(pieChartData[activeIndex].value / totalExpenseInMonth * 100).toFixed(1).replace('.', ',')}%</small>}</div>
+          <div className="sereno-donut-center" aria-live="polite"><span>{activeIndex !== null && pieChartData[activeIndex] ? pieChartData[activeIndex].name : 'Total de despesas'}</span><PrivateValue as="strong" className="privacy-value">{formatCurrency(activeIndex !== null && pieChartData[activeIndex] ? pieChartData[activeIndex].value : totalExpenseInMonth)}</PrivateValue>{activeIndex !== null && pieChartData[activeIndex] && <small>{(pieChartData[activeIndex].value / totalExpenseInMonth * 100).toFixed(1).replace('.', ',')}%</small>}</div>
         </div>}
         <div className="sereno-category-legend">{pieChartData.map((item, index) => <button type="button" key={item.name} aria-pressed={activeIndex === index} onMouseEnter={() => setActiveIndex(index)} onMouseLeave={() => setActiveIndex(null)} onFocus={() => setActiveIndex(index)} onBlur={() => setActiveIndex(null)} onClick={() => setActiveIndex(index)}>
-          <i style={{ backgroundColor: item.color }} /><span>{item.name}</span><span>{distView === 'bars' && <span className="privacy-blur">{formatCurrency(item.value)} </span>}{(item.value / totalExpenseInMonth * 100).toFixed(1).replace('.', ',')}%</span>
+          <i style={{ backgroundColor: item.color }} /><span>{item.name}</span><span>{distView === 'bars' && <PrivateValue as="span" className="privacy-value">{formatCurrency(item.value)} </PrivateValue>}{(item.value / totalExpenseInMonth * 100).toFixed(1).replace('.', ',')}%</span>
         </button>)}</div>
         <p className="sereno-chart-note">Passe o mouse sobre uma fatia ou toque em uma categoria para consultar seu valor e percentual.</p>
       </>}
@@ -150,9 +151,9 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
                     </span>
                   </div>
                 </div>
-                <div className="text-right font-mono font-black text-sm sm:text-base text-indigo-300 privacy-blur shrink-0">
+                <PrivateValue as="div" className="text-right font-mono font-black text-sm sm:text-base text-indigo-300 privacy-value shrink-0">
                   {formatCurrency(liveModalTotalCategoryLimits)}
-                </div>
+                </PrivateValue>
               </div>
 
               <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin max-h-[50vh] py-1">
@@ -190,7 +191,7 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
                         </div>
                         {/* Real spent status display */}
                         <div className="text-right text-[10px] font-semibold text-slate-400">
-                          Gasto Real: <span className="text-white privacy-blur font-bold font-mono">{formatCurrency(spent)}</span>
+                          Gasto Real: <PrivateValue as="span" className="text-white privacy-value font-bold font-mono">{formatCurrency(spent)}</PrivateValue>
                         </div>
                       </div>
 
@@ -204,7 +205,7 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
                             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-500 font-mono">
                               R$
                             </span>
-                            <input
+                            <PrivateAmountInput
                               type="number"
                               placeholder="Sem teto"
                               value={localLimits[budget.category] ?? ''}
@@ -215,7 +216,7 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
                                   [budget.category]: val,
                                 }));
                               }}
-                              className="w-full pl-8 pr-3 py-1.5 text-xs font-bold font-mono border border-white/10 bg-zinc-950 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all privacy-blur"
+                              className="w-full pl-8 pr-3 py-1.5 text-xs font-bold font-mono border border-white/10 bg-zinc-950 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all privacy-value"
                               min="0"
                               step="10"
                             />

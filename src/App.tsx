@@ -1,3 +1,4 @@
+import { PrivateValue, PrivateAmountInput, PrivacyProvider } from './components/PrivateValue';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -1580,6 +1581,7 @@ export default function App() {
     : totalSpent;
 
   return (
+    <PrivacyProvider hidden={privacyMode}>
     <div className={`sereno-app min-h-screen bg-[#0a0a0a] flex flex-col items-center text-white ${!cookieChoice ? 'cookie-choice-pending' : ''} ${privacyMode ? 'privacy-mode-active' : ''} ${theme === 'light' ? 'theme-light light' : 'theme-dark dark'}`}>
       
       {demoMode && (
@@ -1758,10 +1760,10 @@ export default function App() {
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 text-sm">
                     R$
                   </div>
-                  <input
+                  <PrivateAmountInput
                     type="number"
                     step="0.01"
-                    className="w-full bg-zinc-900 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-white outline-none focus:border-indigo-500 font-semibold privacy-blur"
+                    className="w-full bg-zinc-900 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-white outline-none focus:border-indigo-500 font-semibold privacy-value"
                     placeholder="Ex: 5000.00"
                     value={salaryInput}
                     onChange={(e) => setSalaryInput(e.target.value)}
@@ -1786,7 +1788,7 @@ export default function App() {
                     onChange={(e) => setSavingsInput(parseInt(e.target.value))}
                   />
                   <span className="text-xs text-slate-500 whitespace-nowrap">
-                    Poupe: <span className="privacy-blur">{formatCurrency(parseFloat(salaryInput || '0') * (savingsInput / 100))}</span>
+                    Poupe: <PrivateValue as="span" className="privacy-value">{formatCurrency(parseFloat(salaryInput || '0') * (savingsInput / 100))}</PrivateValue>
                   </span>
                 </div>
               </div>
@@ -2340,13 +2342,13 @@ export default function App() {
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
                       Valor (R$)
                     </label>
-                    <input
+                    <PrivateAmountInput
                       type="number"
                       step="0.01"
                       placeholder="0.00"
                       value={mobValue}
                       onChange={(e) => setMobValue(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors placeholder:text-zinc-655 privacy-blur"
+                      className="w-full px-3 py-2 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors placeholder:text-zinc-655 privacy-value"
                       required
                       min="0"
                     />
@@ -2524,5 +2526,6 @@ export default function App() {
         onChoose={chooseCookies} onPrivacy={() => openSettings('privacy')} />
 
     </div>
+    </PrivacyProvider>
   );
 }

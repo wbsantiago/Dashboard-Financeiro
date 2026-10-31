@@ -33,35 +33,10 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* Privacy Mode Blur Styles */
-.privacy-blur {
-  transition: filter 0.2s cubic-bezier(0.16, 1, 0.3, 1), text-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.privacy-mode-active .privacy-blur {
-  filter: blur(8px) !important;
-  user-select: none !important;
-}
-
-/* Mask only the text in amount fields; keep the control clear and editable. */
-.privacy-mode-active input.privacy-blur {
-  filter: none !important;
-  user-select: text !important;
-}
-
-.privacy-mode-active input.privacy-blur:not(:focus) {
-  color: transparent !important;
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.65) !important;
-}
-
-.privacy-mode-active input.privacy-blur:focus {
-  color: inherit !important;
-  text-shadow: none !important;
-}
-
-/* Keep chart shapes and interaction visible; hide only the monetary scale. */
-.privacy-mode-active .privacy-axis-value {
-  visibility: hidden;
-}
-
-
+/* Monetary values use PrivateValue; chart shapes and percentages stay visible. */
+.privacy-mode-active .privacy-axis-value { visibility:hidden; }
+.privacy-mode-active [data-private-value] { text-decoration:none; letter-spacing:.06em; }
+.privacy-amount-field { display:block; position:relative; width:100%; }
+.privacy-amount-field input[data-amount-hidden] { color:transparent!important; caret-color:transparent; text-shadow:none!important; }
+.privacy-amount-field input[data-amount-hidden]::placeholder { color:transparent!important; }
+.privacy-input-mask { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--sereno-ink, currentColor); pointer-events:none; letter-spacing:.06em; }

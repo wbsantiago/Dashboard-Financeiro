@@ -52,7 +52,7 @@ Um painel completo, interativo e extremamente polido para controle financeiro pe
 
 O topo reúne a navegação mensal, o botão de ocultar valores, as configurações e o perfil. O perfil abre um cartão compacto para conectar ou sair da conta, com atalhos para os dados, backups e privacidade. O painel de configurações organiza orçamento e cartões, dados e backups, privacidade, aparência e ajuda, sem repetir as ações de login. A opção **Apagar cópia local** exige confirmação e limpa somente os dados financeiros deste navegador, preservando a sessão, as preferências e os dados da nuvem.
 
-Ao ocultar valores, os gráficos continuam nítidos e interativos, com categorias, meses e percentuais visíveis. Os valores monetários, inclusive os detalhes ao passar o mouse, ficam desfocados; a escala numérica dos gráficos fica oculta. Campos de valor são revelados durante a edição. Essa opção altera somente a apresentação na tela.
+Ao ocultar valores, os gráficos continuam nítidos e interativos, com categorias, meses e percentuais visíveis. Os valores monetários, inclusive os detalhes ao passar o mouse, são substituídos por asteriscos (****); a escala numérica dos gráficos fica oculta. Campos de valor são revelados durante a edição. Essa opção altera somente a apresentação na tela.
 
 Os dados de atendimento são configurados em `src/config/appContact.ts`; o canal de email só aparece quando um contato for definido. A exclusão da conta e dos dados da nuvem ainda não está implementada.
 

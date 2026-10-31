@@ -1,3 +1,4 @@
+import { PrivateValue } from './PrivateValue';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CategoryBudget, Expense } from '../types';
 import { formatCurrency } from '../utils/format';
@@ -27,7 +28,7 @@ export const ChartsView: React.FC<ChartProps & { categoryBudgets: CategoryBudget
         <span className={row.limit > 0 && row.spent > row.limit ? 'sereno-danger-text' : ''}>{row.limit > 0 ? `${Math.round(row.spent / row.limit * 100)}%` : 'Sem limite'}</span>
       </button>)}
     </div>
-    <p className="sereno-chart-note" aria-live="polite">{active ? <>{active.category}: <span className="privacy-blur">{formatCurrency(active.spent)}</span> de <span className="privacy-blur">{formatCurrency(active.limit)}</span> planejados.</> : 'Passe o mouse ou toque para ver o gasto e o limite de cada categoria.'}</p>
+    <p className="sereno-chart-note" aria-live="polite">{active ? <>{active.category}: <PrivateValue as="span" className="privacy-value">{formatCurrency(active.spent)}</PrivateValue> de <PrivateValue as="span" className="privacy-value">{formatCurrency(active.limit)}</PrivateValue> planejados.</> : 'Passe o mouse ou toque para ver o gasto e o limite de cada categoria.'}</p>
   </section>;
 };
 
@@ -72,7 +73,7 @@ export function SpendingHistory({ expenses, selectedMonth }: ChartProps) {
         {data.map((d, i) => <text key={d.name} x={point(i).x} y="181" textAnchor="middle" className="sereno-axis-label">{width < 400 && i % 2 === 1 && i !== 11 ? '' : d.name}</text>)}
         {selected && <g><line x1={selected.x} x2={selected.x} y1={selected.y} y2={bottom} className="sereno-history-guide" /><circle cx={selected.x} cy={selected.y} r="4" className="sereno-history-dot" /></g>}
       </svg>
-      {selected && <div className="sereno-history-tooltip" role="status" style={{ left: Math.max(0, Math.min(width - 150, selected.x - 75)), top: selected.y >= 55 ? selected.y - 49 : selected.y + 14 }}><span className="privacy-blur">{formatCurrency(selected.value)}</span></div>}
+      {selected && <div className="sereno-history-tooltip" role="status" style={{ left: Math.max(0, Math.min(width - 150, selected.x - 75)), top: selected.y >= 55 ? selected.y - 49 : selected.y + 14 }}><PrivateValue as="span" className="privacy-value">{formatCurrency(selected.value)}</PrivateValue></div>}
     </div>
     <p className="sereno-chart-note">Passe o mouse ou toque em um mês para ver o valor no gráfico.</p>
   </section>;

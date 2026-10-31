@@ -1,3 +1,4 @@
+import { PrivateValue } from './PrivateValue';
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   TrendingUp, 
@@ -146,9 +147,9 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
             return (
               <div key={index} className="flex justify-between items-center gap-4 text-[10px] my-0.5">
                 <span className="text-slate-500 font-semibold">{item.name}:</span>
-                <span className={`font-mono font-bold privacy-blur ${valueColor}`}>
+                <PrivateValue as="span" className={`font-mono font-bold privacy-value ${valueColor}`}>
                   {formatCurrency(item.value)}
-                </span>
+                </PrivateValue>
               </div>
             );
           })}
@@ -200,11 +201,11 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
             </div>
           </div>
           <div className="mt-3">
-            <span className="text-lg sm:text-xl lg:text-2xl font-extrabold text-white font-sans tracking-tight privacy-blur">
+            <PrivateValue as="span" className="text-lg sm:text-xl lg:text-2xl font-extrabold text-white font-sans tracking-tight privacy-value">
               {formatCurrency(totalRevenues)}
-            </span>
+            </PrivateValue>
             <span className="text-xs sm:text-[13px] text-slate-400 block mt-1 leading-none font-medium">
-              Média mensal recebida: <span className="font-mono text-slate-300 font-bold privacy-blur">{formatCurrency(totalRevenues / 12)}</span>
+              Média mensal recebida: <PrivateValue as="span" className="font-mono text-slate-300 font-bold privacy-value">{formatCurrency(totalRevenues / 12)}</PrivateValue>
             </span>
           </div>
         </div>
@@ -218,11 +219,11 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
             </div>
           </div>
           <div className="mt-3">
-            <span className="text-lg sm:text-xl lg:text-2xl font-extrabold text-white font-sans tracking-tight privacy-blur">
+            <PrivateValue as="span" className="text-lg sm:text-xl lg:text-2xl font-extrabold text-white font-sans tracking-tight privacy-value">
               {formatCurrency(totalExpenses)}
-            </span>
+            </PrivateValue>
             <span className="text-xs sm:text-[13px] text-slate-400 block mt-1 leading-none font-medium">
-              Comprometido anual: <span className="font-mono text-slate-300 font-bold privacy-blur">{formatCurrency(avgMonthlyExpense)}/mês</span>
+              Comprometido anual: <PrivateValue as="span" className="font-mono text-slate-300 font-bold privacy-value">{formatCurrency(avgMonthlyExpense)}/mês</PrivateValue>
             </span>
           </div>
         </div>
@@ -236,9 +237,9 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
             </div>
           </div>
           <div className="mt-3">
-            <span className={`text-lg sm:text-xl lg:text-2xl font-extrabold font-sans tracking-tight privacy-blur ${netSavings >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+            <PrivateValue as="span" className={`text-lg sm:text-xl lg:text-2xl font-extrabold font-sans tracking-tight privacy-value ${netSavings >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
               {netSavings >= 0 ? '+' : ''}{formatCurrency(netSavings)}
-            </span>
+            </PrivateValue>
             <span className="text-xs sm:text-[13px] text-slate-400 block mt-1 leading-none font-medium">
               {netSavings >= 0 ? 'Resultado financeiro superavitário' : 'Orçamento deficitário no período'}
             </span>
@@ -325,7 +326,7 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
                         <span className="truncate">{item.category}</span>
                       </div>
                       <div className="text-right font-mono text-[11px] sm:text-xs text-slate-400">
-                        <span className="font-bold text-slate-250 privacy-blur">{formatCurrency(item.value)}</span>
+                        <PrivateValue as="span" className="font-bold text-slate-250 privacy-value">{formatCurrency(item.value)}</PrivateValue>
                         <span className="text-[10px] sm:text-[11px] text-slate-500 ml-1">({percent}%)</span>
                       </div>
                     </div>
@@ -387,13 +388,13 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
                   <tr key={dataRow.monthKey} className="hover:bg-white/[0.02] transition-colors">
                     <td className="py-3 px-3 text-white font-bold"><button type="button" className="sereno-link" onClick={() => onSelectMonth(dataRow.monthKey)} aria-label={`Ver lançamentos de ${dataRow.monthLabel} de ${displayYear}`}>{dataRow.monthLabel}</button></td>
                     <td className="py-3 px-3 text-right font-mono text-emerald-400 font-bold text-xs sm:text-[13.5px]">
-                      {dataRow.Entradas > 0 ? <span className="privacy-blur">{formatCurrency(dataRow.Entradas)}</span> : '-'}
+                      {dataRow.Entradas > 0 ? <PrivateValue as="span" className="privacy-value">{formatCurrency(dataRow.Entradas)}</PrivateValue> : '-'}
                     </td>
                     <td className="py-3 px-3 text-right font-mono text-slate-300 text-xs sm:text-[13px]">
-                      {dataRow.Saídas > 0 ? <span className="privacy-blur">{formatCurrency(dataRow.Saídas)}</span> : '-'}
+                      {dataRow.Saídas > 0 ? <PrivateValue as="span" className="privacy-value">{formatCurrency(dataRow.Saídas)}</PrivateValue> : '-'}
                     </td>
                     <td className={`py-3 px-3 text-right font-mono text-xs sm:text-[13px] ${balanceColor}`}>
-                      {isZero ? '-' : <span className="privacy-blur">{formatCurrency(dataRow.Saldo)}</span>}
+                      {isZero ? '-' : <PrivateValue as="span" className="privacy-value">{formatCurrency(dataRow.Saldo)}</PrivateValue>}
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-bold text-xs sm:text-[13px]">
                       {isZero ? '-' : `${dataRow.TaxaPoupanca}%`}

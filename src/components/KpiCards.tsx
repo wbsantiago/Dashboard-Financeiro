@@ -1,3 +1,4 @@
+import { PrivateValue } from './PrivateValue';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -83,22 +84,22 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
   return (
     <div className="sereno-kpis" id="kpi-cards-grid">
       <section className="sereno-totals" aria-label="Resumo do mês">
-        <div><p>Entradas do mês</p><strong className="privacy-blur">{formatCurrency(totalRevenue)}</strong></div>
-        <div><p>Despesas lançadas</p><strong className="privacy-blur">{formatCurrency(totalSpent)}</strong></div>
-        <div><p>Saldo do mês</p><strong className={'privacy-blur ' + (balance < 0 ? 'sereno-danger-text' : 'sereno-good-text')}>{formatCurrency(balance)}</strong><small>Entradas menos despesas lançadas</small></div>
+        <div><p>Entradas do mês</p><PrivateValue as="strong" className="privacy-value">{formatCurrency(totalRevenue)}</PrivateValue></div>
+        <div><p>Despesas lançadas</p><PrivateValue as="strong" className="privacy-value">{formatCurrency(totalSpent)}</PrivateValue></div>
+        <div><p>Saldo do mês</p><PrivateValue as="strong" className={'privacy-value ' + (balance < 0 ? 'sereno-danger-text' : 'sereno-good-text')}>{formatCurrency(balance)}</PrivateValue><small>Entradas menos despesas lançadas</small></div>
       </section>
       <section className="sereno-panel sereno-planning" aria-labelledby="planning-title">
         <div className="sereno-section-heading"><h2 id="planning-title">Seu planejamento</h2><button type="button" className="sereno-link" onClick={onEditBudget}>Ajustar</button></div>
         <div className="sereno-plan-grid">
-          <div><p>Renda planejada</p><strong className="privacy-blur">{formatCurrency(salary)}</strong></div>
-          <div><p>Meta para guardar ({targetSavingsPercentage}%)</p><strong className="privacy-blur">{formatCurrency(plannedSavings)}</strong></div>
-          <div><p>Limite de gastos do mês</p><strong className="privacy-blur">{formatCurrency(adjustedMaxSpentAllowed)}</strong></div>
-          <div><p>Parcelas dos próximos meses</p><button type="button" className="sereno-debt-link" onClick={() => setShowDebtDetails(true)}><span className="privacy-blur">{formatCurrency(futureInstallmentsDebt)}</span><span aria-hidden="true">›</span></button></div>
+          <div><p>Renda planejada</p><PrivateValue as="strong" className="privacy-value">{formatCurrency(salary)}</PrivateValue></div>
+          <div><p>Meta para guardar ({targetSavingsPercentage}%)</p><PrivateValue as="strong" className="privacy-value">{formatCurrency(plannedSavings)}</PrivateValue></div>
+          <div><p>Limite de gastos do mês</p><PrivateValue as="strong" className="privacy-value">{formatCurrency(adjustedMaxSpentAllowed)}</PrivateValue></div>
+          <div><p>Parcelas dos próximos meses</p><button type="button" className="sereno-debt-link" onClick={() => setShowDebtDetails(true)}><PrivateValue as="span" className="privacy-value">{formatCurrency(futureInstallmentsDebt)}</PrivateValue><span aria-hidden="true">›</span></button></div>
         </div>
-        <p className={isOverBudget ? 'sereno-danger-text sereno-margin' : 'sereno-good-text sereno-margin'}>{isOverBudget ? 'Acima do limite do mês: ' : 'Margem no limite do mês: '}<span className="privacy-blur">{formatCurrency(Math.abs(budgetDiff))}</span></p>
+        <p className={isOverBudget ? 'sereno-danger-text sereno-margin' : 'sereno-good-text sereno-margin'}>{isOverBudget ? 'Acima do limite do mês: ' : 'Margem no limite do mês: '}<PrivateValue as="span" className="privacy-value">{formatCurrency(Math.abs(budgetDiff))}</PrivateValue></p>
         <details className="sereno-plan-details"><summary>Como esse planejamento é calculado</summary><div>
           <p>A renda planejada menos a meta para guardar define o limite base de gastos. Entradas acima da renda planejada ampliam esse limite, mantendo a meta em reais.</p>
-          <p>Entradas em relação ao planejado: <span className="privacy-blur">{formatCurrency(revenueVsIdealDiff)}</span>. Limites por categoria somados: <span className="privacy-blur">{formatCurrency(totalCategoryLimits || 0)}</span>.</p>
+          <p>Entradas em relação ao planejado: <PrivateValue as="span" className="privacy-value">{formatCurrency(revenueVsIdealDiff)}</PrivateValue>. Limites por categoria somados: <PrivateValue as="span" className="privacy-value">{formatCurrency(totalCategoryLimits || 0)}</PrivateValue>.</p>
           <p>O saldo considera todas as despesas lançadas no mês, inclusive as ainda não pagas. Ele não representa o saldo da sua conta bancária.</p>
         </div></details>
       </section>
@@ -154,7 +155,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
                       <tr key={item.id} className="border-b border-white/5 hover:bg-white/2 transition-colors">
                         <td className="py-2 px-3 font-semibold text-white">{item.title}</td>
                         <td className="py-2 px-3 text-slate-400">{item.category}</td>
-                        <td className="py-2 px-3 text-right text-slate-300 font-mono"><span className="privacy-blur">{formatCurrency(item.value)}</span></td>
+                        <td className="py-2 px-3 text-right text-slate-300 font-mono"><PrivateValue as="span" className="privacy-value">{formatCurrency(item.value)}</PrivateValue></td>
                         <td className="py-2 px-3 text-center text-[10px] text-slate-500 font-mono">
                           {item.current}/{item.total}
                         </td>
@@ -162,7 +163,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
                           {item.remaining}
                         </td>
                         <td className="py-2 px-3 text-right text-indigo-400 font-bold font-mono">
-                          <span className="privacy-blur">{formatCurrency(item.totalRemainingDebt)}</span>
+                          <PrivateValue as="span" className="privacy-value">{formatCurrency(item.totalRemainingDebt)}</PrivateValue>
                         </td>
                       </tr>
                     ))}
@@ -174,7 +175,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
             <div className="flex justify-between items-center pt-3 border-t border-white/5 text-xs">
               <span className="text-slate-400">Total acumulado de parcelas subsequentes:</span>
               <span className="text-base font-extrabold text-indigo-400 font-mono">
-                <span className="privacy-blur">{formatCurrency(futureInstallmentsDebt)}</span>
+                <PrivateValue as="span" className="privacy-value">{formatCurrency(futureInstallmentsDebt)}</PrivateValue>
               </span>
             </div>
 
