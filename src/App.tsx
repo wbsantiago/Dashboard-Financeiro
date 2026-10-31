@@ -33,6 +33,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { AppData, Expense, Revenue, CategoryBudget, MonthlyBudget, CreditCard, ExpenseEditScope, RecurrenceScope } from './types';
 import { createMonthlyOccurrences, selectRecurringItems, updateRecurringItems, readRecurrenceFields } from './utils/recurrence';
 import { loadAppData, saveAppData, exportDataAsJSON, importDataFromJSON, DEFAULT_CATEGORIES, DEFAULT_REVENUE_CATEGORIES, INITIAL_MOCK_DATA } from './utils/storage';
+import { mergeCategoryBudgets } from './utils/categories';
 import { createDemoData } from './utils/demoData';
 import { demoMode } from './utils/demoMode';
 import { formatCurrency, formatMonthName, getCurrentMonthStr, getInstallmentInfo, getCompetenceMonth } from './utils/format';
@@ -1543,6 +1544,8 @@ export default function App() {
     setShowDeleteConfirm(true);
   };
 
+  const effectiveCategoryBudgets = mergeCategoryBudgets(data.categoryBudgets, data.expenses);
+
   // Aggregated analytics values for selected month
   const expensesInMonth = data.expenses.filter(e => e.month === selectedMonth);
   const totalSpent = expensesInMonth.reduce((sum, item) => sum + item.value, 0);
@@ -1571,7 +1574,7 @@ export default function App() {
   }, {} as Record<string, number>);
 
   // Somatória das metas limites de todas as categorias
-  const totalCategoryLimits = data.categoryBudgets.reduce((sum, b) => sum + (b.idealLimit || 0), 0);
+  const totalCategoryLimits = effectiveCategoryBudgets.reduce((sum, b) => sum + (b.idealLimit || 0), 0);
 
   // Média acumulada geral de todas as despesas por mês
   const uniqueMonthsWithExpenses = Array.from(new Set(data.expenses.map(e => e.month)));
@@ -1951,13 +1954,13 @@ export default function App() {
           <div className="sereno-charts-grid" id="middle-dashboard-layout">
             <ChartsView
               expenses={data.expenses}
-              categoryBudgets={data.categoryBudgets}
+              categoryBudgets={effectiveCategoryBudgets}
               selectedMonth={selectedMonth}
               onEditLimits={() => document.getElementById('edit-category-limits')?.click()}
             />
             <div className={hideMobileBudgets ? 'sereno-hide-mobile-distribution' : ''}>
               <CategoryBudgets
-                categoryBudgets={data.categoryBudgets}
+                categoryBudgets={effectiveCategoryBudgets}
                 expensesByCategory={expensesByCategory}
                 onUpdateBudgets={handleUpdateCategoryBudgets}
               />
@@ -1968,6 +1971,7 @@ export default function App() {
         <div hidden={activeView !== 'entries'} id="bottom-tracker-layout">
           <ExpenseTracker
             entryRequest={entryRequest}
+            categoryBudgets={effectiveCategoryBudgets}
             expenses={data.expenses}
             onAddExpense={handleAddExpense}
             onDeleteExpense={handleDeleteExpense}

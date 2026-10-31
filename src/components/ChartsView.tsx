@@ -1,6 +1,7 @@
 import { PrivateValue } from './PrivateValue';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CategoryBudget, Expense } from '../types';
+import { categoryBudgetUsage } from '../utils/categories';
 import { formatCurrency } from '../utils/format';
 
 interface ChartProps { expenses: Expense[]; selectedMonth: string; }
@@ -17,18 +18,32 @@ export const ChartsView: React.FC<ChartProps & { categoryBudgets: CategoryBudget
     });
     return [...values].map(([category, values]) => ({ category, ...values })).sort((a, b) => b.spent - a.spent);
   }, [expenses, categoryBudgets, selectedMonth]);
-  const max = Math.max(1, ...rows.flatMap(r => [r.spent, r.limit]));
   const active = rows.find(r => r.category === activeCategory);
   return <section className="sereno-panel sereno-comparison" aria-labelledby="comparison-title">
-    <div className="sereno-section-heading"><h2 id="comparison-title">Gastos e limites</h2><button type="button" className="sereno-link" onClick={onEditLimits}>Ajustar limites</button></div>
-    <div className="sereno-bar-key"><span><i />Gasto lançado</span><span><i />Limite planejado</span></div>
-    <div className="sereno-category-bars">
-      {rows.map(row => <button type="button" className="sereno-bar-row" key={row.category} onMouseEnter={() => setActiveCategory(row.category)} onMouseLeave={() => setActiveCategory(null)} onFocus={() => setActiveCategory(row.category)} onBlur={() => setActiveCategory(null)} onClick={() => setActiveCategory(row.category)} aria-label={`${row.category}: consultar gasto e limite`}>
-        <span>{row.category}</span><span className="sereno-bar-pair"><i style={{ width: `${row.spent / max * 100}%` }} /><i style={{ width: `${row.limit / max * 100}%` }} /></span>
-        <span className={row.limit > 0 && row.spent > row.limit ? 'sereno-danger-text' : ''}>{row.limit > 0 ? `${Math.round(row.spent / row.limit * 100)}%` : 'Sem limite'}</span>
-      </button>)}
+    <div className="sereno-section-heading"><div><h2 id="comparison-title">Gastos e limites</h2><p>Quanto do limite de cada categoria já foi usado</p></div><button type="button" className="sereno-link" onClick={onEditLimits}>Ajustar limites</button></div>
+    <div className="sereno-bar-key"><span><i />Gasto do limite</span><span><i />Limite da categoria (100%)</span></div>
+    <div className="category-usage-chart">
+      <div className="category-usage-axis" aria-hidden="true"><span>100%</span><span>50%</span><span>0%</span></div>
+      <div className="category-usage-scroll" role="region" aria-label="Comparativo por categoria" tabIndex={0}>
+        <div className="category-usage-columns" style={{ gridTemplateColumns: 'repeat(' + rows.length + ', minmax(var(--category-column-min), 1fr))' }}>
+          {rows.map(row => {
+            const usage = categoryBudgetUsage(row.spent, row.limit);
+            return <button type="button" key={row.category} className="category-usage-column" data-category={row.category} data-exceeded={usage.exceeded || undefined}
+              onMouseEnter={() => setActiveCategory(row.category)} onMouseLeave={() => setActiveCategory(null)} onFocus={() => setActiveCategory(row.category)} onBlur={() => setActiveCategory(null)} onClick={() => setActiveCategory(row.category)}
+              aria-label={row.category + ': ' + (usage.percentage === null ? 'sem limite definido' : Math.round(usage.percentage) + '% do limite')}>
+              <span className="category-usage-percent" data-no-limit={usage.percentage === null || undefined}>{usage.percentage === null ? 'Sem limite' : Math.round(usage.percentage) + '%'}</span>
+              <span className="category-usage-track" data-no-limit={usage.percentage === null || undefined}>
+                {usage.fillPercentage !== null && <i className="category-usage-fill" style={{ height: usage.fillPercentage + '%' }} />}
+                {usage.percentage === null && <span className="category-no-limit-mark" aria-hidden="true">—</span>}
+              </span>
+              <span className="category-usage-label"><span className="category-usage-name">{row.category}</span></span>
+            </button>;
+          })}
+        </div>
+      </div>
     </div>
-    <p className="sereno-chart-note" aria-live="polite">{active ? <>{active.category}: <PrivateValue as="span" className="privacy-value">{formatCurrency(active.spent)}</PrivateValue> de <PrivateValue as="span" className="privacy-value">{formatCurrency(active.limit)}</PrivateValue> planejados.</> : 'Passe o mouse ou toque para ver o gasto e o limite de cada categoria.'}</p>
+    <p className="sereno-chart-note" aria-live="polite">{active ? <><strong>{active.category}</strong>: <PrivateValue className="privacy-value">{formatCurrency(active.spent)}</PrivateValue>{active.limit > 0 ? <> de <PrivateValue className="privacy-value">{formatCurrency(active.limit)}</PrivateValue> planejados{active.spent > active.limit ? ' · Acima do limite.' : '.'}</> : ' · Sem limite definido.'}</> : 'Passe o mouse ou toque em uma coluna para consultar os valores.'}</p>
+    <p className="category-usage-explanation">Cada coluna preenche até 100% do próprio limite. Acima disso, o percentual completo aparece em destaque.</p>
   </section>;
 };
 

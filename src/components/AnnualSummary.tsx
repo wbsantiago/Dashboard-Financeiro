@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { Expense, Revenue } from '../types';
 import { formatCurrency } from '../utils/format';
-import { CATEGORY_COLORS } from '../utils/storage';
+import { getCategoryColor } from '../utils/categories';
 import { 
   ResponsiveContainer, 
   ComposedChart, 
@@ -131,7 +131,7 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
     .map(([category, value]) => ({
       category,
       value: value as number,
-      color: CATEGORY_COLORS[category] || '#6B7280',
+      color: getCategoryColor(category),
     }))
     .sort((a, b) => (b.value as number) - (a.value as number));
 

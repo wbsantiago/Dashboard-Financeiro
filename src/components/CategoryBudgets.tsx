@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { CategoryBudget } from '../types';
 import { formatCurrency } from '../utils/format';
-import { CATEGORY_COLORS } from '../utils/storage';
+import { categoryBudgetUsage, getCategoryColor } from '../utils/categories';
 
 interface CategoryBudgetsProps {
   categoryBudgets: CategoryBudget[];
@@ -55,7 +55,7 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
       return {
         name: cat,
         value: parseFloat(val.toFixed(2)),
-        color: CATEGORY_COLORS[cat] || '#6b7280',
+        color: getCategoryColor(cat),
       };
     })
     .filter(item => item.value > 0)
@@ -159,10 +159,11 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
               <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin max-h-[50vh] py-1">
                 {categoryBudgets.map((budget) => {
                   const spent = expensesByCategory[budget.category] || 0;
-                  const categoryColor = CATEGORY_COLORS[budget.category] || '#6b7280';
+                  const categoryColor = getCategoryColor(budget.category);
                   const currentLimitValue = localLimits[budget.category] || '0';
                   const limit = parseFloat(currentLimitValue) || 0;
-                  const percent = limit > 0 ? Math.min(Math.round((spent / limit) * 100), 100) : spent > 0 ? 100 : 0;
+                  const usage = categoryBudgetUsage(spent, limit);
+                  const percent = usage.percentage === null ? 0 : Math.round(usage.percentage);
 
                   let statusText = 'OK';
                   let statusColor = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
@@ -207,6 +208,7 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
                             </span>
                             <PrivateAmountInput
                               type="number"
+                              aria-label={`Limite de ${budget.category}`}
                               placeholder="Sem teto"
                               value={localLimits[budget.category] ?? ''}
                               onChange={(e) => {
@@ -218,7 +220,7 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
                               }}
                               className="w-full pl-8 pr-3 py-1.5 text-xs font-bold font-mono border border-white/10 bg-zinc-950 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all privacy-value"
                               min="0"
-                              step="10"
+                              step="0.01"
                             />
                           </div>
                         </div>
@@ -236,7 +238,7 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
                               <div className="w-full h-1 bg-zinc-950 rounded-full overflow-hidden">
                                 <div 
                                   className={`h-full rounded-full ${spent > limit ? 'bg-rose-500' : spent >= limit * 0.8 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                                  style={{ width: `${percent}%` }}
+                                  style={{ width: `${usage.fillPercentage ?? 0}%` }}
                                 />
                               </div>
                             </div>

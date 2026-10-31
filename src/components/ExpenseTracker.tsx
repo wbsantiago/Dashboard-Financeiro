@@ -17,15 +17,15 @@ import {
   Filter,
   X
 } from 'lucide-react';
-import { Expense, Revenue, MonthlyBudget, CreditCard as CreditCardType, ExpenseEditScope, RecurrenceScope } from '../types';
+import { Expense, Revenue, CategoryBudget, MonthlyBudget, CreditCard as CreditCardType, ExpenseEditScope, RecurrenceScope } from '../types';
 import { RecurrenceControls, RecurrenceScopeSelector, EntryType } from './RecurrenceControls';
 import { EntryFilters } from './EntryFilters';
+import { getCategoryColor } from '../utils/categories';
 import { getCardFilterOptions, matchesCardFilter } from '../utils/expenseFilters';
 import { validateRecurrenceMonths } from '../utils/recurrence';
 import { formatCurrency, formatMonthName, formatDate, getInstallmentInfo, getCompetenceMonth } from '../utils/format';
 import { 
   DEFAULT_CATEGORIES, 
-  CATEGORY_COLORS, 
   DEFAULT_REVENUE_CATEGORIES, 
   REVENUE_CATEGORY_COLORS 
 } from '../utils/storage';
@@ -33,6 +33,7 @@ import {
 interface ExpenseTrackerProps {
   entryRequest?: { tab: 'expenses' | 'revenues'; id: number };
   expenses: Expense[];
+  categoryBudgets?: CategoryBudget[];
   onAddExpense: (expenseData: Omit<Expense, 'id' | 'createdAt'>) => Promise<void>;
   onDeleteExpense: (id: string, scope?: RecurrenceScope) => Promise<void>;
   onUpdateExpense: (
@@ -61,6 +62,7 @@ interface ExpenseTrackerProps {
 
 export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   expenses,
+  categoryBudgets = [],
   entryRequest,
   onAddExpense,
   onDeleteExpense,
@@ -77,6 +79,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   onDeleteCreditCard,
   onPayCardBill,
 }) => {
+  const expenseCategories = [...new Set<string>([...DEFAULT_CATEGORIES, ...categoryBudgets.map(b => b.category), ...expenses.map(e => e.category)])];
   // Navigation Tabs at top: expenses (Saídas) or revenues (Entradas)
   const [activeTab, setActiveTab] = useState<'expenses' | 'revenues'>('expenses');
   const [showEntryForm, setShowEntryForm] = useState(false);
@@ -217,7 +220,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
     setEditCardLastDigits(exp.cardLastDigits || '');
     const initialCardId = exp.cardId || (exp.paymentMethod === 'card' && exp.cardLastDigits ? (creditCards.find(c => c.lastDigits === exp.cardLastDigits)?.id || '') : '');
     setEditSelectedCardId(initialCardId);
-    if (DEFAULT_CATEGORIES.includes(exp.category)) {
+    if (expenseCategories.includes(exp.category)) {
       setEditCategory(exp.category);
       setIsEditCustomCategory(false);
     } else {
@@ -826,7 +829,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                           }}
                           className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 outline-none transition-all cursor-pointer"
                         >
-                          {DEFAULT_CATEGORIES.map((cat) => (
+                          {expenseCategories.map((cat) => (
                             <option key={cat} value={cat} className="bg-zinc-900">
                               {cat}
                             </option>
@@ -1356,7 +1359,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                       </div>
                     ) : (
                       filteredExpenses.map((exp) => {
-                        const categoryColor = CATEGORY_COLORS[exp.category] || '#6b7280';
+                        const categoryColor = getCategoryColor(exp.category);
                         const instInfo = getInstallmentInfo(exp);
                         return (
                           <div
@@ -1818,7 +1821,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                     }}
                     className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 outline-none transition-all cursor-pointer"
                   >
-                    {DEFAULT_CATEGORIES.map((cat) => (
+                    {expenseCategories.map((cat) => (
                       <option key={cat} value={cat} className="bg-zinc-900">
                         {cat}
                       </option>
