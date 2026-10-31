@@ -1,5 +1,5 @@
 import { PrivateValue, PrivateAmountInput } from './PrivateValue';
-import React, { useMemo, useState } from 'react';
+import React, { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import { 
   PieChart, 
   Pie, 
@@ -27,11 +27,15 @@ interface CategoryBudgetsProps {
   onUpdateBudgets: (updatedBudgets: CategoryBudget[]) => void;
 }
 
-export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
+export interface CategoryBudgetsHandle {
+  openLimits: () => void;
+}
+
+export const CategoryBudgets = forwardRef<CategoryBudgetsHandle, CategoryBudgetsProps>(function CategoryBudgets({
   categoryBudgets,
   expensesByCategory,
   onUpdateBudgets,
-}) => {
+}, ref) {
   const [distView, setDistView] = useState<'donut' | 'bars'>('donut');
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -72,6 +76,7 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
     setLocalLimits(limits);
     setIsModalOpen(true);
   };
+  useImperativeHandle(ref, () => ({ openLimits: handleOpenModal }));
 
   // Save all modified limits
   const handleSaveAllLimits = (e: React.FormEvent) => {
@@ -90,23 +95,30 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
 
   return (
     <div className="sereno-panel sereno-distribution" id="category-budgets-card">
-      <div className="sereno-section-heading"><h2>Para onde foi</h2><div className="sereno-chart-actions">
-        <button type="button" aria-label="Ver gráfico de categorias" aria-pressed={distView === 'donut'} onClick={() => setDistView('donut')}><PieIcon size={17} /></button>
-        <button type="button" aria-label="Ver lista de categorias" aria-pressed={distView === 'bars'} onClick={() => setDistView('bars')}><List size={17} /></button>
-        <button type="button" id="edit-category-limits" aria-label="Ajustar limites por categoria" onClick={handleOpenModal}><Sliders size={17} /></button>
-      </div></div>
+      <div className="sereno-section-heading"><h2>Para onde foi</h2></div>
+      <div className="sereno-distribution-body">
       {pieChartData.length === 0 ? <p className="sereno-empty">Ainda não há despesas neste mês. Adicione uma despesa para ver a distribuição.</p> : <>
-        {distView === 'donut' && <div className="sereno-donut-figure">
-          <ResponsiveContainer width="100%" height={220}><PieChart><Pie data={pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={78} outerRadius={104} paddingAngle={1.5} stroke="none" isAnimationActive={false} onMouseEnter={(_, index) => setActiveIndex(index)} onMouseLeave={() => setActiveIndex(null)} onClick={(_, index) => setActiveIndex(index)}>
+        {distView === 'donut' && <div className="sereno-donut-figure" role="group" tabIndex={0} aria-label="Distribuição de despesas por categoria. Use as setas para consultar valores e percentuais." onPointerLeave={e => { if (e.pointerType === 'mouse') setActiveIndex(null); }} onBlur={e => { if (e.target === e.currentTarget) setActiveIndex(null); }} onKeyDown={e => {
+          if (e.key === 'Escape') setActiveIndex(null);
+          if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
+            e.preventDefault();
+            setActiveIndex(current => e.key === 'Home' ? 0 : e.key === 'End' ? pieChartData.length - 1 : current === null ? (e.key === 'ArrowRight' ? 0 : pieChartData.length - 1) : (current + (e.key === 'ArrowRight' ? 1 : -1) + pieChartData.length) % pieChartData.length);
+          }
+        }}>
+          <ResponsiveContainer width="100%" height="100%"><PieChart accessibilityLayer={false}><Pie data={pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius="68%" outerRadius="92%" paddingAngle={1.5} stroke="none" isAnimationActive={false} onMouseEnter={(_, index) => setActiveIndex(index)} onClick={(_, index) => setActiveIndex(index)}>
             {pieChartData.map((item, index) => <Cell key={item.name} fill={item.color} opacity={1} stroke={index === activeIndex ? 'var(--sereno-ink)' : 'none'} strokeWidth={index === activeIndex ? 2 : 0} />)}
           </Pie></PieChart></ResponsiveContainer>
           <div className="sereno-donut-center" aria-live="polite"><span>{activeIndex !== null && pieChartData[activeIndex] ? pieChartData[activeIndex].name : 'Total de despesas'}</span><PrivateValue as="strong" className="privacy-value">{formatCurrency(activeIndex !== null && pieChartData[activeIndex] ? pieChartData[activeIndex].value : totalExpenseInMonth)}</PrivateValue>{activeIndex !== null && pieChartData[activeIndex] && <small>{(pieChartData[activeIndex].value / totalExpenseInMonth * 100).toFixed(1).replace('.', ',')}%</small>}</div>
         </div>}
-        <div className="sereno-category-legend">{pieChartData.map((item, index) => <button type="button" key={item.name} aria-pressed={activeIndex === index} onMouseEnter={() => setActiveIndex(index)} onMouseLeave={() => setActiveIndex(null)} onFocus={() => setActiveIndex(index)} onBlur={() => setActiveIndex(null)} onClick={() => setActiveIndex(index)}>
-          <i style={{ backgroundColor: item.color }} /><span>{item.name}</span><span>{distView === 'bars' && <PrivateValue as="span" className="privacy-value">{formatCurrency(item.value)} </PrivateValue>}{(item.value / totalExpenseInMonth * 100).toFixed(1).replace('.', ',')}%</span>
-        </button>)}</div>
-        <p className="sereno-chart-note">Passe o mouse sobre uma fatia ou toque em uma categoria para consultar seu valor e percentual.</p>
+        {distView === 'bars' && <div className="sereno-category-legend">{pieChartData.map((item, index) => <button type="button" key={item.name} aria-pressed={activeIndex === index} onMouseEnter={() => setActiveIndex(index)} onMouseLeave={() => setActiveIndex(null)} onFocus={() => setActiveIndex(index)} onBlur={() => setActiveIndex(null)} onClick={() => setActiveIndex(index)}>
+          <i style={{ backgroundColor: item.color }} /><span>{item.name}</span><span><PrivateValue as="span" className="privacy-value">{formatCurrency(item.value)} </PrivateValue>{(item.value / totalExpenseInMonth * 100).toFixed(1).replace('.', ',')}%</span>
+        </button>)}</div>}
       </>}
+      </div>
+      <div className="sereno-chart-actions sereno-distribution-actions" role="group" aria-label="Visualização das categorias">
+        <button type="button" aria-label="Ver gráfico de categorias" aria-pressed={distView === 'donut'} onClick={() => { setDistView('donut'); setActiveIndex(null); }}><PieIcon size={17} /></button>
+        <button type="button" aria-label="Ver lista de categorias" aria-pressed={distView === 'bars'} onClick={() => { setDistView('bars'); setActiveIndex(null); }}><List size={17} /></button>
+      </div>
       {/* FULLSCREEN DIMMED MODAL FOR CATEGORY LIMITS CONFIGURATION */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-55 flex items-center justify-center p-4">
@@ -277,4 +289,4 @@ export const CategoryBudgets: React.FC<CategoryBudgetsProps> = ({
       )}
     </div>
   );
-};
+});

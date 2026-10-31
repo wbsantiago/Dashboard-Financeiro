@@ -55,7 +55,9 @@
 .sereno-plan-details { border-top:1px solid var(--sereno-line); margin-top:18px; padding-top:16px; color:var(--sereno-muted); font-size:13px; }
 .sereno-plan-details summary { cursor:pointer; color:var(--sereno-action); }
 .sereno-plan-details>div { display:grid; gap:8px; padding-top:14px; max-width:80ch; }
-.sereno-charts-grid { display:grid; grid-template-columns:1.4fr 1fr; gap:22px; align-items:start; }
+.sereno-charts-grid { display:grid; grid-template-columns:1.4fr 1fr; gap:22px; align-items:stretch; }
+.sereno-charts-grid>div { display:flex; flex-direction:column; min-width:0; }
+.sereno-charts-grid .sereno-distribution { flex:1; }
 .sereno-bar-key { display:flex; flex-wrap:wrap; gap:16px; color:var(--sereno-muted); font-size:12px; margin-bottom:22px; }
 .sereno-bar-key span { display:inline-flex; align-items:center; gap:6px; }
 .sereno-bar-key i { width:9px; height:9px; border-radius:2px; background:var(--sereno-bar); }
@@ -82,8 +84,11 @@
 .sereno-chart-actions { display:flex; gap:3px; }
 .sereno-chart-actions button { display:flex; align-items:center; justify-content:center; width:30px; height:32px; border-radius:6px; color:var(--sereno-muted); }
 .sereno-chart-actions button[aria-pressed=true] { background:var(--sereno-soft); color:var(--sereno-action); }
-.sereno-donut-figure { position:relative; width:100%; height:220px; margin:0 auto 16px; overflow:hidden; }
-.sereno-donut-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; pointer-events:none; padding:0 calc(50% - 73px); text-align:center; }
+.sereno-distribution { display:flex; flex-direction:column; }
+.sereno-distribution-body { flex:1; display:flex; flex-direction:column; justify-content:center; min-width:0; }
+.sereno-distribution-actions { justify-content:center; margin-top:18px; }
+.sereno-donut-figure { position:relative; width:100%; height:300px; flex-shrink:0; margin:0 auto; overflow:hidden; }
+.sereno-donut-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; pointer-events:none; padding:0 max(0px, calc(50% - 90px)); text-align:center; }
 .sereno-donut-center>span { color:var(--sereno-muted); font-size:12px; line-height:1.25; }
 .sereno-donut-center strong { color:var(--sereno-ink); font-size:20px; font-weight:600; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .sereno-donut-center small { color:var(--sereno-muted); font-size:12px; }

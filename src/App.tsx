@@ -53,7 +53,7 @@ import { collection, doc, setDoc, onSnapshot, writeBatch, deleteDoc, runTransact
 
 // import components
 import { KpiCards } from './components/KpiCards';
-import { CategoryBudgets } from './components/CategoryBudgets';
+import { CategoryBudgets, type CategoryBudgetsHandle } from './components/CategoryBudgets';
 import { ExpenseTracker } from './components/ExpenseTracker';
 import { ChartsView, SpendingHistory } from './components/ChartsView';
 import { AnnualSummary } from './components/AnnualSummary';
@@ -134,6 +134,7 @@ export default function App() {
   const [showConfigPanel, setShowConfigPanel] = useState<boolean>(false);
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('budget');
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const categoryBudgetsRef = useRef<CategoryBudgetsHandle>(null);
   const closeSettings = () => { setShowConfigPanel(false); settingsButtonRef.current?.focus(); };
   const openSettings = (section: SettingsSection) => {
     setSettingsSection(section);
@@ -1956,10 +1957,11 @@ export default function App() {
               expenses={data.expenses}
               categoryBudgets={effectiveCategoryBudgets}
               selectedMonth={selectedMonth}
-              onEditLimits={() => document.getElementById('edit-category-limits')?.click()}
+              onEditLimits={() => categoryBudgetsRef.current?.openLimits()}
             />
             <div className={hideMobileBudgets ? 'sereno-hide-mobile-distribution' : ''}>
               <CategoryBudgets
+                ref={categoryBudgetsRef}
                 categoryBudgets={effectiveCategoryBudgets}
                 expensesByCategory={expensesByCategory}
                 onUpdateBudgets={handleUpdateCategoryBudgets}

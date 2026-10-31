@@ -43,7 +43,7 @@ export const ChartsView: React.FC<ChartProps & { categoryBudgets: CategoryBudget
         </div>
       </div>
     </div>
-    <p className="sereno-chart-note" aria-live="polite">{active ? <><strong>{active.category}</strong>: <PrivateValue className="privacy-value">{formatCurrency(active.spent)}</PrivateValue>{active.limit > 0 ? <> de <PrivateValue className="privacy-value">{formatCurrency(active.limit)}</PrivateValue> planejados{active.spent > active.limit ? ' · Acima do limite.' : '.'}</> : ' · Sem limite definido.'}</> : 'Passe o mouse ou toque em uma coluna para consultar os valores.'}</p>
+    <p className="sereno-chart-note" aria-live="polite">{active && <><strong>{active.category}</strong>: <PrivateValue className="privacy-value">{formatCurrency(active.spent)}</PrivateValue>{active.limit > 0 ? <> de <PrivateValue className="privacy-value">{formatCurrency(active.limit)}</PrivateValue> planejados{active.spent > active.limit ? ' · Acima do limite.' : '.'}</> : ' · Sem limite definido.'}</>}</p>
     <p className="category-usage-explanation">Cada coluna preenche até 100% do próprio limite. Acima disso, o percentual completo aparece em destaque.</p>
   </section>;
 };
