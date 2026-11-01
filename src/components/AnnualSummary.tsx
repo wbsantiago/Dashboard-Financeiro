@@ -332,7 +332,7 @@ export const AnnualSummary: React.FC<AnnualSummaryProps> = ({
                         <span className="text-[10px] sm:text-[11px] text-slate-500 ml-1">({percent}%)</span>
                       </div>
                     </div>
-                    <div className="w-full bg-[#202020] h-1.5 rounded-full overflow-hidden">
+                    <div className="w-full sereno-annual-category-track h-1.5 rounded-full overflow-hidden">
                       <div className="h-full rounded-full sereno-annual-category-fill" style={{ width: `${percent}%`, backgroundColor: item.color }} />
                     </div>
                   </div>
