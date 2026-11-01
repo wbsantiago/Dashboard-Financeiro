@@ -12,10 +12,12 @@ export function mergeCategoryBudgets(budgets: CategoryBudget[], expenses: Expens
 
 export function categoryBudgetUsage(spent: number, limit: number) {
   const percentage = limit > 0 ? spent / limit * 100 : null;
+  const exceeded = limit > 0 ? spent > limit : spent > 0;
   return {
     percentage,
-    fillPercentage: percentage === null ? null : Math.min(100, Math.max(0, percentage)),
-    exceeded: limit > 0 && spent > limit,
+    fillPercentage: percentage === null ? (exceeded ? 100 : null) : Math.min(100, Math.max(0, percentage)),
+    exceeded,
+    severe: percentage !== null && percentage >= 200,
   };
 }
 

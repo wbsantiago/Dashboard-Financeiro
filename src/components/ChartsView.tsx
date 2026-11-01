@@ -31,13 +31,13 @@ export const ChartsView: React.FC<ChartProps & { categoryBudgets: CategoryBudget
         <div className="category-usage-columns" data-chart-entering={entrance.isEntering || undefined} onAnimationEnd={entrance.finish} style={{ gridTemplateColumns: 'repeat(' + rows.length + ', minmax(var(--category-column-min), 1fr))' }}>
           {rows.map(row => {
             const usage = categoryBudgetUsage(row.spent, row.limit);
-            return <button type="button" key={row.category} className="category-usage-column" data-category={row.category} data-exceeded={usage.exceeded || undefined}
+            return <button type="button" key={row.category} className="category-usage-column" data-category={row.category} data-exceeded={usage.exceeded || undefined} data-severe={usage.severe || undefined}
               onMouseEnter={() => setActiveCategory(row.category)} onMouseLeave={() => setActiveCategory(null)} onFocus={() => setActiveCategory(row.category)} onBlur={() => setActiveCategory(null)} onClick={() => setActiveCategory(row.category)}
-              aria-label={row.category + ': ' + (usage.percentage === null ? 'sem limite definido' : Math.round(usage.percentage) + '% do limite')}>
-              <span className="category-usage-percent" data-no-limit={usage.percentage === null || undefined}>{usage.percentage === null ? 'Sem limite' : Math.round(usage.percentage) + '%'}</span>
-              <span className="category-usage-track" data-no-limit={usage.percentage === null || undefined}>
+              aria-label={row.category + ': ' + (usage.percentage === null ? (usage.exceeded ? 'limite zerado excedido' : 'sem limite definido') : Math.round(usage.percentage) + '% do limite')}>
+              <span className="category-usage-percent" data-no-limit={(usage.percentage === null && !usage.exceeded) || undefined}>{usage.percentage === null ? (usage.exceeded ? '>100%' : 'Sem limite') : Math.round(usage.percentage) + '%'}</span>
+              <span className="category-usage-track" data-no-limit={usage.fillPercentage === null || undefined}>
                 {usage.fillPercentage !== null && <i className="category-usage-fill" style={{ height: usage.fillPercentage + '%' }} />}
-                {usage.percentage === null && <span className="category-no-limit-mark" aria-hidden="true">—</span>}
+                {usage.fillPercentage === null && <span className="category-no-limit-mark" aria-hidden="true">—</span>}
               </span>
               <span className="category-usage-label"><span className="category-usage-name">{row.category}</span></span>
             </button>;
@@ -45,8 +45,8 @@ export const ChartsView: React.FC<ChartProps & { categoryBudgets: CategoryBudget
         </div>
       </div>
     </div>
-    <p className="sereno-chart-note" aria-live="polite">{active && <><strong>{active.category}</strong>: <PrivateValue className="privacy-value">{formatCurrency(active.spent)}</PrivateValue>{active.limit > 0 ? <> de <PrivateValue className="privacy-value">{formatCurrency(active.limit)}</PrivateValue> planejados{active.spent > active.limit ? ' · Acima do limite.' : '.'}</> : ' · Sem limite definido.'}</>}</p>
-    <p className="category-usage-explanation">Cada coluna preenche até 100% do próprio limite. Acima disso, o percentual completo aparece em destaque.</p>
+    <p className="sereno-chart-note" aria-live="polite">{active && <><strong>{active.category}</strong>: <PrivateValue className="privacy-value">{formatCurrency(active.spent)}</PrivateValue>{active.limit > 0 ? <> de <PrivateValue className="privacy-value">{formatCurrency(active.limit)}</PrivateValue> planejados{active.spent > active.limit ? ' · Acima do limite.' : '.'}</> : active.spent > 0 ? ' · Limite zerado excedido.' : ' · Sem limite definido.'}</>}</p>
+    <p className="category-usage-explanation">Cada coluna preenche até 100% do próprio limite. Sem teto definido, qualquer gasto é sinalizado como limite excedido.</p>
   </section>;
 };
 

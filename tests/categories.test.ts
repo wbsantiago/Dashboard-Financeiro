@@ -32,6 +32,25 @@ test('utilization represents each category limit, including zero, fractional and
   assert.equal(categoryBudgetUsage(0, 0).fillPercentage, null);
 });
 
+test('any positive expense exceeds a zero category ceiling without dividing by zero', () => {
+  for (const spent of [0.01, 1, 95, 9500]) {
+    assert.deepEqual(categoryBudgetUsage(spent, 0), { percentage: null, fillPercentage: 100, exceeded: true, severe: false });
+  }
+  assert.deepEqual(categoryBudgetUsage(0, 0), { percentage: null, fillPercentage: null, exceeded: false, severe: false });
+  assert.deepEqual(categoryBudgetUsage(-1, 0), { percentage: null, fillPercentage: null, exceeded: false, severe: false });
+  assert.deepEqual(categoryBudgetUsage(1, 2), { percentage: 50, fillPercentage: 50, exceeded: false, severe: false });
+  assert.deepEqual(categoryBudgetUsage(1, 1), { percentage: 100, fillPercentage: 100, exceeded: false, severe: false });
+});
+
+test('strong warning starts at 200 percent and requires a positive ceiling', () => {
+  assert.equal(categoryBudgetUsage(100, 100).severe, false);
+  assert.equal(categoryBudgetUsage(199.99, 100).severe, false);
+  assert.equal(categoryBudgetUsage(200, 100).severe, true);
+  assert.equal(categoryBudgetUsage(234, 100).severe, true);
+  assert.equal(categoryBudgetUsage(.02, .01).severe, true);
+  assert.equal(categoryBudgetUsage(9500, 0).severe, false);
+});
+
 test('custom category colors are deterministic and standard category colors stay intact', () => {
   assert.equal(getCategoryColor('Moradia'), '#398bff');
   assert.equal(getCategoryColor('Pet'), getCategoryColor('Pet'));

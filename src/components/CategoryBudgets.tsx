@@ -184,7 +184,7 @@ export const CategoryBudgets = forwardRef<CategoryBudgetsHandle, CategoryBudgets
                   let statusColor = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
                   let statusIcon = <CheckCircle className="w-3.5 h-3.5" />;
 
-                  if (spent > limit && limit > 0) {
+                  if (usage.exceeded) {
                     statusText = 'Estourou!';
                     statusColor = 'text-rose-450 bg-rose-500/10 border-rose-500/20';
                     statusIcon = <Flame className="w-3.5 h-3.5" />;
@@ -242,18 +242,18 @@ export const CategoryBudgets = forwardRef<CategoryBudgetsHandle, CategoryBudgets
 
                         {/* Recommendation bar */}
                         <div className="pt-2 sm:pt-0">
-                          {limit > 0 ? (
+                          {limit > 0 || usage.exceeded ? (
                             <div className="space-y-1.5">
                               <div className="flex items-center justify-between text-[9px]">
-                                <span className={`px-1.5 py-0.5 rounded-full border text-[8px] font-bold flex items-center gap-0.5 ${statusColor}`}>
+                                <span className={`px-1.5 py-0.5 rounded-full border text-[8px] font-bold flex items-center gap-0.5 ${statusColor}`} style={usage.severe ? { color: 'var(--sereno-severe)' } : undefined}>
                                   {statusIcon} {statusText}
                                 </span>
-                                <span className="font-mono text-slate-350">{percent}% comprometido</span>
+                                <span className="font-mono text-slate-350" style={usage.severe ? { color: 'var(--sereno-severe)' } : undefined}>{usage.percentage === null ? 'Limite zerado excedido' : `${percent}% comprometido`}</span>
                               </div>
                               <div className="w-full h-1 bg-zinc-950 rounded-full overflow-hidden">
                                 <div 
-                                  className={`h-full rounded-full ${spent > limit ? 'bg-rose-500' : spent >= limit * 0.8 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                                  style={{ width: `${usage.fillPercentage ?? 0}%` }}
+                                  className={`h-full rounded-full ${usage.exceeded ? 'bg-rose-500' : spent >= limit * 0.8 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                                  style={{ width: `${usage.fillPercentage ?? 0}%`, backgroundColor: usage.exceeded ? (usage.severe ? 'var(--sereno-severe-fill)' : 'var(--sereno-danger-fill)') : undefined }}
                                 />
                               </div>
                             </div>
