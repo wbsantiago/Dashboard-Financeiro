@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Wallet, Database, ShieldCheck, Palette, CircleHelp, X, Download, Upload, Cloud, Trash2, Mail } from 'lucide-react';
+import { Wallet, Database, ShieldCheck, Palette, CircleHelp, X, Download, Upload, Cloud, Trash2, Mail, BookOpen } from 'lucide-react';
 import { APP_CONTACT } from '../config/appContact';
 import './AppSettings.css';
 
@@ -32,6 +32,7 @@ interface Props {
   rememberAppearance: boolean;
   onOpenCookiePreferences: () => void;
   onDiagnostics: () => void;
+  onReplayTour: () => void;
 }
 
 export function AppSettings(p: Props) {
@@ -126,6 +127,8 @@ export function AppSettings(p: Props) {
             <label className="settings-check"><div><h4>Recolher orçamentos no celular</h4><p>Deixe a visão mensal mais enxuta em telas pequenas.</p></div><input type="checkbox" checked={p.hideMobileBudgets} onChange={e => p.onHideMobileBudgetsChange(e.target.checked)} /></label>
           </>}
           {p.section === 'help' && <>
+            <div className="settings-action"><div><h4>Passeio pelo painel</h4><p>Veja onde escolher o mês, registrar entradas e despesas e consultar o resumo mensal.</p></div><button type="button" className="settings-secondary" onClick={p.onReplayTour}>Refazer passeio</button></div>
+            <div className="settings-action"><div><h4>Aprenda a usar o aplicativo</h4><p>Guias de primeiros passos, lançamentos, cartões, planejamento e backups.</p></div><a href="#/tutoriais" className="settings-primary" onClick={p.onClose}><BookOpen size={16} />Abrir tutoriais</a></div>
             <p className="settings-description">No uso local, os dados ficam neste navegador. Para ver os dados da nuvem, conecte a mesma conta Google usada anteriormente.</p>
             {APP_CONTACT.email && <div className="settings-contact"><h4>Falar com o atendimento</h4><p>Não envie senhas, números completos de cartão ou seu backup financeiro.</p><label>Assunto<select value={topic} onChange={e => setTopic(e.target.value)}>{['Dúvida sobre o aplicativo', 'Acesso aos meus dados', 'Correção dos meus dados', 'Exclusão dos meus dados', 'Problema técnico'].map(t => <option key={t}>{t}</option>)}</select></label><a className="settings-primary" href={`mailto:${APP_CONTACT.email}?subject=${encodeURIComponent(`Finanças10 — ${topic}`)}`}><Mail size={16} />Enviar email</a><p>{APP_CONTACT.email}</p></div>}
             <div className="settings-action"><div><h4>Diagnóstico da sincronização</h4><p>Teste manual da conexão com o Firebase. Cria registros de teste na sua conta e tenta removê-los ao terminar.</p></div><button type="button" className="settings-secondary" disabled={!cloud || busy} onClick={p.onDiagnostics}>Executar teste</button></div>

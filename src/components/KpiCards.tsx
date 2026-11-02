@@ -83,7 +83,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
 
   return (
     <div className="sereno-kpis" id="kpi-cards-grid">
-      <section className="sereno-totals" aria-label="Resumo do mês">
+      <section className="sereno-totals" id="monthly-totals" aria-label="Resumo do mês">
         <div><p>Entradas do mês</p><PrivateValue as="strong" className="privacy-value">{formatCurrency(totalRevenue)}</PrivateValue></div>
         <div><p>Despesas lançadas</p><PrivateValue as="strong" className="privacy-value">{formatCurrency(totalSpent)}</PrivateValue></div>
         <div><p>Saldo do mês</p><PrivateValue as="strong" className={'privacy-value ' + (balance < 0 ? 'sereno-danger-text' : 'sereno-good-text')}>{formatCurrency(balance)}</PrivateValue><small>Entradas menos despesas lançadas</small></div>

@@ -2,6 +2,12 @@
 
 Um painel completo, interativo e extremamente polido para controle financeiro pessoal. Projetado com foco em usabilidade de alto nível, este dashboard permite planejar metas de economia, acompanhar receitas/gastos e monitorar despesas reais versus o planejado em tempo real. Ele implementa uma lógica financeira inteligente que preserva os objetivos de poupança programada mesmo com variações de receita.
 
+O [roadmap do projeto](ROADMAP.md) reúne o que já está implementado e as próximas metas: integração com bancos brasileiros, tutoriais, nome e divulgação.
+
+A **Central de tutoriais** está em `/#/tutoriais`, com acesso pelo link **Tutoriais** no rodapé e em **Configurações → Ajuda e contato**. Inclui sete guias em texto, busca e filtros por assunto. Os espaços para vídeos do YouTube estão preparados; confira [como adicionar os vídeos](TUTORIAIS.md) depois de gravar.
+
+O painel recomenda um passeio guiado no primeiro acesso de cada conta/uso local neste navegador. São cinco passos sobre mês, entradas, despesas, resumo e lançamentos, sem criar transações. Concluir ou dispensar evita repetir a recomendação; **Ajuda e contato → Refazer passeio** permite rever. O logo e o nome Finanças10 retornam à Visão geral.
+
 ---
 
 ## 🎨 Interface Sereno

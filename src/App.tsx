@@ -4,7 +4,7 @@ import { PrivateValue, PrivateAmountInput, PrivacyProvider } from './components/
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import {
   Upload,
   Trash2,
@@ -60,6 +60,9 @@ import { AnnualSummary } from './components/AnnualSummary';
 import { AppSettings, type SettingsSection } from './components/AppSettings';
 import { AccountMenu } from './components/AccountMenu';
 import { CookieConsent } from './components/CookieConsent';
+import { DashboardTour } from './components/DashboardTour';
+import { parseTutorialRoute } from './utils/tutorials';
+const TutorialsPage = lazy(() => import('./components/TutorialsPage'));
 import { COOKIE_CHOICE_KEY, readNecessaryPreference, writeNecessaryPreference, readCookieChoice, saveCookieChoice, synchronizeCookieChoice, readDisplayPreference, writeDisplayPreference, type CookieChoice, type ChoiceSource } from './utils/cookieConsent';
 
 export default function App() {
@@ -116,6 +119,7 @@ export default function App() {
     return readNecessaryPreference('storage-type', 'local') as 'local' | 'cloud';
   });
   const [user, setUser] = useState<any>(null);
+  const [authReady, setAuthReady] = useState(demoMode || !isFirebaseConfigured || !auth || !db);
 
   // Load initial state
   const [data, setData] = useState<AppData>(() => demoMode ? createDemoData(2026) : loadAppData());
@@ -140,6 +144,36 @@ export default function App() {
     setSettingsSection(section);
     setShowConfigPanel(true);
   };
+  const [tutorialRoute, setTutorialRoute] = useState(() => parseTutorialRoute(window.location.hash));
+  const dashboardScroll = useRef(0);
+  const currentPage = useRef(tutorialRoute.page);
+  const [tourReplayRequest, setTourReplayRequest] = useState(0);
+  const goHome = (event?: React.MouseEvent) => {
+    event?.preventDefault();
+    setActiveView('monthly'); setShowConfigPanel(false);
+    setTutorialRoute({ page: 'dashboard' }); currentPage.current = 'dashboard';
+    if (window.location.hash) window.location.hash = '';
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      document.getElementById('dashboard-title')?.focus({ preventScroll: true });
+    });
+  };
+  const replayTour = () => { goHome(); setTourReplayRequest(value => value + 1); };
+  useEffect(() => {
+    const changePage = () => {
+      const next = parseTutorialRoute(window.location.hash);
+      if (currentPage.current === 'dashboard' && next.page === 'tutorials') dashboardScroll.current = window.scrollY;
+      setTutorialRoute(next);
+      setShowConfigPanel(false);
+      if (currentPage.current === 'tutorials' && next.page === 'dashboard') requestAnimationFrame(() => {
+        window.scrollTo({ top: dashboardScroll.current, behavior: 'instant' });
+        document.getElementById('tutorial-trigger')?.focus({ preventScroll: true });
+      });
+      currentPage.current = next.page;
+    };
+    window.addEventListener('hashchange', changePage);
+    return () => window.removeEventListener('hashchange', changePage);
+  }, []);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [showDiagnosticModal, setShowDiagnosticModal] = useState<boolean>(false);
   const [diagnosticLogs, setDiagnosticLogs] = useState<{ step: string; status: 'pending' | 'running' | 'success' | 'error'; details?: string }[]>([]);
@@ -654,11 +688,13 @@ export default function App() {
     if (demoMode || !isFirebaseConfigured || !auth || !db) {
       setUser(null);
       setStorageType('local');
+      setAuthReady(true);
       return;
     }
 
     const unsubscribeAuth = auth.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
+      setAuthReady(true);
       if (currentUser) {
         setStorageType('cloud');
         writeNecessaryPreference('storage-type', 'cloud');
@@ -666,7 +702,7 @@ export default function App() {
         setStorageType('local');
         writeNecessaryPreference('storage-type', 'local');
       }
-    });
+    }, () => { setAuthReady(true); });
 
     return () => {
       unsubscribeAuth();
@@ -1616,7 +1652,7 @@ export default function App() {
         <div className="compact-header-content">
           
           {/* Logo e Nome */}
-          <div className="flex items-center gap-2.5">
+          <a href="#" className="app-brand" aria-label="Finanças10 — Ir para o painel" onClick={goHome}>
             <div className="w-10 h-10 select-none shrink-0" id="main-brand-logo">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="w-full h-full">
                 <defs>
@@ -1692,10 +1728,10 @@ export default function App() {
               <h1 className="text-lg font-bold font-sans tracking-tight">Finanças10</h1>
               <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">Planejamento & Controle</p>
             </div>
-          </div>
+          </a>
 
           {/* Navegação Mensal */}
-          <div className="flex items-center bg-[#1c1c1c] p-1.5 rounded-2xl border border-white/5" id="month-navigation">
+          <div hidden={tutorialRoute.page === 'tutorials'} className="flex items-center bg-[#1c1c1c] p-1.5 rounded-2xl border border-white/5" id="month-navigation">
             <button 
               onClick={handlePrevMonth}
               className="p-1 px-1.5 hover:bg-white/5 hover:text-white rounded-xl transition-all cursor-pointer text-slate-300"
@@ -1718,6 +1754,7 @@ export default function App() {
             </button>
           </div>
 
+          {tutorialRoute.page === 'tutorials' && <div className="tutorial-header-label">Central de tutoriais</div>}
           <div className="compact-header-actions" id="action-controls-row">
             <button type="button" className="compact-header-button"
               onClick={() => setPrivacyMode(value => !value)}
@@ -1753,6 +1790,7 @@ export default function App() {
           onOpenCookiePreferences={() => { closeSettings(); setCookieManagerOpen(true); }} rememberAppearance={cookieChoice?.preferences === true && !temporaryCookieChoice.current}
           onClearLocal={() => { closeSettings(); handleClearData(); }}
           onDiagnostics={() => { closeSettings(); setShowDiagnosticModal(true); runFirebaseDiagnostics(); }}
+          onReplayTour={replayTour}
           budgetContent={<>
             <form id="settings-month-budget-form" onSubmit={handleSaveMonthConfig} className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-end">
               <div>
@@ -1905,15 +1943,16 @@ export default function App() {
       )}
 
       {/* ÁREA DE CONTEÚDO PRINCIPAL (DASHBOARD) */}
-      <main className="sereno-main" id="dashboard-main-area">
+      <main hidden={tutorialRoute.page === 'tutorials'} className="sereno-main" id="dashboard-main-area">
+        <DashboardTour userId={user?.uid ?? null} ready={authReady && !!cookieChoice && !cookieManagerOpen && !showConfigPanel && tutorialRoute.page === 'dashboard' && activeView === 'monthly'} demoMode={demoMode} replayRequest={tourReplayRequest} />
         <div className="sereno-page-heading">
           <div>
-            <h1>{formatMonthName(selectedMonth)}</h1>
+            <h1 id="dashboard-title" tabIndex={-1}>{formatMonthName(selectedMonth)}</h1>
             <p>Seu planejamento e seus gastos, em uma visão só.</p>
           </div>
           <div className="sereno-entry-actions">
-            <button type="button" className="sereno-secondary" onClick={() => requestEntry('revenues')}>Adicionar entrada</button>
-            <button type="button" className="sereno-primary" onClick={() => requestEntry('expenses')}><Plus size={16} />Adicionar despesa</button>
+            <button type="button" id="add-revenue-button" className="sereno-secondary" onClick={() => requestEntry('revenues')}>Adicionar entrada</button>
+            <button type="button" id="add-expense-button" className="sereno-primary" onClick={() => requestEntry('expenses')}><Plus size={16} />Adicionar despesa</button>
           </div>
         </div>
         <nav className="sereno-tabs" id="view-selector-tabs" aria-label="Visões do planejamento">
@@ -1984,6 +2023,8 @@ export default function App() {
         )}
       </main>
 
+      {tutorialRoute.page === 'tutorials' && <Suspense fallback={<main className="sereno-main" aria-busy="true"><p role="status">Carregando tutoriais…</p></main>}><TutorialsPage guideId={tutorialRoute.guideId} /></Suspense>}
+
       {/* FOOTER */}
       <footer className="w-full bg-[#09090b] border-t border-white/5 text-slate-400 py-12 mt-16 text-xs shrink-0 select-none animate-fadeIn text-center">
         <div className="w-full max-w-4xl mx-auto px-4 flex flex-col items-center gap-6">
@@ -2044,6 +2085,8 @@ export default function App() {
             <button type="button" id="cookie-preferences-trigger" onClick={() => setCookieManagerOpen(true)} className="hover:text-indigo-400 transition-colors cursor-pointer">Cookies e preferências</button>
             <span className="text-slate-700/60 font-normal">|</span>
             <button type="button" onClick={() => openSettings('help')} className="hover:text-indigo-400 transition-colors cursor-pointer">Ajuda e contato</button>
+            <span className="text-slate-700/60 font-normal">|</span>
+            <a href="#/tutoriais" id="tutorial-trigger" className="hover:text-indigo-400 transition-colors" aria-current={tutorialRoute.page === 'tutorials' ? 'page' : undefined}>Tutoriais</a>
           </div>
 
           {/* Copyright */}

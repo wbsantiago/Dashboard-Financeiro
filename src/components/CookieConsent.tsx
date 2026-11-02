@@ -79,11 +79,13 @@ export function CookieConsent(p: Props) {
               <dt>Planejamento financeiro</dt><dd>Lançamentos, cartões e orçamentos ficam neste navegador até você apagar a cópia local ou limpar os dados do site. Rejeitar opcionais não apaga suas finanças.</dd>
               <dt>Login e ocultação de valores</dt><dd>Google/Firebase mantém a sessão nos recursos do navegador. Para encerrá-la, use Meu perfil → Sair da conta. A opção de ocultar valores e o modo local/nuvem permanecem até serem alterados ou removidos do navegador.</dd>
               <dt>Escolha de cookies</dt><dd>A decisão, sua data e a versão deste aviso têm validade de 180 dias. Ao acessar o aplicativo após esse prazo, descartamos o registro vencido e pedimos uma nova escolha. Esse prazo foi definido para o aplicativo.</dd>
+              <dt>Passeio pelo painel</dt><dd>Guardamos neste navegador se você concluiu ou dispensou o passeio, separadamente para o uso local e cada conta. Isso evita repetir a apresentação. A escolha permanece até limpar os dados do site; você pode refazer o passeio em Ajuda e contato.</dd>
               <dt>Preferências opcionais</dt><dd>Tema e exibição dos orçamentos são guardados somente após aceitar, por até a validade desta escolha. Ao rejeitar ou revogar, removemos somente essas preferências salvas; o visual atual pode continuar até você sair da página.</dd>
             </dl>
           </details>
           <p>Você pode rever ou revogar a autorização a qualquer momento em Privacidade ou pelo link Cookies e preferências no rodapé. Nas configurações do navegador, também é possível bloquear cookies e limpar os dados deste site; isso pode afetar a sessão e o planejamento salvo localmente.</p>
           <p>O login Google é uma escolha separada. Cookies do provedor são gerenciados também no navegador e na sua conta Google. As preferências de aparência e esta decisão não são enviadas ao Firebase.</p>
+          <p>Nos tutoriais, o player do YouTube só é carregado quando você escolhe carregar um vídeo. Até essa ação, não buscamos vídeos nem miniaturas no YouTube. Ao carregar, você se conecta ao serviço externo, que aplica suas próprias políticas; essa escolha não altera as preferências de aparência.</p>
           <button type="button" className="cookie-text-link" onClick={() => { p.onCloseManager(); p.onPrivacy(); }}>Ver privacidade dos dados</button>
           {p.demoMode && <p className="cookie-message">Na demonstração, as escolhas são temporárias e não alteram as preferências do uso normal.</p>}
           {p.notice && <p className="cookie-message" role="status">{p.notice}</p>}
