@@ -58,11 +58,14 @@ function TourDialog({ step, onStep, onFinish }: { step: number; onStep: (step: n
     let frame = 0;
     const target = document.getElementById(current.target);
     if (!target) return;
-    const positionTarget = () => {
-      target.scrollIntoView({ block: 'start', behavior: 'instant' });
-      window.scrollBy({ top: -20, behavior: 'instant' });
+    const revealTarget = () => {
+      const rect = target.getBoundingClientRect();
+      // Keep visible controls in place; reveal off-screen controls only as far as needed.
+      const offset = rect.top < 12 ? rect.top - 12 : rect.bottom > innerHeight - 12
+        ? Math.min(rect.bottom - innerHeight + 12, rect.top - 12) : 0;
+      if (offset) window.scrollBy({ top: offset, behavior: 'instant' });
     };
-    positionTarget();
+    revealTarget();
     heading.current?.focus({ preventScroll: true });
     const measure = () => {
       const rect = target.getBoundingClientRect();
@@ -73,12 +76,26 @@ function TourDialog({ step, onStep, onFinish }: { step: number; onStep: (step: n
       const cardWidth = card.current?.getBoundingClientRect().width || Math.min(360, innerWidth - 24);
       const cardHeight = Math.min((card.current?.scrollHeight || 278) + 2, innerHeight - 24);
       const below = y + height + 18;
-      const above = y - cardHeight - 18;
-      const cardY = below + cardHeight <= innerHeight - 12 ? below : above >= 12 ? above : Math.min(below, Math.max(12, innerHeight - 132));
-      setGeometry({ x, y, width, height, cardX: Math.max(12, Math.min(x, innerWidth - cardWidth - 12)), cardY, cardMaxHeight: innerHeight - cardY - 12 });
+      const belowSpace = Math.max(0, innerHeight - below - 12);
+      const aboveSpace = Math.max(0, y - 18 - 12);
+      let cardX = Math.max(12, Math.min(x, innerWidth - cardWidth - 12));
+      let cardY: number;
+      let cardMaxHeight: number;
+      if (belowSpace >= cardHeight) {
+        cardY = below; cardMaxHeight = belowSpace;
+      } else if (x + width + 18 + cardWidth <= innerWidth - 12 || x - 18 - cardWidth >= 12) {
+        cardX = x + width + 18 + cardWidth <= innerWidth - 12 ? x + width + 18 : x - 18 - cardWidth;
+        cardY = Math.max(12, Math.min(y, innerHeight - cardHeight - 12));
+        cardMaxHeight = innerHeight - cardY - 12;
+      } else if (aboveSpace >= cardHeight || aboveSpace > belowSpace) {
+        cardMaxHeight = aboveSpace; cardY = y - 18 - Math.min(cardHeight, aboveSpace);
+      } else {
+        cardY = below; cardMaxHeight = belowSpace;
+      }
+      setGeometry({ x, y, width, height, cardX, cardY, cardMaxHeight });
     };
     const update = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(measure); };
-    const resize = () => { positionTarget(); update(); };
+    const resize = () => { revealTarget(); update(); };
     measure();
     window.addEventListener('resize', resize);
     window.addEventListener('scroll', update, true);
