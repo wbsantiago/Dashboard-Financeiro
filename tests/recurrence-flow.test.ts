@@ -6,6 +6,7 @@ import ts from 'typescript';
 import { createMonthlyOccurrences, readRecurrenceFields, selectRecurringItems, updateRecurringItems } from '../src/utils/recurrence';
 import { getCompetenceMonth } from '../src/utils/format';
 import { INITIAL_MOCK_DATA } from '../src/utils/storage';
+import { isArchivedExpenseCategory } from '../src/utils/categories';
 import type { AppData } from '../src/types';
 
 // Execute the actual App handlers with storage boundaries replaced by in-memory fakes.
@@ -31,7 +32,7 @@ function setup(mode: 'local' | 'cloud', initial: AppData = structuredClone(INITI
   let failWrite = false;
   const context: any = {
     data: initial, storageType: mode, auth: { currentUser: { uid: 'test-user' } }, db: {},
-    createMonthlyOccurrences, readRecurrenceFields, selectRecurringItems, updateRecurringItems, getCompetenceMonth,
+    createMonthlyOccurrences, readRecurrenceFields, selectRecurringItems, updateRecurringItems, getCompetenceMonth, isArchivedExpenseCategory,
     cleanDocument: (data: any) => JSON.parse(JSON.stringify(data)),
     OperationType: { WRITE: 'write', UPDATE: 'update', DELETE: 'delete' },
     handleFirestoreError: (error: unknown) => { throw error; }, triggerNotification: () => {},
@@ -66,6 +67,23 @@ const expense = { title: 'Barbeiro', value: 80, category: 'Cuidados Pessoais', d
   month: '2026-01', isInstallment: false, recurrenceMonths: 6 };
 const revenue = { title: 'Vale-alimentação', value: 800, category: 'VA', date: '2026-01-10',
   month: '2026-01', recurrenceMonths: 6 };
+
+for (const mode of ['local', 'cloud'] as const) {
+  test(`${mode}: archived categories reject new expenses while existing recurring history remains editable`, async () => {
+    const h = setup(mode);
+    h.context.data.categoryBudgets.push({ category: 'Pet', idealLimit: 100 });
+    await h.handlers.handleAddExpense({ ...expense, category: 'Pet' });
+    const first = h.context.data.expenses[0];
+    h.context.data.categoryBudgets.find((b: any) => b.category === 'Pet').archived = true;
+    const count = h.context.data.expenses.length, writes = h.commits.length;
+    await assert.rejects(h.handlers.handleAddExpense({ ...expense, category: 'Pet' }), /arquivada/);
+    assert.equal(h.context.data.expenses.length, count);
+    assert.equal(h.commits.length, writes);
+    await h.handlers.handleUpdateExpense(first.id, { value: 99 }, 'single');
+    assert.equal(h.context.data.expenses.find((e: any) => e.id === first.id).category, 'Pet');
+    assert.equal(h.context.data.expenses.find((e: any) => e.id === first.id).value, 99);
+  });
+}
 
 for (const mode of ['local', 'cloud'] as const) {
   test(`${mode}: expense creation, future edit and deletion preserve past months and other series`, async () => {

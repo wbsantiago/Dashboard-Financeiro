@@ -1,0 +1,24 @@
+.sereno-app .category-limits-modal { color:var(--sereno-ink); }
+.category-limits-title { color:var(--sereno-ink); font-size:17px; font-weight:650; line-height:1.4; }
+.category-limits-description { color:var(--sereno-muted); font-size:12px; line-height:1.5; }
+.category-limits-summary { background:var(--sereno-soft); border-color:var(--sereno-line); }
+.category-limits-summary-icon { color:var(--sereno-action); background:var(--sereno-panel); }
+.category-limits-summary-title { color:var(--sereno-ink); font-size:12px; font-weight:600; }
+.category-limits-total { color:var(--sereno-action); font-size:17px; font-weight:650; font-variant-numeric:tabular-nums; }
+.category-limits-name { color:var(--sereno-ink); font-size:13px; font-weight:650; line-height:1.4; overflow-wrap:anywhere; }
+.category-limits-spent,.category-limits-label { color:var(--sereno-muted); font-size:11px; line-height:1.5; }
+.category-limits-track { background:var(--sereno-line); }
+.category-limits-tabs { display:flex; gap:6px; margin-bottom:10px; }
+.category-limits-tabs button { padding:7px 12px; border:1px solid var(--sereno-line); border-radius:8px; color:var(--sereno-muted); font-size:12px; }
+.category-limits-tabs button[aria-pressed=true] { color:var(--sereno-action); background:var(--sereno-soft); }
+.category-limits-archive-note { color:var(--sereno-muted); font-size:12px; line-height:1.6; margin-bottom:12px; }
+.category-limits-row-tools { display:flex; gap:8px; align-items:center; margin-left:auto; }
+.category-limits-archive { display:grid; place-items:center; width:32px; min-height:32px; border:1px solid var(--sereno-line); border-radius:8px; color:var(--sereno-muted); flex-shrink:0; }
+.category-limits-archive:hover { color:var(--sereno-action); background:var(--sereno-soft); }
+.category-limits-error { color:var(--sereno-danger); background:var(--sereno-soft); padding:10px; border-radius:8px; font-size:12px; margin-bottom:12px; }
+.category-limits-modal button:disabled { opacity:.55; cursor:wait; }
+@media(max-width:480px) {
+  .sereno-app .category-limits-modal { padding:18px 14px; }
+  .category-limits-row>div:first-child { flex-wrap:wrap; }
+  .category-limits-total { font-size:15px; }
+}

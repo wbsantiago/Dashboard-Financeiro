@@ -33,7 +33,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { AppData, Expense, Revenue, CategoryBudget, MonthlyBudget, CreditCard, ExpenseEditScope, RecurrenceScope } from './types';
 import { createMonthlyOccurrences, selectRecurringItems, updateRecurringItems, readRecurrenceFields } from './utils/recurrence';
 import { loadAppData, saveAppData, exportDataAsJSON, importDataFromJSON, DEFAULT_CATEGORIES, DEFAULT_REVENUE_CATEGORIES, INITIAL_MOCK_DATA } from './utils/storage';
-import { mergeCategoryBudgets } from './utils/categories';
+import { getExpenseCategories, isArchivedExpenseCategory, mergeCategoryBudgets } from './utils/categories';
 import { createDemoData } from './utils/demoData';
 import { demoMode } from './utils/demoMode';
 import { formatCurrency, formatMonthName, getCurrentMonthStr, getInstallmentInfo, getCompetenceMonth } from './utils/format';
@@ -881,6 +881,9 @@ export default function App() {
 
   // Add / Delete core items
   const handleAddExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>) => {
+    if (isArchivedExpenseCategory(data.categoryBudgets, expenseData.category)) {
+      throw new Error('Esta categoria está arquivada. Restaure-a em Ajustar limites para usá-la em novos lançamentos.');
+    }
     if (expenseData.recurrenceMonths !== undefined) {
       if (expenseData.isInstallment) throw new Error('Escolha parcelamento ou recorrência mensal.');
       const entries = createMonthlyOccurrences({ ...expenseData, paid: false,
@@ -1068,6 +1071,9 @@ export default function App() {
   ) => {
     const originalExpense = data.expenses.find(e => e.id === id);
     if (!originalExpense) return;
+    if (updatedFields.category && updatedFields.category !== originalExpense.category && isArchivedExpenseCategory(data.categoryBudgets, updatedFields.category)) {
+      throw new Error('Esta categoria está arquivada. Restaure-a em Ajustar limites para usá-la em outros lançamentos.');
+    }
 
     if (originalExpense.recurrenceId) {
       const entries = updateRecurringItems(data.expenses, originalExpense, updatedFields,
@@ -1408,16 +1414,16 @@ export default function App() {
 
   // Update ideal category limits in bulk
   const handleUpdateCategoryBudgets = async (updatedBudgets: CategoryBudget[]) => {
-    // Update local state optimistically
-    setData(prev => ({ ...prev, categoryBudgets: updatedBudgets }));
-
-    if (storageType === 'cloud' && auth?.currentUser?.uid) {
-      const uid = auth.currentUser.uid;
+    if (storageType === 'cloud') {
+      const uid = auth?.currentUser?.uid;
+      if (!uid || !db) throw new Error('Conecte sua conta novamente para salvar as categorias.');
       await setDoc(doc(db!, 'users', uid), cleanDocument({
         uid: uid,
         categoryBudgets: updatedBudgets
-      }), { merge: true }).catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`));
+      }), { merge: true });
+      if (auth?.currentUser?.uid !== uid) return;
     }
+    setData(prev => ({ ...prev, categoryBudgets: updatedBudgets }));
     triggerNotification('Metas limites das categorias reajustadas com sucesso!', 'success');
   };
 
@@ -1610,7 +1616,7 @@ export default function App() {
   }, {} as Record<string, number>);
 
   // Somatória das metas limites de todas as categorias
-  const totalCategoryLimits = effectiveCategoryBudgets.reduce((sum, b) => sum + (b.idealLimit || 0), 0);
+  const totalCategoryLimits = effectiveCategoryBudgets.filter(b => !isArchivedExpenseCategory(effectiveCategoryBudgets, b.category)).reduce((sum, b) => sum + (b.idealLimit || 0), 0);
 
   // Média acumulada geral de todas as despesas por mês
   const uniqueMonthsWithExpenses = Array.from(new Set(data.expenses.map(e => e.month)));
@@ -2420,7 +2426,7 @@ export default function App() {
                     >
                       {mobileModalType === 'expense' ? (
                         <>
-                          {DEFAULT_CATEGORIES.map(cat => (
+                          {getExpenseCategories(effectiveCategoryBudgets, data.expenses).map(cat => (
                             <option key={cat} value={cat}>{cat}</option>
                           ))}
                           <option value="CUSTOM">Outro (Digitar personalizado...)</option>

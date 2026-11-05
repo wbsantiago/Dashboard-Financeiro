@@ -20,7 +20,7 @@ import {
 import { Expense, Revenue, CategoryBudget, MonthlyBudget, CreditCard as CreditCardType, ExpenseEditScope, RecurrenceScope } from '../types';
 import { RecurrenceControls, RecurrenceScopeSelector, EntryType } from './RecurrenceControls';
 import { EntryFilters } from './EntryFilters';
-import { getCategoryColor } from '../utils/categories';
+import { getCategoryColor, getExpenseCategories } from '../utils/categories';
 import { getCardFilterOptions, matchesCardFilter } from '../utils/expenseFilters';
 import { validateRecurrenceMonths } from '../utils/recurrence';
 import { formatCurrency, formatMonthName, formatDate, getInstallmentInfo, getCompetenceMonth } from '../utils/format';
@@ -79,7 +79,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   onDeleteCreditCard,
   onPayCardBill,
 }) => {
-  const expenseCategories = [...new Set<string>([...DEFAULT_CATEGORIES, ...categoryBudgets.map(b => b.category), ...expenses.map(e => e.category)])];
+  const expenseCategories = React.useMemo(() => getExpenseCategories(categoryBudgets, expenses), [categoryBudgets, expenses]);
   // Navigation Tabs at top: expenses (Saídas) or revenues (Entradas)
   const [activeTab, setActiveTab] = useState<'expenses' | 'revenues'>('expenses');
   const [showEntryForm, setShowEntryForm] = useState(false);
@@ -139,6 +139,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
   const [customCategory, setCustomCategory] = useState('');
   const [isCustomCategory, setIsCustomCategory] = useState(false);
+  useEffect(() => {
+    if (!isCustomCategory && !expenseCategories.includes(category)) setCategory(expenseCategories[0]);
+  }, [expenseCategories, category, isCustomCategory]);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [expenseEntryType, setExpenseEntryType] = useState<EntryType>('single');
   const isInstallment = expenseEntryType === 'installment';
@@ -220,7 +223,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
     setEditCardLastDigits(exp.cardLastDigits || '');
     const initialCardId = exp.cardId || (exp.paymentMethod === 'card' && exp.cardLastDigits ? (creditCards.find(c => c.lastDigits === exp.cardLastDigits)?.id || '') : '');
     setEditSelectedCardId(initialCardId);
-    if (expenseCategories.includes(exp.category)) {
+    if (getExpenseCategories(categoryBudgets, expenses, exp.category).includes(exp.category)) {
       setEditCategory(exp.category);
       setIsEditCustomCategory(false);
     } else {
@@ -1821,7 +1824,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                     }}
                     className="w-full px-3 py-1.5 text-xs border border-white/10 bg-zinc-900 text-white rounded-xl focus:border-indigo-500 outline-none transition-all cursor-pointer"
                   >
-                    {expenseCategories.map((cat) => (
+                    {getExpenseCategories(categoryBudgets, expenses, editingExpense.category).map((cat) => (
                       <option key={cat} value={cat} className="bg-zinc-900">
                         {cat}
                       </option>

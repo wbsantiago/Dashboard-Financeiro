@@ -1,5 +1,5 @@
 import { PrivateValue, PrivateAmountInput } from './PrivateValue';
-import React, { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { 
   PieChart, 
   Pie, 
@@ -15,17 +15,20 @@ import {
   Flame, 
   PieChart as PieIcon, 
   List,
-  DollarSign
+  DollarSign,
+  Archive,
+  RotateCcw
 } from 'lucide-react';
 import { CategoryBudget } from '../types';
 import { formatCurrency } from '../utils/format';
-import { categoryBudgetUsage, getCategoryColor } from '../utils/categories';
+import { categoryBudgetUsage, getCategoryColor, isCustomExpenseCategory } from '../utils/categories';
 import { useChartEntrance } from '../hooks/useChartEntrance';
+import './CategoryBudgets.css';
 
 interface CategoryBudgetsProps {
   categoryBudgets: CategoryBudget[];
   expensesByCategory: Record<string, number>;
-  onUpdateBudgets: (updatedBudgets: CategoryBudget[]) => void;
+  onUpdateBudgets: (updatedBudgets: CategoryBudget[]) => void | Promise<void>;
 }
 
 export interface CategoryBudgetsHandle {
@@ -41,12 +44,28 @@ export const CategoryBudgets = forwardRef<CategoryBudgetsHandle, CategoryBudgets
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [localLimits, setLocalLimits] = useState<Record<string, string>>({});
-
-  // Calculate sum of all category ideal limits
-  const totalCategoryLimits = categoryBudgets.reduce((sum, b) => sum + (b.idealLimit || 0), 0);
+  const [localArchived, setLocalArchived] = useState<Record<string, boolean>>({});
+  const [showArchived, setShowArchived] = useState(false);
+  const [isSavingLimits, setIsSavingLimits] = useState(false);
+  const [limitsError, setLimitsError] = useState('');
+  const modalRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!isModalOpen) return;
+    const previousFocus = document.activeElement;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    modalRef.current?.querySelector<HTMLButtonElement>('[aria-label="Fechar tetos de gastos"]')?.focus({ preventScroll: true });
+    return () => {
+      document.body.style.overflow = overflow;
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus({ preventScroll: true });
+    };
+  }, [isModalOpen]);
+  const archivedInDraft = (budget: CategoryBudget) => isCustomExpenseCategory(budget.category) && (Object.hasOwn(localArchived, budget.category) ? localArchived[budget.category] === true : budget.archived === true);
+  const archivedCount = categoryBudgets.filter(archivedInDraft).length;
+  const visibleBudgets = categoryBudgets.filter(b => archivedInDraft(b) === showArchived);
 
   // Live total category limit as edited in modal
-  const liveModalTotalCategoryLimits = categoryBudgets.reduce((sum, b) => {
+  const liveModalTotalCategoryLimits = categoryBudgets.filter(b => !archivedInDraft(b)).reduce((sum, b) => {
     const rawVal = localLimits[b.category];
     const val = rawVal !== undefined ? parseFloat(rawVal) : b.idealLimit;
     return sum + (!isNaN(val) && val >= 0 ? val : 0);
@@ -71,28 +90,36 @@ export const CategoryBudgets = forwardRef<CategoryBudgetsHandle, CategoryBudgets
 
   // Setup modal with existing budget limits
   const handleOpenModal = () => {
-    const limits: Record<string, string> = {};
-    categoryBudgets.forEach(b => {
-      limits[b.category] = b.idealLimit.toString();
-    });
+    const limits = Object.fromEntries(categoryBudgets.map(b => [b.category, String(b.idealLimit)]));
     setLocalLimits(limits);
+    setLocalArchived(Object.fromEntries(categoryBudgets.map(b => [b.category, b.archived === true])));
+    setShowArchived(false);
+    setLimitsError('');
     setIsModalOpen(true);
   };
   useImperativeHandle(ref, () => ({ openLimits: handleOpenModal }));
 
   // Save all modified limits
-  const handleSaveAllLimits = (e: React.FormEvent) => {
+  const handleSaveAllLimits = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSavingLimits) return;
     const updatedBudgets = categoryBudgets.map(b => {
       const rawVal = localLimits[b.category];
       const newVal = rawVal !== undefined ? parseFloat(rawVal) : b.idealLimit;
-      return {
-        category: b.category,
-        idealLimit: !isNaN(newVal) && newVal >= 0 ? newVal : b.idealLimit
+      const { archived, ...savedBudget } = b;
+      return { ...savedBudget,
+        idealLimit: !isNaN(newVal) && newVal >= 0 ? newVal : b.idealLimit,
+        ...(archivedInDraft(b) ? { archived: true } : {}),
       };
     });
-    onUpdateBudgets(updatedBudgets);
-    setIsModalOpen(false);
+    setIsSavingLimits(true);
+    setLimitsError('');
+    try {
+      await onUpdateBudgets(updatedBudgets);
+      setIsModalOpen(false);
+    } catch {
+      setLimitsError('Não foi possível salvar as categorias. Seus lançamentos foram preservados. Verifique a conexão e tente novamente.');
+    } finally { setIsSavingLimits(false); }
   };
 
   return (
@@ -124,10 +151,19 @@ export const CategoryBudgets = forwardRef<CategoryBudgetsHandle, CategoryBudgets
       </div>
       {/* FULLSCREEN DIMMED MODAL FOR CATEGORY LIMITS CONFIGURATION */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-55 flex items-center justify-center p-4">
-          <div 
-            className="bg-[#141414] border border-white/10 max-w-lg w-full rounded-2xl p-6 shadow-2xl flex flex-col gap-4 max-h-[90vh]" 
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-55 flex items-center justify-center p-4" onMouseDown={e => { if (e.target === e.currentTarget && !isSavingLimits) setIsModalOpen(false); }}>
+          <div ref={modalRef}
+            className="category-limits-modal bg-[#141414] border border-white/10 max-w-lg w-full rounded-2xl p-6 shadow-2xl flex flex-col gap-4 max-h-[90vh]"
             id="budget-modal-surface"
+            role="dialog" aria-modal="true" aria-labelledby="category-limits-title"
+            onKeyDown={e => {
+              if (e.key === 'Escape' && !isSavingLimits) { e.preventDefault(); setIsModalOpen(false); }
+              if (e.key !== 'Tab') return;
+              const controls = [...(modalRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)') ?? [])].filter(el => el.getClientRects().length > 0);
+              const first = controls[0], last = controls[controls.length - 1];
+              if (e.shiftKey && (document.activeElement === first || !controls.includes(document.activeElement as HTMLElement))) { e.preventDefault(); last?.focus(); }
+              else if (!e.shiftKey && (document.activeElement === last || !controls.includes(document.activeElement as HTMLElement))) { e.preventDefault(); first?.focus(); }
+            }}
           >
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3.5 border-b border-white/5 shrink-0">
@@ -136,13 +172,14 @@ export const CategoryBudgets = forwardRef<CategoryBudgetsHandle, CategoryBudgets
                   <Sliders className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">Teto de Gastos Adotado</h3>
-                  <p className="text-[10px] text-slate-400 font-medium">Configure limites mensais recomendados para cada setor</p>
+                  <h3 id="category-limits-title" className="category-limits-title">Tetos de gastos</h3>
+                  <p className="category-limits-description">Configure o limite mensal de cada categoria.</p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setIsModalOpen(false)}
+                aria-label="Fechar tetos de gastos"
+                disabled={isSavingLimits} onClick={() => setIsModalOpen(false)}
                 className="text-slate-400 hover:text-white p-1 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -152,27 +189,34 @@ export const CategoryBudgets = forwardRef<CategoryBudgetsHandle, CategoryBudgets
             {/* Modal Limits Config List */}
             <form onSubmit={handleSaveAllLimits} className="flex-grow flex flex-col min-h-0">
               {/* Real-time Total Category Ceiling Banner */}
-              <div className="bg-indigo-950/40 border border-indigo-500/20 rounded-xl p-3 mb-3 flex items-center justify-between gap-3 shrink-0">
+              <div className="category-limits-summary border rounded-xl p-3 mb-3 flex items-center justify-between gap-3 shrink-0">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="p-2 rounded-lg bg-indigo-500/20 text-indigo-300 shrink-0">
+                  <div className="category-limits-summary-icon p-2 rounded-lg shrink-0">
                     <DollarSign className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
-                    <span className="text-[10px] uppercase font-bold text-indigo-300 tracking-wider block truncate">
-                      Teto Total Estipulado (Somatória)
+                    <span className="category-limits-summary-title block">
+                      Total dos tetos
                     </span>
-                    <span className="text-[10px] text-slate-400 font-medium truncate block">
-                      Soma de todas as metas individuais de gastos das categorias
+                    <span className="category-limits-description block">
+                      Soma dos limites das categorias ativas.
                     </span>
                   </div>
                 </div>
-                <PrivateValue as="div" className="text-right font-mono font-black text-sm sm:text-base text-indigo-300 privacy-value shrink-0">
+                <PrivateValue as="div" className="category-limits-total text-right privacy-value shrink-0">
                   {formatCurrency(liveModalTotalCategoryLimits)}
                 </PrivateValue>
               </div>
 
+              <div className="category-limits-tabs" role="group" aria-label="Categorias exibidas">
+                <button type="button" aria-pressed={!showArchived} onClick={() => setShowArchived(false)}>Ativas ({categoryBudgets.length - archivedCount})</button>
+                <button type="button" aria-pressed={showArchived} onClick={() => setShowArchived(true)}>Arquivadas ({archivedCount})</button>
+              </div>
+              <p className="category-limits-archive-note">Arquivar retira a categoria de novos lançamentos em todos os meses. As despesas já registradas são preservadas.</p>
+              {limitsError && <p className="category-limits-error" role="alert">{limitsError}</p>}
               <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin max-h-[50vh] py-1">
-                {categoryBudgets.map((budget) => {
+                {visibleBudgets.length === 0 && <p className="category-limits-description">{showArchived ? 'Nenhuma categoria arquivada.' : 'Nenhuma categoria ativa.'}</p>}
+                {visibleBudgets.map((budget) => {
                   const spent = expensesByCategory[budget.category] || 0;
                   const categoryColor = getCategoryColor(budget.category);
                   const currentLimitValue = localLimits[budget.category] || '0';
@@ -197,25 +241,29 @@ export const CategoryBudgets = forwardRef<CategoryBudgetsHandle, CategoryBudgets
                   return (
                     <div 
                       key={budget.category} 
-                      className="p-3.5 rounded-xl border border-white/5 bg-zinc-900/20 hover:bg-zinc-900/50 transition-colors flex flex-col gap-2.5"
+                      data-category={budget.category}
+                      className="category-limits-row p-3.5 rounded-xl border border-white/5 bg-zinc-900/20 flex flex-col gap-2.5"
                     >
                       <div className="flex items-center justify-between gap-2">
                         {/* Sector identifier */}
                         <div className="flex items-center gap-2">
                           <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: categoryColor }} />
-                          <span className="font-extrabold text-[#f1f1f1] text-[11px]">{budget.category}</span>
+                          <span className="category-limits-name">{budget.category}</span>
                         </div>
                         {/* Real spent status display */}
-                        <div className="text-right text-[10px] font-semibold text-slate-400">
+                        <div className="category-limits-row-tools"><div className="category-limits-spent text-right">
                           Gasto Real: <PrivateValue as="span" className="text-white privacy-value font-bold font-mono">{formatCurrency(spent)}</PrivateValue>
-                        </div>
+                        </div>{isCustomExpenseCategory(budget.category) && <button type="button" className="category-limits-archive" disabled={isSavingLimits} aria-label={`${showArchived ? 'Restaurar' : 'Arquivar'} categoria ${budget.category}`} title={showArchived ? 'Restaurar categoria' : 'Arquivar categoria'} onClick={() => {
+                          setLocalArchived(prev => ({ ...prev, [budget.category]: !archivedInDraft(budget) }));
+                          modalRef.current?.querySelector<HTMLButtonElement>('.category-limits-tabs button[aria-pressed="true"]')?.focus({ preventScroll: true });
+                        }}>{showArchived ? <RotateCcw size={16} /> : <Archive size={16} />}</button>}</div>
                       </div>
 
                       {/* Inputs row */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                      {showArchived ? <p className="category-limits-description">Arquivada. Os lançamentos existentes mantêm esta categoria e o limite anterior.</p> : <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
                         <div>
-                          <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                            Teto Máximo (R$)
+                          <label className="category-limits-label block mb-1.5">
+                            Limite mensal (R$)
                           </label>
                           <div className="relative">
                             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-500 font-mono">
@@ -223,6 +271,7 @@ export const CategoryBudgets = forwardRef<CategoryBudgetsHandle, CategoryBudgets
                             </span>
                             <PrivateAmountInput
                               type="number"
+                              disabled={isSavingLimits}
                               aria-label={`Limite de ${budget.category}`}
                               placeholder="Sem teto"
                               value={localLimits[budget.category] ?? ''}
@@ -250,7 +299,7 @@ export const CategoryBudgets = forwardRef<CategoryBudgetsHandle, CategoryBudgets
                                 </span>
                                 <span className="font-mono text-slate-350" style={usage.severe ? { color: 'var(--sereno-severe)' } : undefined}>{usage.percentage === null ? 'Limite zerado excedido' : `${percent}% comprometido`}</span>
                               </div>
-                              <div className="w-full h-1 bg-zinc-950 rounded-full overflow-hidden">
+                              <div className="category-limits-track w-full h-1 rounded-full overflow-hidden">
                                 <div 
                                   className={`h-full rounded-full ${usage.exceeded ? 'bg-rose-500' : spent >= limit * 0.8 ? 'bg-amber-500' : 'bg-emerald-500'}`}
                                   style={{ width: `${usage.fillPercentage ?? 0}%`, backgroundColor: usage.exceeded ? (usage.severe ? 'var(--sereno-severe-fill)' : 'var(--sereno-danger-fill)') : undefined }}
@@ -263,7 +312,7 @@ export const CategoryBudgets = forwardRef<CategoryBudgetsHandle, CategoryBudgets
                             </div>
                           )}
                         </div>
-                      </div>
+                      </div>}
                     </div>
                   );
                 })}
@@ -273,6 +322,7 @@ export const CategoryBudgets = forwardRef<CategoryBudgetsHandle, CategoryBudgets
               <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-white/5 shrink-0">
                 <button
                   type="button"
+                  disabled={isSavingLimits}
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2 text-xs font-bold text-slate-450 hover:text-white bg-zinc-900/40 hover:bg-zinc-900 rounded-xl border border-white/5 transition-colors cursor-pointer"
                 >
@@ -280,10 +330,11 @@ export const CategoryBudgets = forwardRef<CategoryBudgetsHandle, CategoryBudgets
                 </button>
                 <button
                   type="submit"
+                  disabled={isSavingLimits}
                   className="px-4 py-2 text-xs font-black text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all cursor-pointer shadow-md shadow-indigo-600/10 flex items-center gap-1"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  Salvar Configuração
+                  {isSavingLimits ? 'Salvando…' : 'Salvar Configuração'}
                 </button>
               </div>
             </form>

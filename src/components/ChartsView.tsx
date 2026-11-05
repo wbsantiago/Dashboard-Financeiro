@@ -2,7 +2,7 @@ import { PrivateValue } from './PrivateValue';
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Curve } from 'recharts';
 import { CategoryBudget, Expense } from '../types';
-import { categoryBudgetUsage } from '../utils/categories';
+import { categoryBudgetUsage, isArchivedExpenseCategory } from '../utils/categories';
 import { formatCurrency } from '../utils/format';
 import { useChartEntrance } from '../hooks/useChartEntrance';
 
@@ -12,8 +12,12 @@ export const ChartsView: React.FC<ChartProps & { categoryBudgets: CategoryBudget
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const rows = useMemo(() => {
     const values = new Map<string, { spent: number; limit: number }>();
-    categoryBudgets.forEach(b => values.set(b.category, { spent: 0, limit: b.idealLimit }));
-    expenses.filter(e => e.month === selectedMonth).forEach(e => {
+    const monthExpenses = expenses.filter(e => e.month === selectedMonth);
+    const usedCategories = new Set(monthExpenses.map(e => e.category));
+    categoryBudgets.forEach(b => {
+      if (!isArchivedExpenseCategory(categoryBudgets, b.category) || usedCategories.has(b.category)) values.set(b.category, { spent: 0, limit: b.idealLimit });
+    });
+    monthExpenses.forEach(e => {
       const row = values.get(e.category) || { spent: 0, limit: 0 };
       row.spent += e.value;
       values.set(e.category, row);
@@ -45,7 +49,7 @@ export const ChartsView: React.FC<ChartProps & { categoryBudgets: CategoryBudget
         </div>
       </div>
     </div>
-    <p className="sereno-chart-note" aria-live="polite">{active && <><strong>{active.category}</strong>: <PrivateValue className="privacy-value">{formatCurrency(active.spent)}</PrivateValue>{active.limit > 0 ? <> de <PrivateValue className="privacy-value">{formatCurrency(active.limit)}</PrivateValue> planejados{active.spent > active.limit ? ' · Acima do limite.' : '.'}</> : active.spent > 0 ? ' · Limite zerado excedido.' : ' · Sem limite definido.'}</>}</p>
+    <p className="sereno-chart-note" aria-live="polite">{active && <><strong>{active.category}</strong>: <PrivateValue className="privacy-value">{formatCurrency(active.spent)}</PrivateValue>{active.limit > 0 ? <> de <PrivateValue className="privacy-value">{formatCurrency(active.limit)}</PrivateValue> planejados{active.spent > active.limit ? ' · Acima do limite.' : '.'}</> : active.spent > 0 ? ' · Limite zerado excedido.' : ' · Sem limite definido.'}{isArchivedExpenseCategory(categoryBudgets, active.category) && ' · Categoria arquivada.'}</>}</p>
     <p className="category-usage-explanation">Cada coluna preenche até 100% do próprio limite. Sem teto definido, qualquer gasto é sinalizado como limite excedido.</p>
   </section>;
 };

@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Expense } from '../src/types';
-import { categoryBudgetUsage, getCategoryColor, mergeCategoryBudgets } from '../src/utils/categories';
+import { categoryBudgetUsage, getCategoryColor, getExpenseCategories, isArchivedExpenseCategory, isCustomExpenseCategory, mergeCategoryBudgets } from '../src/utils/categories';
+import { DEFAULT_CATEGORIES, INITIAL_MOCK_DATA, importDataFromJSON } from '../src/utils/storage';
 
 const expense = (category: string, month: string): Expense => ({
   id: `${category}-${month}`, category, title: 'Despesa', month, date: `${month}-10`,
@@ -56,4 +57,38 @@ test('custom category colors are deterministic and standard category colors stay
   assert.equal(getCategoryColor('Pet'), getCategoryColor('Pet'));
   assert.match(getCategoryColor('Veterinário 🐕'), /^#[0-9a-f]{6}$/i);
   assert.match(getCategoryColor('constructor'), /^#[0-9a-f]{6}$/i);
+});
+
+test('archived custom categories stay in the catalogue and history but leave new-entry options', () => {
+  const budgets = [{ category: 'Pet', idealLimit: 120, archived: true }, { category: 'Viagens antigas', idealLimit: 50 }];
+  const expenses = [expense('Pet', '2025-02'), expense('Pet', '2027-01'), expense('Outra', '2026-11')];
+  const before = structuredClone(expenses);
+  const merged = mergeCategoryBudgets(budgets, expenses);
+  assert.deepEqual(merged.find(b => b.category === 'Pet'), budgets[0]);
+  assert.equal(getExpenseCategories(merged, expenses).includes('Pet'), false);
+  assert.equal(getExpenseCategories(merged, expenses, 'Pet').includes('Pet'), true);
+  assert.equal(getExpenseCategories(merged, expenses).includes('Outra'), true);
+  assert.deepEqual(expenses, before);
+  const restored = merged.map(({ archived, ...budget }) => budget);
+  assert.equal(getExpenseCategories(restored, expenses).includes('Pet'), true);
+  assert.equal(restored.find(b => b.category === 'Pet')!.idealLimit, 120);
+});
+
+test('standard categories cannot be archived, including by old or malformed backups', () => {
+  for (const category of DEFAULT_CATEGORIES) {
+    assert.equal(isCustomExpenseCategory(category), false);
+    assert.equal(isArchivedExpenseCategory([{ category, idealLimit: 0, archived: true }], category), false);
+    assert.ok(getExpenseCategories([{ category, idealLimit: 0, archived: true }], []).includes(category));
+  }
+});
+
+test('backup round-trip preserves custom archive state and legacy backups stay active', () => {
+  const data = structuredClone(INITIAL_MOCK_DATA);
+  data.categoryBudgets.push({ category: 'Pet', idealLimit: 120.5, archived: true });
+  data.expenses = [expense('Pet', '2025-01'), expense('Pet', '2027-01')];
+  const restored = importDataFromJSON(JSON.stringify(data));
+  assert.deepEqual(restored.categoryBudgets.find(b => b.category === 'Pet'), { category: 'Pet', idealLimit: 120.5, archived: true });
+  assert.deepEqual(restored.expenses.map(({ id, category, value, month, date }) => ({ id, category, value, month, date })), data.expenses.map(({ id, category, value, month, date }) => ({ id, category, value, month, date })));
+  const legacy = importDataFromJSON(JSON.stringify(INITIAL_MOCK_DATA));
+  assert.ok(legacy.categoryBudgets.every(b => !b.archived));
 });

@@ -1,5 +1,18 @@
 import type { CategoryBudget, Expense } from '../types';
-import { CATEGORY_COLORS } from './storage';
+import { CATEGORY_COLORS, DEFAULT_CATEGORIES } from './storage';
+
+export function isCustomExpenseCategory(category: string): boolean {
+  return !DEFAULT_CATEGORIES.includes(category);
+}
+
+export function isArchivedExpenseCategory(budgets: CategoryBudget[], category: string): boolean {
+  return isCustomExpenseCategory(category) && budgets.some(b => b.category === category && b.archived === true);
+}
+
+export function getExpenseCategories(budgets: CategoryBudget[], expenses: Expense[], editingCategory?: string): string[] {
+  return [...new Set([...DEFAULT_CATEGORIES, ...budgets.map(b => b.category), ...expenses.map(e => e.category)])]
+    .filter(category => category === editingCategory || !isArchivedExpenseCategory(budgets, category));
+}
 
 /** Include historical/new expense categories without silently writing to a user's profile. */
 export function mergeCategoryBudgets(budgets: CategoryBudget[], expenses: Expense[]): CategoryBudget[] {

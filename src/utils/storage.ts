@@ -238,7 +238,8 @@ export function importDataFromJSON(jsonString: string): AppData {
       : [],
     categoryBudgets: parsed.categoryBudgets.map((b: any) => ({
       category: String(b.category),
-      idealLimit: Number(b.idealLimit || 0)
+      idealLimit: Number(b.idealLimit || 0),
+      ...(b.archived === true && !DEFAULT_CATEGORIES.includes(String(b.category)) ? { archived: true } : {}),
     })),
     monthlyBudgets: Array.isArray(parsed.monthlyBudgets) 
       ? parsed.monthlyBudgets.map((m: any) => ({

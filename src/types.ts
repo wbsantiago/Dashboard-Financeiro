@@ -44,6 +44,7 @@ export interface Revenue extends RecurrenceFields {
 export interface CategoryBudget {
   category: string;
   idealLimit: number; // Teto de gastos ideal para esta categoria
+  archived?: boolean; // Custom category retained for historical entries, unavailable for new ones.
 }
 
 export interface MonthlyBudget {
