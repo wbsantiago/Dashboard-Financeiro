@@ -37,6 +37,7 @@ import { getExpenseCategories, isArchivedExpenseCategory, mergeCategoryBudgets }
 import { createDemoData } from './utils/demoData';
 import { demoMode } from './utils/demoMode';
 import { formatCurrency, formatMonthName, getCurrentMonthStr, getInstallmentInfo, getCompetenceMonth } from './utils/format';
+import { useCompetenceMonth } from './hooks/useCompetenceMonth';
 
 import { 
   db, 
@@ -123,13 +124,9 @@ export default function App() {
 
   // Load initial state
   const [data, setData] = useState<AppData>(() => demoMode ? createDemoData(2026) : loadAppData());
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    if (demoMode) return '2026-10';
-    const initialData = loadAppData();
-    const d = new Date();
-    const currentDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    return getCompetenceMonth(currentDateStr, initialData.monthlyBudgets, initialData.defaultCardClosingDay ?? 5);
-  });
+  const [selectedMonth, setSelectedMonth] = useCompetenceMonth(
+    data.monthlyBudgets, data.defaultCardClosingDay ?? 5, demoMode ? '2026-10' : undefined
+  );
   
   // UI States
   const [activeView, setActiveView] = useState<'monthly' | 'entries' | 'annual'>('monthly');
@@ -1512,6 +1509,11 @@ export default function App() {
       budgetsCopy.push(newBudget);
     }
 
+    if (storageType === 'cloud' && (!auth?.currentUser?.uid || !db)) {
+      triggerNotification('Entre novamente na conta Google antes de salvar o planejamento.', 'error');
+      return;
+    }
+
     if (storageType === 'cloud' && auth?.currentUser?.uid) {
       const uid = auth.currentUser.uid;
       await setDoc(doc(db!, 'users', uid), cleanDocument({
@@ -1519,14 +1521,15 @@ export default function App() {
         monthlyBudgets: budgetsCopy,
         defaultMonthlySalary: sal,
         defaultTargetSavingsPercentage: savingsInput,
-        defaultCardClosingDay: data.defaultCardClosingDay ?? 5
+        defaultCardClosingDay: closingDayVal
       }), { merge: true }).catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`));
     } else {
       setData(prev => ({
         ...prev,
         monthlyBudgets: budgetsCopy,
         defaultMonthlySalary: sal,
-        defaultTargetSavingsPercentage: savingsInput
+        defaultTargetSavingsPercentage: savingsInput,
+        defaultCardClosingDay: closingDayVal
       }));
     }
 
@@ -1857,7 +1860,7 @@ export default function App() {
                   />
                 </div>
                 <span className="text-[9.5px] text-slate-500 block mt-1 font-medium leading-none select-none">
-                  Contas até este dia caem no mês anterior (use 0 para desativar).
+                  Até este dia, o painel e as contas ficam no mês anterior; a virada ocorre no dia seguinte. Vale para este mês e como padrão para meses sem configuração própria (0 desativa).
                 </span>
               </div>
 
