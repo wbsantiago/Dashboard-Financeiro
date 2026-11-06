@@ -108,6 +108,12 @@ export function getInstallmentInfo(exp: {
   };
 }
 
+// O ciclo em andamento usa o fechamento do mês do calendário, mesmo antes da virada.
+// Meses consultados fora desse ciclo mantêm sua configuração histórica.
+export function getClosingConfigurationMonth(selectedMonth: string, currentMonth: string, calendarMonth: string): string {
+  return selectedMonth === currentMonth || selectedMonth === calendarMonth ? calendarMonth : selectedMonth;
+}
+
 // Retorna o dia de fechamento de cartão configurado para o mês ou o padrão
 export function getClosingDayForMonth(
   monthStr: string,

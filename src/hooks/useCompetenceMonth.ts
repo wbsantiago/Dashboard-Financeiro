@@ -28,5 +28,9 @@ export function useCompetenceMonth(budgets: MonthlyBudget[], defaultClosingDay =
   }, [fixedMonth]);
 
   const selectMonth = (month: string) => setManualMonth(month === currentMonth ? null : month);
-  return [manualMonth ?? currentMonth, selectMonth] as const;
+  return [manualMonth ?? currentMonth, selectMonth, {
+    currentMonth,
+    calendarMonth: fixedMonth ?? today.substring(0, 7),
+    followCurrentMonth: () => setManualMonth(null),
+  }] as const;
 }

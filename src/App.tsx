@@ -36,7 +36,7 @@ import { loadAppData, saveAppData, exportDataAsJSON, importDataFromJSON, DEFAULT
 import { getExpenseCategories, isArchivedExpenseCategory, mergeCategoryBudgets } from './utils/categories';
 import { createDemoData } from './utils/demoData';
 import { demoMode } from './utils/demoMode';
-import { formatCurrency, formatMonthName, getCurrentMonthStr, getInstallmentInfo, getCompetenceMonth } from './utils/format';
+import { formatCurrency, formatMonthName, getCurrentMonthStr, getInstallmentInfo, getCompetenceMonth, getClosingDayForMonth, getClosingConfigurationMonth } from './utils/format';
 import { useCompetenceMonth } from './hooks/useCompetenceMonth';
 
 import { 
@@ -124,9 +124,10 @@ export default function App() {
 
   // Load initial state
   const [data, setData] = useState<AppData>(() => demoMode ? createDemoData(2026) : loadAppData());
-  const [selectedMonth, setSelectedMonth] = useCompetenceMonth(
+  const [selectedMonth, setSelectedMonth, monthNavigation] = useCompetenceMonth(
     data.monthlyBudgets, data.defaultCardClosingDay ?? 5, demoMode ? '2026-10' : undefined
   );
+  const closingConfigurationMonth = getClosingConfigurationMonth(selectedMonth, monthNavigation.currentMonth, monthNavigation.calendarMonth);
   
   // UI States
   const [activeView, setActiveView] = useState<'monthly' | 'entries' | 'annual'>('monthly');
@@ -806,8 +807,8 @@ export default function App() {
     const activeBudget = getCurrentMonthBudget();
     setSalaryInput(activeBudget.salary.toString());
     setSavingsInput(activeBudget.targetSavingsPercentage);
-    setCardClosingDayInput(activeBudget.cardClosingDay ?? data.defaultCardClosingDay ?? 5);
-  }, [selectedMonth, data]);
+    setCardClosingDayInput(getClosingDayForMonth(closingConfigurationMonth, data.monthlyBudgets, data.defaultCardClosingDay ?? 5));
+  }, [selectedMonth, closingConfigurationMonth, data]);
 
   // Helper toast notifier
   const triggerNotification = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -1496,17 +1497,31 @@ export default function App() {
 
     const budgetsCopy = [...data.monthlyBudgets];
     const idx = budgetsCopy.findIndex(b => b.month === selectedMonth);
+    const previousClosingDay = getClosingDayForMonth(closingConfigurationMonth, data.monthlyBudgets, data.defaultCardClosingDay ?? 5);
+    const defaultClosingDay = closingConfigurationMonth === monthNavigation.calendarMonth
+      ? closingDayVal : data.defaultCardClosingDay ?? 5;
     const newBudget: MonthlyBudget = {
       month: selectedMonth,
       salary: sal,
       targetSavingsPercentage: savingsInput,
-      cardClosingDay: closingDayVal
+      cardClosingDay: closingConfigurationMonth === selectedMonth
+        ? closingDayVal
+        : getClosingDayForMonth(selectedMonth, data.monthlyBudgets, data.defaultCardClosingDay ?? 5)
     };
 
     if (idx !== -1) {
       budgetsCopy[idx] = newBudget;
     } else {
       budgetsCopy.push(newBudget);
+    }
+
+    if (closingConfigurationMonth !== selectedMonth) {
+      const closingIndex = budgetsCopy.findIndex(b => b.month === closingConfigurationMonth);
+      if (closingIndex !== -1) {
+        budgetsCopy[closingIndex] = { ...budgetsCopy[closingIndex], cardClosingDay: closingDayVal };
+      } else {
+        budgetsCopy.push({ month: closingConfigurationMonth, salary: sal, targetSavingsPercentage: savingsInput, cardClosingDay: closingDayVal });
+      }
     }
 
     if (storageType === 'cloud' && (!auth?.currentUser?.uid || !db)) {
@@ -1521,18 +1536,22 @@ export default function App() {
         monthlyBudgets: budgetsCopy,
         defaultMonthlySalary: sal,
         defaultTargetSavingsPercentage: savingsInput,
-        defaultCardClosingDay: closingDayVal
+        defaultCardClosingDay: defaultClosingDay
       }), { merge: true }).catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`));
+      if (auth?.currentUser?.uid !== uid) return;
     } else {
       setData(prev => ({
         ...prev,
         monthlyBudgets: budgetsCopy,
         defaultMonthlySalary: sal,
         defaultTargetSavingsPercentage: savingsInput,
-        defaultCardClosingDay: closingDayVal
+        defaultCardClosingDay: defaultClosingDay
       }));
     }
 
+    if (closingDayVal !== previousClosingDay && closingConfigurationMonth === monthNavigation.calendarMonth) {
+      monthNavigation.followCurrentMonth();
+    }
     closeSettings();
     triggerNotification(`Planejamento de ${formatMonthName(selectedMonth)} foi atualizado.`);
   };
@@ -1845,7 +1864,7 @@ export default function App() {
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 select-none">
-                  Virada do Cartão (Dia) — {formatMonthName(selectedMonth)}
+                  Virada do Cartão (Dia) — {formatMonthName(closingConfigurationMonth)}
                 </label>
                 <div className="relative mt-1">
                   <input
@@ -1860,7 +1879,9 @@ export default function App() {
                   />
                 </div>
                 <span className="text-[9.5px] text-slate-500 block mt-1 font-medium leading-none select-none">
-                  Até este dia, o painel e as contas ficam no mês anterior; a virada ocorre no dia seguinte. Vale para este mês e como padrão para meses sem configuração própria (0 desativa).
+                  Até este dia, o painel e as contas ficam no mês anterior; a virada ocorre no dia seguinte (0 desativa). {closingConfigurationMonth === monthNavigation.calendarMonth
+                    ? 'Este fechamento controla o ciclo atual, mesmo quando o painel mostra o mês anterior, e vira padrão para meses sem configuração própria.'
+                    : 'Esta alteração vale apenas para o mês indicado; o padrão da virada atual será mantido.'}
                 </span>
               </div>
 
