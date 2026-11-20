@@ -1,0 +1,20 @@
+Entenda seu mês e acompanhe o ano com o Finanças10.
+
+Registre entradas e despesas, organize categorias e acompanhe seu planejamento em gráficos. Cadastre os apelidos dos cartões, defina o fechamento e consulte os lançamentos do mês.
+
+No seu dia a dia:
+• Registre pagamentos à vista, parcelas e despesas ou entradas que se repetem por uma quantidade de meses.
+• Defina limites por categoria e acompanhe quanto já foi utilizado.
+• Pesquise e filtre lançamentos por categoria, pagamento, cartão e situação.
+• Marque pagamentos e acompanhe os gastos de cada cartão.
+• Consulte a distribuição das despesas e o histórico mensal do ano.
+• Alterne entre aparência clara, escura e automática.
+• Oculte os valores na tela sem esconder os gráficos.
+
+Use o modo local para organizar o planejamento neste aparelho, inclusive sem internet. Se preferir conectar sua conta Google, consulte o mesmo planejamento na nuvem no site e no Android. Entrar na conta não envia seus dados locais automaticamente. Para entrar e confirmar alterações na nuvem, mantenha a conexão; a consulta offline depende de um carregamento anterior da conta no aparelho.
+
+Exporte seus registros em um arquivo de backup, escolha onde salvá-lo e compartilhe somente quando quiser. Ao importar, confira o resumo antes de confirmar a substituição da cópia local. A restauração local não substitui os dados da conta Google.
+
+O Finanças10 é uma ferramenta de organização financeira pessoal. Não se conecta a bancos, não realiza pagamentos, não oferece crédito e não recomenda investimentos. Os lançamentos são cadastrados por você. Não informe senhas bancárias, códigos de segurança ou números completos de cartão.
+
+Privacidade e solicitações sobre seus dados estão disponíveis nas configurações e nas páginas públicas do aplicativo.

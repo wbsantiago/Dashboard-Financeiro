@@ -1,0 +1,4 @@
+{
+  "functions": [{ "source": "functions", "codebase": "account-services", "ignore": ["node_modules", "*.test.mjs", "*.log"], "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run check", "npm --prefix \"$RESOURCE_DIR\" test"] }],
+  "firestore": { "rules": "firestore.rules" }
+}

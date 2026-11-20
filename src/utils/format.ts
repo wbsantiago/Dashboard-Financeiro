@@ -5,6 +5,10 @@
 
 import { MonthlyBudget } from '../types';
 
+export function getLocalDateStr(date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 // Formata valores numéricos para Real Brasileiro (R$)
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {

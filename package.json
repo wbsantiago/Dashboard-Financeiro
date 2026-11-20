@@ -4,35 +4,55 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "test": "tsx --test tests/recurrence.test.ts tests/recurrence-flow.test.ts tests/settings.test.ts tests/cookie-consent.test.ts tests/expense-filters.test.ts tests/categories.test.ts tests/category-archive-flow.test.ts tests/tutorials.test.ts tests/onboarding.test.ts tests/competence-month.test.ts",
+    "test": "tsx --test tests/*.test.ts",
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
+    "build:native": "vite build --mode native",
+    "native:sync": "npm run build:native && cap sync android",
+    "native:android": "cap open android",
+    "native:apk": "npm run native:sync && node scripts/build-android.mjs",
+    "preview:native": "vite preview --mode native --host 127.0.0.1 --port 3011 --strictPort",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "native:bundle": "node scripts/build-android-release.mjs",
+    "native:bundle:build": "node scripts/build-android.mjs --release",
+    "test:services": "npm --prefix functions test",
+    "test:services:emulator": "node scripts/test-account-services.mjs",
+    "release:check": "node scripts/check-play-release.mjs"
   },
   "dependencies": {
-    "@google/genai": "^1.29.0",
+    "@capacitor-firebase/authentication": "^8.6.0",
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/network": "^8.0.1",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.3",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
-    "dotenv": "^17.2.3",
-    "express": "^4.21.2",
-    "firebase": "^12.13.0",
+    "firebase": "^12.19.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "recharts": "^3.8.1",
-    "vite": "^6.2.3"
+    "recharts": "^3.8.1"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
+    "@capacitor/cli": "^8.6.0",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
-    "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.3"
+    "vite": "^6.4.6",
+    "vite-plugin-pwa": "^2.0.0"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.7",
+    "workbox-build": {
+      "glob": "^14.0.6"
+    }
   }
 }

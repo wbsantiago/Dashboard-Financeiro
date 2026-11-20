@@ -5,6 +5,11 @@
 
 import { AppData, Expense, Revenue, CategoryBudget, MonthlyBudget } from '../types';
 import { readRecurrenceFields } from './recurrence';
+import { validDate, validDay } from './paymentDates';
+import { getCurrentMonthStr, getLocalDateStr } from './format';
+import { MAX_BACKUP_BYTES } from './backupFiles';
+import { getNativeLocalData, saveNativeLocalData, restoreNativeLocalData } from './nativePersistence';
+export { saveBackupFile as exportDataAsJSON } from './backupFiles';
 
 const STORAGE_KEY = 'controle_financeiro_data';
 
@@ -131,23 +136,18 @@ export const INITIAL_MOCK_DATA: AppData = {
 
 // Initialize or load data from LocalStorage
 export function loadAppData(): AppData {
+  const native = getNativeLocalData();
+  if (native) return native;
   try {
     const dataStr = localStorage.getItem(STORAGE_KEY);
     if (dataStr) {
       const parsed = JSON.parse(dataStr);
-      // Force clean reload if loading outdated categories format
-      const hasOldFormat = !parsed.categoryBudgets || !parsed.categoryBudgets.some((cb: any) => cb.category === 'Presentes');
-      if (hasOldFormat) {
-        // Do not remove account state, privacy choices, or unrelated application storage.
-        saveAppData(INITIAL_MOCK_DATA);
-        return INITIAL_MOCK_DATA;
-      }
       // Basic schema health check
       if (parsed && Array.isArray(parsed.expenses) && Array.isArray(parsed.categoryBudgets)) {
         if (!parsed.revenues) {
           parsed.revenues = [];
         }
-        return parsed as AppData;
+        return { ...structuredClone(INITIAL_MOCK_DATA), ...parsed } as AppData;
       }
     }
   } catch (err) {
@@ -161,35 +161,29 @@ export function loadAppData(): AppData {
 
 // Save data to LocalStorage
 export function saveAppData(data: AppData): void {
+  if (saveNativeLocalData(data)) return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch (err) {
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('local-save-failed'));
     console.error('Error saving app data to localStorage:', err);
   }
 }
 
-// Download state as a JSON file
-export function exportDataAsJSON(data: AppData): void {
-  try {
-    const dataStr = JSON.stringify(data, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-    
-    // Create an anchor node to trigger download
-    const exportFileDefaultName = `financeiro_backup_${new Date().toISOString().split('T')[0]}.json`;
-    
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-  } catch (err) {
-    alert('Erro ao exportar os dados. Por favor, tente novamente.');
-    console.error('Error exporting data:', err);
-  }
+// Parse imported JSON
+export async function restoreAppData(data: AppData) {
+  if (await restoreNativeLocalData(data)) return;
+  // Unlike background saves, an explicit restore must report failure before replacing the screen.
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
-// Parse imported JSON
 export function importDataFromJSON(jsonString: string): AppData {
-  const parsed = JSON.parse(jsonString);
+  if (new TextEncoder().encode(jsonString).length > MAX_BACKUP_BYTES) throw new Error('Use um backup de até 10 MB.');
+  let envelope: any;
+  try { envelope = JSON.parse(jsonString.replace(/^\uFEFF/, '')); }
+  catch { throw new Error('O arquivo não contém um backup JSON válido.'); }
+  if (envelope?.backupVersion !== undefined && envelope.backupVersion !== 1) throw new Error('Versão de backup não suportada.');
+  const parsed = envelope?.backupVersion === 1 ? envelope.data : envelope;
   
   // Validate basic schema structure
   if (!parsed || typeof parsed !== 'object') {
@@ -203,6 +197,39 @@ export function importDataFromJSON(jsonString: string): AppData {
   if (!Array.isArray(parsed.categoryBudgets)) {
     throw new Error('Formato inválido: Campo "categoryBudgets" deve ser um array.');
   }
+  const nonnegative = (value: unknown, name: string) => {
+    if (value !== undefined && (value === null || typeof value !== 'number' && typeof value !== 'string' || String(value).trim() === '' || !Number.isFinite(Number(value)) || Number(value) < 0)) throw new Error(`Valor inválido em ${name}.`);
+  };
+  const records = (key: string, numericFields: string[]) => {
+    if (parsed[key] === undefined) return;
+    if (!Array.isArray(parsed[key]) || parsed[key].length > 20000) throw new Error(`Lista inválida em ${key}.`);
+    const ids = new Set<string>();
+    for (const item of parsed[key]) {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) throw new Error(`Registro inválido em ${key}.`);
+      numericFields.forEach(field => nonnegative(item[field], `${key}.${field}`));
+      if (item.id !== undefined) {
+        if (typeof item.id !== 'string' || !item.id || item.id.length > 150 || ids.has(item.id)) throw new Error(`Identificador inválido ou repetido em ${key}.`);
+        ids.add(item.id);
+      }
+      if (item.month !== undefined && !/^\d{4}-(0[1-9]|1[0-2])$/.test(item.month)) throw new Error('Mês inválido no backup.');
+      if (item.date !== undefined) {
+        const date = new Date(`${item.date}T12:00:00Z`);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(item.date) || !Number.isFinite(date.getTime()) || date.toISOString().slice(0,10) !== item.date) throw new Error('Data inválida no backup.');
+      }
+      if (item.dueDate !== undefined && item.dueDate !== null && !validDate(item.dueDate)) throw new Error('Vencimento inválido no backup.');
+      for (const field of ['closingDay', 'dueDay']) if (item[field] !== undefined && !validDay(item[field])) throw new Error('Dia do cartão inválido no backup.');
+      if (item.targetSavingsPercentage !== undefined && Number(item.targetSavingsPercentage) > 100) throw new Error('Meta de poupança inválida.');
+      if (item.cardClosingDay !== undefined && (!Number.isInteger(Number(item.cardClosingDay)) || Number(item.cardClosingDay) > 31)) throw new Error('Dia de fechamento inválido.');
+    }
+  };
+  records('expenses', ['value', 'createdAt', 'totalInstallments', 'currentInstallment']);
+  records('revenues', ['value', 'createdAt']); records('categoryBudgets', ['idealLimit']);
+  records('monthlyBudgets', ['salary', 'targetSavingsPercentage', 'cardClosingDay']); records('creditCards', []);
+  if (parsed.primaryCardId != null && (typeof parsed.primaryCardId !== 'string' || !parsed.creditCards?.some((c) => c.id === parsed.primaryCardId && validDay(c.closingDay)))) throw new Error('Cartão principal inválido no backup.');
+  nonnegative(parsed.defaultMonthlySalary, 'salário padrão');
+  nonnegative(parsed.defaultTargetSavingsPercentage, 'poupança padrão');
+  nonnegative(parsed.defaultCardClosingDay, 'fechamento padrão');
+  if (Number(parsed.defaultTargetSavingsPercentage) > 100 || (parsed.defaultCardClosingDay !== undefined && (!Number.isInteger(Number(parsed.defaultCardClosingDay)) || Number(parsed.defaultCardClosingDay) > 31))) throw new Error('Configuração padrão inválida.');
   
   // Clean, map, and return matching schema
   const cleanData: AppData = {
@@ -211,14 +238,16 @@ export function importDataFromJSON(jsonString: string): AppData {
       title: String(e.title || 'Despesa Importada'),
       value: Number(e.value || 0),
       category: String(e.category || 'Outros'),
-      month: String(e.month || new Date().toISOString().substring(0, 7)),
+      month: String(e.month || getCurrentMonthStr()),
       isInstallment: Boolean(e.isInstallment),
       totalInstallments: e.totalInstallments ? Number(e.totalInstallments) : undefined,
       currentInstallment: e.currentInstallment ? Number(e.currentInstallment) : undefined,
-      date: String(e.date || new Date().toISOString().split('T')[0]),
-      createdAt: e.createdAt ? Number(e.createdAt) : Date.now(),
+      ...(e.firstInstallmentInNextMonth !== undefined ? { firstInstallmentInNextMonth: Boolean(e.firstInstallmentInNextMonth) } : {}),
+      date: String(e.date || getLocalDateStr()),
+      createdAt: e.createdAt !== undefined ? Number(e.createdAt) : Date.now(),
       paid: e.paid !== undefined ? Boolean(e.paid) : false,
       paymentMethod: e.paymentMethod,
+      ...(e.dueDate !== undefined ? { dueDate: e.dueDate } : {}),
       cardLastDigits: e.cardLastDigits,
       cardId: e.cardId,
       cardNickname: e.cardNickname,
@@ -230,9 +259,9 @@ export function importDataFromJSON(jsonString: string): AppData {
           title: String(r.title || 'Rendimento Importado'),
           value: Number(r.value || 0),
           category: String(r.category || 'Outros Rendimentos'),
-          month: String(r.month || new Date().toISOString().substring(0, 7)),
-          date: String(r.date || new Date().toISOString().split('T')[0]),
-          createdAt: r.createdAt ? Number(r.createdAt) : Date.now(),
+          month: String(r.month || getCurrentMonthStr()),
+          date: String(r.date || getLocalDateStr()),
+          createdAt: r.createdAt !== undefined ? Number(r.createdAt) : Date.now(),
           ...readRecurrenceFields(r),
         }))
       : [],
@@ -245,7 +274,7 @@ export function importDataFromJSON(jsonString: string): AppData {
       ? parsed.monthlyBudgets.map((m: any) => ({
           month: String(m.month),
           salary: Number(m.salary || 0),
-          targetSavingsPercentage: Number(m.targetSavingsPercentage || 20),
+          targetSavingsPercentage: Number(m.targetSavingsPercentage ?? 20),
           cardClosingDay: m.cardClosingDay !== undefined ? Number(m.cardClosingDay) : undefined
         }))
       : [],
@@ -253,11 +282,14 @@ export function importDataFromJSON(jsonString: string): AppData {
       ? parsed.creditCards.map((c: any) => ({
           id: String(c.id),
           name: String(c.name),
-          lastDigits: String(c.lastDigits)
+          lastDigits: String(c.lastDigits),
+          ...(c.closingDay !== undefined ? { closingDay: c.closingDay } : {}),
+          ...(c.dueDay !== undefined ? { dueDay: c.dueDay } : {})
         }))
       : [],
-    defaultMonthlySalary: Number(parsed.defaultMonthlySalary || 4500.00),
-    defaultTargetSavingsPercentage: Number(parsed.defaultTargetSavingsPercentage || 20),
+    ...(parsed.primaryCardId !== undefined ? { primaryCardId: parsed.primaryCardId } : {}),
+    defaultMonthlySalary: Number(parsed.defaultMonthlySalary ?? 0),
+    defaultTargetSavingsPercentage: Number(parsed.defaultTargetSavingsPercentage ?? 20),
     defaultCardClosingDay: parsed.defaultCardClosingDay !== undefined ? Number(parsed.defaultCardClosingDay) : 5
   };
   

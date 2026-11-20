@@ -31,26 +31,44 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 
 import { AppData, Expense, Revenue, CategoryBudget, MonthlyBudget, CreditCard, ExpenseEditScope, RecurrenceScope } from './types';
-import { createMonthlyOccurrences, selectRecurringItems, updateRecurringItems, readRecurrenceFields } from './utils/recurrence';
-import { loadAppData, saveAppData, exportDataAsJSON, importDataFromJSON, DEFAULT_CATEGORIES, DEFAULT_REVENUE_CATEGORIES, INITIAL_MOCK_DATA } from './utils/storage';
+import { createMonthlyOccurrences, selectRecurringItems, updateRecurringItems, readRecurrenceFields, shiftMonthlyDate } from './utils/recurrence';
+import { loadAppData, saveAppData, restoreAppData, exportDataAsJSON, importDataFromJSON, DEFAULT_CATEGORIES, DEFAULT_REVENUE_CATEGORIES, INITIAL_MOCK_DATA } from './utils/storage';
+import { shareBackupFile, MAX_BACKUP_BYTES } from './utils/backupFiles';
+import { DeviceFiles } from './utils/deviceFiles';
+import { hasNativeStorageError } from './utils/nativePersistence';
+import { Capacitor } from '@capacitor/core';
+import { CloudReadState } from './utils/cloudState';
+import { BackupRestore } from './components/BackupRestore';
 import { getExpenseCategories, isArchivedExpenseCategory, mergeCategoryBudgets } from './utils/categories';
 import { createDemoData } from './utils/demoData';
 import { demoMode } from './utils/demoMode';
-import { formatCurrency, formatMonthName, getCurrentMonthStr, getInstallmentInfo, getCompetenceMonth, getClosingDayForMonth, getClosingConfigurationMonth } from './utils/format';
+import { formatCurrency, formatMonthName, getCurrentMonthStr, getLocalDateStr, getInstallmentInfo, getCompetenceMonth, getClosingDayForMonth, getClosingConfigurationMonth } from './utils/format';
 import { useCompetenceMonth } from './hooks/useCompetenceMonth';
+import { usePwa } from './hooks/usePwa';
+import { useMobileExperience } from './hooks/useMobileExperience';
+import { useBackHandler } from './hooks/useBackHandler';
+import { isNativeApp, nativePreviewMode } from './utils/platform';
+import { connectGoogle, disconnectGoogle } from './utils/authentication';
+import { ACCOUNT_SERVICES } from './config/accountServices';
+import { requestAccountDeletion, isAccountDeletionPending } from './utils/accountDeletion';
+import { AccountDeletion } from './components/AccountDeletion';
+import { PwaSettings, PwaStatus } from './components/PwaApp';
+import { CardSettings } from './components/CardSettings';
+import { ReminderInbox } from './components/ReminderInbox';
+import { PaymentReminders, ReminderSettings } from './components/PaymentReminders';
+import { usePaymentReminders } from './hooks/usePaymentReminders';
+import { cycleConfiguration, primaryCard, shiftedDueDate, validDate, validDay } from './utils/paymentDates';
 
 import { 
   db, 
   auth, 
   isFirebaseConfigured, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signOut,
   OperationType,
   handleFirestoreError,
   cleanDocument
 } from './utils/firebase';
-import { collection, doc, setDoc, onSnapshot, writeBatch, deleteDoc, runTransaction } from 'firebase/firestore';
+import { collection, doc, onSnapshot, runTransaction as createProfile } from 'firebase/firestore';
+import { setDoc, writeBatch, deleteDoc, runTransaction, setCloudWriteReady } from './utils/cloudWrites';
 
 // import components
 import { KpiCards } from './components/KpiCards';
@@ -67,6 +85,7 @@ const TutorialsPage = lazy(() => import('./components/TutorialsPage'));
 import { COOKIE_CHOICE_KEY, readNecessaryPreference, writeNecessaryPreference, readCookieChoice, saveCookieChoice, synchronizeCookieChoice, readDisplayPreference, writeDisplayPreference, type CookieChoice, type ChoiceSource } from './utils/cookieConsent';
 
 export default function App() {
+  const pwa = usePwa();
   const [cookieChoice, setCookieChoice] = useState<CookieChoice | null>(() => demoMode ? null : readCookieChoice());
   const [cookieManagerOpen, setCookieManagerOpen] = useState(false);
   const [cookieNotice, setCookieNotice] = useState('');
@@ -116,16 +135,25 @@ export default function App() {
 
   // Cloud Sync or Client-Side Local Storage toggle
   const [storageType, setStorageType] = useState<'local' | 'cloud'>(() => {
-    if (demoMode) return 'local';
+    if (demoMode || nativePreviewMode) return 'local';
     return readNecessaryPreference('storage-type', 'local') as 'local' | 'cloud';
   });
   const [user, setUser] = useState<any>(null);
+  const sessionUid = useRef<string | null>(null);
+  const [cloudState, setCloudState] = useState({ available: false, cached: true, pending: false, error: '' });
+  const [localSaveError, setLocalSaveError] = useState(hasNativeStorageError);
+  const [pendingImport, setPendingImport] = useState<{ data: AppData; fileName: string } | null>(null);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  useEffect(() => { const failed = () => setLocalSaveError(true); window.addEventListener('local-save-failed', failed); return () => window.removeEventListener('local-save-failed', failed); }, []);
   const [authReady, setAuthReady] = useState(demoMode || !isFirebaseConfigured || !auth || !db);
 
   // Load initial state
   const [data, setData] = useState<AppData>(() => demoMode ? createDemoData(2026) : loadAppData());
+  const cycle = cycleConfiguration(data);
+  const mainCard = primaryCard(data);
+  const reminders = usePaymentReminders(data, storageType === 'cloud' ? `cloud:${user?.uid ?? 'waiting'}` : 'local', authReady && (storageType === 'local' || cloudState.available), demoMode);
   const [selectedMonth, setSelectedMonth, monthNavigation] = useCompetenceMonth(
-    data.monthlyBudgets, data.defaultCardClosingDay ?? 5, demoMode ? '2026-10' : undefined
+    cycle.budgets, cycle.closingDay, demoMode ? '2026-10' : undefined
   );
   const closingConfigurationMonth = getClosingConfigurationMonth(selectedMonth, monthNavigation.currentMonth, monthNavigation.calendarMonth);
   
@@ -135,6 +163,7 @@ export default function App() {
   const requestEntry = (tab: 'expenses' | 'revenues') => { setActiveView('entries'); setEntryRequest({ tab, id: Date.now() }); };
   const [showConfigPanel, setShowConfigPanel] = useState<boolean>(false);
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('budget');
+  const [inboxRequest, setInboxRequest] = useState(0);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
   const categoryBudgetsRef = useRef<CategoryBudgetsHandle>(null);
   const closeSettings = () => { setShowConfigPanel(false); };
@@ -142,6 +171,18 @@ export default function App() {
     setSettingsSection(section);
     setShowConfigPanel(true);
   };
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || demoMode) return;
+    let active = true;
+    let remove: (() => Promise<void>) | undefined;
+    void import('@capacitor/local-notifications').then(async ({ LocalNotifications }) => {
+      const listener = await LocalNotifications.addListener('localNotificationActionPerformed', event => {
+        if (active && event.notification.extra?.financas10PaymentReminder) setInboxRequest(Date.now());
+      });
+      if (active) remove = () => listener.remove(); else await listener.remove();
+    }).catch(() => {});
+    return () => { active = false; void remove?.(); };
+  }, []);
   const [tutorialRoute, setTutorialRoute] = useState(() => parseTutorialRoute(window.location.hash));
   const dashboardScroll = useRef(0);
   const currentPage = useRef(tutorialRoute.page);
@@ -179,8 +220,6 @@ export default function App() {
   const [salaryInput, setSalaryInput] = useState<string>('');
   const [savingsInput, setSavingsInput] = useState<number>(20);
   const [cardClosingDayInput, setCardClosingDayInput] = useState<number>(5);
-  const [newCardName, setNewCardName] = useState<string>('');
-  const [newCardDigits, setNewCardDigits] = useState<string>('');
   const [showNotification, setShowNotification] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
   const [themePreference, setThemePreference] = useState<'light' | 'dark' | 'system'>(() => {
     const saved = demoMode ? 'system' : readDisplayPreference('app-theme', 'system', cookieChoice);
@@ -194,6 +233,14 @@ export default function App() {
     return () => query.removeEventListener('change', update);
   }, []);
   const theme = themePreference === 'system' ? systemTheme : themePreference;
+  useMobileExperience(theme);
+  useBackHandler(true, () => {
+    if (tutorialRoute.page !== 'dashboard') { goHome(); return; }
+    if (activeView !== 'monthly') { setActiveView('monthly'); return; }
+    return false;
+  }, 0);
+  useBackHandler(showDeleteConfirm, () => setShowDeleteConfirm(false), 130);
+  useBackHandler(showDiagnosticModal, () => { if (!diagnosticIsRunning) setShowDiagnosticModal(false); }, 130);
 
   const changeTheme = (nextTheme: 'light' | 'dark' | 'system') => {
     setThemePreference(nextTheme);
@@ -228,6 +275,8 @@ export default function App() {
   const [isTrackerVisible, setIsTrackerVisible] = useState<boolean>(false);
   const [showMobileFabMenu, setShowMobileFabMenu] = useState<boolean>(false);
   const [mobileModalType, setMobileModalType] = useState<'expense' | 'revenue' | null>(null);
+  useBackHandler(showMobileFabMenu, () => setShowMobileFabMenu(false), 50);
+  useBackHandler(mobileModalType !== null, () => setMobileModalType(null));
 
   // Form states for Mobile Quick Entry Modal
   const [mobTitle, setMobTitle] = useState('');
@@ -235,7 +284,7 @@ export default function App() {
   const [mobCategory, setMobCategory] = useState('');
   const [mobCustomCategory, setMobCustomCategory] = useState('');
   const [mobIsCustomCategory, setMobIsCustomCategory] = useState(false);
-  const [mobDate, setMobDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [mobDate, setMobDate] = useState(() => getLocalDateStr());
   const [mobIsInstallment, setMobIsInstallment] = useState(false);
   const [mobTotalInstallments, setMobTotalInstallments] = useState('12');
   const [mobFirstInstallmentNextMonth, setMobFirstInstallmentNextMonth] = useState(false);
@@ -249,7 +298,7 @@ export default function App() {
       setMobCategory(DEFAULT_CATEGORIES[0]);
       setMobCustomCategory('');
       setMobIsCustomCategory(false);
-      setMobDate(new Date().toISOString().split('T')[0]);
+      setMobDate(getLocalDateStr());
       setMobIsInstallment(false);
       setMobTotalInstallments('12');
       setMobFirstInstallmentNextMonth(false);
@@ -260,7 +309,7 @@ export default function App() {
       setMobCategory(DEFAULT_REVENUE_CATEGORIES[0]);
       setMobCustomCategory('');
       setMobIsCustomCategory(false);
-      setMobDate(new Date().toISOString().split('T')[0]);
+      setMobDate(getLocalDateStr());
     }
   }, [mobileModalType]);
 
@@ -348,21 +397,16 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleLogin = async () => {
-    if (demoMode) return;
+    if (demoMode || nativePreviewMode) return;
     if (!auth) throw new Error('Autenticação indisponível');
-    const result = await signInWithPopup(auth, new GoogleAuthProvider());
-    setUser(result.user);
-    setStorageType('cloud');
-    writeNecessaryPreference('storage-type', 'cloud');
+    const result = await connectGoogle(auth);
+    if (!result) return;
     triggerNotification('Conta Google conectada.', 'success');
   };
 
   const handleLogout = async () => {
     if (!auth) throw new Error('Autenticação indisponível');
-    await signOut(auth);
-    setUser(null);
-    setStorageType('local');
-    writeNecessaryPreference('storage-type', 'local');
+    await disconnectGoogle(auth);
     triggerNotification('Desconectado com sucesso.', 'info');
   };
 
@@ -396,6 +440,7 @@ export default function App() {
           createdAt: Number(exp.createdAt || Date.now()),
           paid: exp.paid !== undefined ? Boolean(exp.paid) : false,
           ...(exp.paymentMethod ? { paymentMethod: String(exp.paymentMethod) } : {}),
+          ...(exp.dueDate !== undefined ? { dueDate: exp.dueDate } : {}),
           ...(exp.cardLastDigits ? { cardLastDigits: String(exp.cardLastDigits) } : {}),
           ...(exp.cardId ? { cardId: String(exp.cardId) } : {}),
           ...(exp.cardNickname ? { cardNickname: String(exp.cardNickname) } : {}),
@@ -429,8 +474,10 @@ export default function App() {
         categoryBudgets: targetData.categoryBudgets,
         monthlyBudgets: targetData.monthlyBudgets || [],
         creditCards: targetData.creditCards || [],
+        primaryCardId: targetData.primaryCardId ?? null,
         defaultMonthlySalary: targetData.defaultMonthlySalary,
-        defaultTargetSavingsPercentage: targetData.defaultTargetSavingsPercentage
+        defaultTargetSavingsPercentage: targetData.defaultTargetSavingsPercentage,
+        defaultCardClosingDay: targetData.defaultCardClosingDay ?? 5
       }), { merge: true });
 
       // Firestore batches are limited to 500 documents per batch.
@@ -573,8 +620,8 @@ export default function App() {
         title: 'Despesa de Diagnóstico',
         value: 1.99,
         category: 'Outros',
-        month: new Date().toISOString().substring(0, 7),
-        date: new Date().toISOString().substring(0, 10),
+        month: getCurrentMonthStr(),
+        date: getLocalDateStr(),
         isInstallment: false,
         createdAt: Date.now()
       });
@@ -602,8 +649,8 @@ export default function App() {
         title: 'Rendimento de Diagnóstico',
         value: 10.00,
         category: 'Outros',
-        month: new Date().toISOString().substring(0, 7),
-        date: new Date().toISOString().substring(0, 10),
+        month: getCurrentMonthStr(),
+        date: getLocalDateStr(),
         createdAt: Date.now()
       });
       await withTimeout(
@@ -669,7 +716,7 @@ export default function App() {
 
     const destination = currentUser.email || currentUser.uid;
     const confirmed = window.confirm(
-      `Enviar os dados financeiros deste navegador para a conta ${destination}?\n\nDados já existentes na nuvem podem ser substituídos. A cópia neste navegador será mantida.`
+      `Enviar os dados financeiros da cópia local para a conta ${destination}?\n\nDados já existentes na nuvem podem ser substituídos. A cópia neste navegador será mantida.`
     );
     if (!confirmed) return;
 
@@ -691,6 +738,14 @@ export default function App() {
     }
 
     const unsubscribeAuth = auth.onAuthStateChanged((currentUser) => {
+      const nextUid = currentUser?.uid ?? null;
+      if (nextUid !== sessionUid.current) {
+        setCloudWriteReady(false);
+        setCloudState({ available: false, cached: true, pending: false, error: '' });
+        // Never render one account's records as another account, or copy them into local storage.
+        setData(currentUser ? structuredClone(INITIAL_MOCK_DATA) : loadAppData());
+        sessionUid.current = nextUid;
+      }
       setUser(currentUser);
       setAuthReady(true);
       if (currentUser) {
@@ -700,7 +755,7 @@ export default function App() {
         setStorageType('local');
         writeNecessaryPreference('storage-type', 'local');
       }
-    }, () => { setAuthReady(true); });
+    }, () => { setAuthReady(true); setUser(null); setStorageType('local'); setData(loadAppData()); });
 
     return () => {
       unsubscribeAuth();
@@ -711,9 +766,24 @@ export default function App() {
   useEffect(() => {
     if (demoMode) return;
     if (storageType === 'cloud' && user && db) {
+      let active = true;
+      const ownsSession = () => active && !isAccountDeletionPending() && auth?.currentUser?.uid === user.uid;
+      const marker = `cloud-cache-ready:${user.uid}` as const;
+      const state = new CloudReadState(readNecessaryPreference(marker, '') === 'yes');
+      let subscriptionFailed = false;
+      setCloudWriteReady(false);
+      const observed = (part: string, snapshot: any) => {
+        if (subscriptionFailed) return;
+        const next = state.observe(part, snapshot.metadata, part === 'profile' ? snapshot.exists() : undefined);
+        if (next.confirmed) writeNecessaryPreference(marker, 'yes');
+        setCloudState(next); setCloudWriteReady(next.available && !next.cached);
+      };
+      const failed = () => { if (ownsSession()) { subscriptionFailed = true; setCloudWriteReady(false); setCloudState(previous => ({ ...previous, error: 'Não foi possível atualizar a conta. Confira a conexão ou entre novamente.' })); } };
       const userDocRef = doc(db, 'users', user.uid);
       
       const unsubProfile = onSnapshot(userDocRef, { includeMetadataChanges: true }, (snapshot) => {
+        if (!ownsSession()) return;
+        observed('profile', snapshot);
         const fromCache = snapshot.metadata.fromCache;
         if (snapshot.exists()) {
           const profileData = snapshot.data();
@@ -722,6 +792,7 @@ export default function App() {
             categoryBudgets: profileData.categoryBudgets ?? prev.categoryBudgets,
             monthlyBudgets: profileData.monthlyBudgets ?? prev.monthlyBudgets,
             creditCards: profileData.creditCards ?? prev.creditCards ?? [],
+            primaryCardId: profileData.primaryCardId ?? null,
             defaultMonthlySalary: profileData.defaultMonthlySalary ?? prev.defaultMonthlySalary,
             defaultTargetSavingsPercentage: profileData.defaultTargetSavingsPercentage ?? prev.defaultTargetSavingsPercentage,
             defaultCardClosingDay: profileData.defaultCardClosingDay ?? prev.defaultCardClosingDay,
@@ -729,9 +800,9 @@ export default function App() {
         } else if (!fromCache) {
           // Only create a profile after the server confirms it is missing.
           // A transaction also protects profiles created concurrently in another tab.
-          runTransaction(db!, async (transaction) => {
+          createProfile(db!, async (transaction) => {
             const currentProfile = await transaction.get(userDocRef);
-            if (currentProfile.exists()) return;
+            if (!ownsSession() || currentProfile.exists()) return;
 
             const defaultData = INITIAL_MOCK_DATA;
             transaction.set(userDocRef, {
@@ -739,6 +810,7 @@ export default function App() {
               categoryBudgets: defaultData.categoryBudgets,
               monthlyBudgets: defaultData.monthlyBudgets,
               creditCards: defaultData.creditCards || [],
+              primaryCardId: defaultData.primaryCardId ?? null,
               defaultMonthlySalary: defaultData.defaultMonthlySalary,
               defaultTargetSavingsPercentage: defaultData.defaultTargetSavingsPercentage,
               defaultCardClosingDay: defaultData.defaultCardClosingDay ?? 5
@@ -747,11 +819,13 @@ export default function App() {
             console.error("Erro ao configurar perfil padrão na nuvem:", err);
           });
         }
-      }, (err) => handleFirestoreError(err, OperationType.GET, `users/${user.uid}`));
+      }, failed);
 
       // Listen to expenses list
       const expensesColRef = collection(db, 'users', user.uid, 'expenses');
-      const unsubExpenses = onSnapshot(expensesColRef, (snapshot) => {
+      const unsubExpenses = onSnapshot(expensesColRef, { includeMetadataChanges: true }, (snapshot) => {
+        if (!ownsSession()) return;
+        observed('expenses', snapshot);
         const expensesList: Expense[] = [];
         snapshot.forEach((doc) => {
           expensesList.push({ id: doc.id, ...doc.data() } as Expense);
@@ -761,11 +835,13 @@ export default function App() {
           ...prev,
           expenses: expensesList
         }));
-      }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${user.uid}/expenses`));
+      }, failed);
 
       // Listen to revenues list
       const revenuesColRef = collection(db, 'users', user.uid, 'revenues');
-      const unsubRevenues = onSnapshot(revenuesColRef, (snapshot) => {
+      const unsubRevenues = onSnapshot(revenuesColRef, { includeMetadataChanges: true }, (snapshot) => {
+        if (!ownsSession()) return;
+        observed('revenues', snapshot);
         const revenuesList: Revenue[] = [];
         snapshot.forEach((doc) => {
           revenuesList.push({ id: doc.id, ...doc.data() } as Revenue);
@@ -775,9 +851,11 @@ export default function App() {
           ...prev,
           revenues: revenuesList
         }));
-      }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${user.uid}/revenues`));
+      }, failed);
 
       return () => {
+        active = false;
+        setCloudWriteReady(false);
         unsubProfile();
         unsubExpenses();
         unsubRevenues();
@@ -791,10 +869,10 @@ export default function App() {
 
   // Sync state changes with localStorage only under local mode
   useEffect(() => {
-    if (!demoMode && storageType === 'local') {
+    if (!demoMode && authReady && storageType === 'local') {
       saveAppData(data);
     }
-  }, [data, storageType]);
+  }, [data, storageType, authReady]);
 
   // uploadDataToCloud and handleMergeLocalDataToCloud have been relocated above the listening effects.
 
@@ -879,6 +957,7 @@ export default function App() {
 
   // Add / Delete core items
   const handleAddExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>) => {
+    if (expenseData.dueDate && !validDate(expenseData.dueDate)) throw new Error('Informe uma data de vencimento válida.');
     if (isArchivedExpenseCategory(data.categoryBudgets, expenseData.category)) {
       throw new Error('Esta categoria está arquivada. Restaure-a em Ajustar limites para usá-la em novos lançamentos.');
     }
@@ -886,7 +965,7 @@ export default function App() {
       if (expenseData.isInstallment) throw new Error('Escolha parcelamento ou recorrência mensal.');
       const entries = createMonthlyOccurrences({ ...expenseData, paid: false,
         totalInstallments: undefined, currentInstallment: undefined, firstInstallmentInNextMonth: undefined,
-      }, expenseData.recurrenceMonths, 'exp', date => getCompetenceMonth(date, data.monthlyBudgets, data.defaultCardClosingDay ?? 5));
+      }, expenseData.recurrenceMonths, 'exp', date => getCompetenceMonth(date, cycleConfiguration(data).budgets, cycleConfiguration(data).closingDay));
       await persistRecurringItems('expenses', entries);
       triggerNotification(`${entries.length} despesas mensais criadas com o valor integral em cada mês.`);
       return;
@@ -905,12 +984,8 @@ export default function App() {
         
         for (let i = startInstallment; i <= totalInst; i++) {
           const offset = (i - startInstallment) + shift;
-          const [y, m] = baseMonth.split('-').map(Number);
-          
-          const [, , d] = baseDate.split('-').map(Number);
-          const dateObj = new Date(y, m - 1 + offset, d);
-          const futureDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-          const futureMonth = getCompetenceMonth(futureDate, data.monthlyBudgets, data.defaultCardClosingDay ?? 5);
+          const futureDate = shiftMonthlyDate(baseDate, offset);
+          const futureMonth = getCompetenceMonth(futureDate, cycleConfiguration(data).budgets, cycleConfiguration(data).closingDay);
           
           const parsedTitle = expenseData.title.trim();
           const hasInstallmentSuffix = /(?:\d+)\s*[\/／]\s*(?:\d+)$/.test(parsedTitle);
@@ -923,6 +998,7 @@ export default function App() {
             currentInstallment: i,
             month: futureMonth,
             date: futureDate,
+            dueDate: shiftedDueDate(expenseData.dueDate, offset),
             createdAt: now
           });
         }
@@ -938,7 +1014,7 @@ export default function App() {
         const newId = `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const newExpense: Expense = {
           ...expenseData,
-          month: getCompetenceMonth(expenseData.date, data.monthlyBudgets, data.defaultCardClosingDay ?? 5),
+          month: getCompetenceMonth(expenseData.date, cycleConfiguration(data).budgets, cycleConfiguration(data).closingDay),
           id: newId,
           createdAt: Date.now()
         };
@@ -960,12 +1036,8 @@ export default function App() {
         
         for (let i = startInstallment; i <= totalInst; i++) {
           const offset = (i - startInstallment) + shift;
-          const [y, m] = baseMonth.split('-').map(Number);
-          
-          const [, , d] = baseDate.split('-').map(Number);
-          const dateObj = new Date(y, m - 1 + offset, d);
-          const futureDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-          const futureMonth = getCompetenceMonth(futureDate, data.monthlyBudgets, data.defaultCardClosingDay ?? 5);
+          const futureDate = shiftMonthlyDate(baseDate, offset);
+          const futureMonth = getCompetenceMonth(futureDate, cycleConfiguration(data).budgets, cycleConfiguration(data).closingDay);
           
           const parsedTitle = expenseData.title.trim();
           const hasInstallmentSuffix = /(?:\d+)\s*[\/／]\s*(?:\d+)$/.test(parsedTitle);
@@ -978,6 +1050,7 @@ export default function App() {
             currentInstallment: i,
             month: futureMonth,
             date: futureDate,
+            dueDate: shiftedDueDate(expenseData.dueDate, offset),
             createdAt: now
           });
         }
@@ -991,7 +1064,7 @@ export default function App() {
       } else {
         const newExpense: Expense = {
           ...expenseData,
-          month: getCompetenceMonth(expenseData.date, data.monthlyBudgets, data.defaultCardClosingDay ?? 5),
+          month: getCompetenceMonth(expenseData.date, cycleConfiguration(data).budgets, cycleConfiguration(data).closingDay),
           id: `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           createdAt: Date.now()
         };
@@ -1069,6 +1142,7 @@ export default function App() {
   ) => {
     const originalExpense = data.expenses.find(e => e.id === id);
     if (!originalExpense) return;
+    if (updatedFields.dueDate && !validDate(updatedFields.dueDate)) throw new Error('Informe uma data de vencimento válida.');
     if (updatedFields.category && updatedFields.category !== originalExpense.category && isArchivedExpenseCategory(data.categoryBudgets, updatedFields.category)) {
       throw new Error('Esta categoria está arquivada. Restaure-a em Ajustar limites para usá-la em outros lançamentos.');
     }
@@ -1076,7 +1150,7 @@ export default function App() {
     if (originalExpense.recurrenceId) {
       const entries = updateRecurringItems(data.expenses, originalExpense, updatedFields,
         scope === 'future' ? 'future' : 'single',
-        date => getCompetenceMonth(date, data.monthlyBudgets, data.defaultCardClosingDay ?? 5));
+        date => getCompetenceMonth(date, cycleConfiguration(data).budgets, cycleConfiguration(data).closingDay));
       await persistRecurringItems('expenses', entries);
       triggerNotification(`${entries.length} lançamento(s) atualizado(s). Os meses anteriores foram preservados.`);
       return;
@@ -1088,7 +1162,7 @@ export default function App() {
       if (scope === 'single') {
         const merged = { ...originalExpense, ...updatedFields };
         if (updatedFields.date) {
-          merged.month = getCompetenceMonth(updatedFields.date, data.monthlyBudgets, data.defaultCardClosingDay ?? 5);
+          merged.month = getCompetenceMonth(updatedFields.date, cycleConfiguration(data).budgets, cycleConfiguration(data).closingDay);
         }
         await setDoc(doc(db!, 'users', uid, 'expenses', id), cleanDocument(merged))
           .catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}/expenses/${id}`));
@@ -1113,6 +1187,7 @@ export default function App() {
             cardLastDigits: updatedFields.cardLastDigits !== undefined ? updatedFields.cardLastDigits : exp.cardLastDigits,
             cardId: updatedFields.cardId !== undefined ? updatedFields.cardId : exp.cardId,
             cardNickname: updatedFields.cardNickname !== undefined ? updatedFields.cardNickname : exp.cardNickname,
+            dueDate: updatedFields.dueDate !== undefined ? shiftedDueDate(updatedFields.dueDate, (exp.currentInstallment ?? 1) - (originalExpense.currentInstallment ?? 1)) : exp.dueDate,
             paid: updatedFields.paid !== undefined ? updatedFields.paid : exp.paid
           };
           
@@ -1142,12 +1217,8 @@ export default function App() {
         for (let i = startInstallment; i <= totalInst; i++) {
           const offset = (i - startInstallment) + shift;
 
-          const [y, m] = baseMonth.split('-').map(Number);
-
-          const [, , d] = baseDate.split('-').map(Number);
-          const dateObj = new Date(y, m - 1 + offset, d);
-          const futureDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-          const futureMonth = getCompetenceMonth(futureDate, data.monthlyBudgets, data.defaultCardClosingDay ?? 5);
+          const futureDate = shiftMonthlyDate(baseDate, offset);
+          const futureMonth = getCompetenceMonth(futureDate, cycleConfiguration(data).budgets, cycleConfiguration(data).closingDay);
 
           const rootTitle = (updatedFields.title || originalExpense.title).replace(/\s*\d+\s*[\/／]\s*\d+\s*$/, '').trim();
           const finalTitle = `${rootTitle} ${i}/${totalInst}`;
@@ -1163,6 +1234,7 @@ export default function App() {
             currentInstallment: i,
             firstInstallmentInNextMonth: rebuildParams.firstInstallmentInNextMonth,
             date: futureDate,
+            dueDate: shiftedDueDate(updatedFields.dueDate !== undefined ? updatedFields.dueDate : originalExpense.dueDate, offset),
             createdAt: now,
             paymentMethod: updatedFields.paymentMethod !== undefined ? updatedFields.paymentMethod : originalExpense.paymentMethod,
             cardLastDigits: updatedFields.cardLastDigits !== undefined ? updatedFields.cardLastDigits : originalExpense.cardLastDigits,
@@ -1186,7 +1258,7 @@ export default function App() {
             if (exp.id === id) {
               const merged = { ...exp, ...updatedFields };
               if (updatedFields.date) {
-                merged.month = getCompetenceMonth(updatedFields.date, data.monthlyBudgets, data.defaultCardClosingDay ?? 5);
+                merged.month = getCompetenceMonth(updatedFields.date, cycleConfiguration(data).budgets, cycleConfiguration(data).closingDay);
               }
               return merged;
             }
@@ -1214,7 +1286,8 @@ export default function App() {
                 cardLastDigits: updatedFields.cardLastDigits !== undefined ? updatedFields.cardLastDigits : exp.cardLastDigits,
                 cardId: updatedFields.cardId !== undefined ? updatedFields.cardId : exp.cardId,
                 cardNickname: updatedFields.cardNickname !== undefined ? updatedFields.cardNickname : exp.cardNickname,
-                paid: updatedFields.paid !== undefined ? updatedFields.paid : exp.paid
+                dueDate: updatedFields.dueDate !== undefined ? shiftedDueDate(updatedFields.dueDate, (exp.currentInstallment ?? 1) - (originalExpense.currentInstallment ?? 1)) : exp.dueDate,
+            paid: updatedFields.paid !== undefined ? updatedFields.paid : exp.paid
               };
             }
             return exp;
@@ -1238,12 +1311,8 @@ export default function App() {
           for (let i = startInstallment; i <= totalInst; i++) {
             const offset = (i - startInstallment) + shift;
 
-            const [y, m] = baseMonth.split('-').map(Number);
-
-            const [, , d] = baseDate.split('-').map(Number);
-            const dateObj = new Date(y, m - 1 + offset, d);
-            const futureDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-            const futureMonth = getCompetenceMonth(futureDate, data.monthlyBudgets, data.defaultCardClosingDay ?? 5);
+            const futureDate = shiftMonthlyDate(baseDate, offset);
+            const futureMonth = getCompetenceMonth(futureDate, cycleConfiguration(data).budgets, cycleConfiguration(data).closingDay);
 
             const rootTitle = (updatedFields.title || originalExpense.title).replace(/\s*\d+\s*[\/／]\s*\d+\s*$/, '').trim();
             const finalTitle = `${rootTitle} ${i}/${totalInst}`;
@@ -1259,6 +1328,7 @@ export default function App() {
               currentInstallment: i,
               firstInstallmentInNextMonth: rebuildParams.firstInstallmentInNextMonth,
               date: futureDate,
+            dueDate: shiftedDueDate(updatedFields.dueDate !== undefined ? updatedFields.dueDate : originalExpense.dueDate, offset),
               createdAt: now,
               paymentMethod: updatedFields.paymentMethod !== undefined ? updatedFields.paymentMethod : originalExpense.paymentMethod,
               cardLastDigits: updatedFields.cardLastDigits !== undefined ? updatedFields.cardLastDigits : originalExpense.cardLastDigits,
@@ -1426,58 +1496,30 @@ export default function App() {
   };
 
   // Add a new credit card
-  const handleAddCreditCard = async (cardName: string, lastDigits: string) => {
-    if (!cardName.trim() || !lastDigits.trim()) {
-      triggerNotification('Preencha o apelido e os 4 últimos dígitos do cartão.', 'error');
-      return;
+  const handleSaveCards = async (cards: CreditCard[], primaryId: string | null) => {
+    if (cards.some(card => card.closingDay !== undefined && !validDay(card.closingDay) || card.dueDay !== undefined && !validDay(card.dueDay))) throw new Error('Informe dias entre 1 e 31.');
+    if (primaryId && !cards.some(card => card.id === primaryId && validDay(card.closingDay))) throw new Error('Informe o fechamento do cartão principal.');
+    const patch = { creditCards: cards, primaryCardId: primaryId };
+    if (storageType === 'cloud') {
+      const uid = auth?.currentUser?.uid;
+      if (!uid || !db || !cloudState.available) throw new Error('Aguarde sua conta carregar para salvar os cartões.');
+      await setDoc(doc(db, 'users', uid), cleanDocument({ uid, ...patch }), { merge: true });
+      if (auth?.currentUser?.uid !== uid) return;
     }
-    if (lastDigits.trim().length !== 4 || isNaN(Number(lastDigits))) {
-      triggerNotification('Os últimos dígitos devem possuir exatamente 4 números.', 'error');
-      return;
-    }
-
-    const newCard: CreditCard = {
-      id: `card-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      name: cardName.trim(),
-      lastDigits: lastDigits.trim()
-    };
-
-    const updatedCards = [...(data.creditCards || []), newCard];
-
-    if (storageType === 'cloud' && auth?.currentUser?.uid) {
-      const uid = auth.currentUser.uid;
-      await setDoc(doc(db!, 'users', uid), cleanDocument({
-        uid: uid,
-        creditCards: updatedCards
-      }), { merge: true }).catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`));
-    } else {
-      setData(prev => ({
-        ...prev,
-        creditCards: updatedCards
-      }));
-    }
-    triggerNotification(`Cartão "${newCard.name}" cadastrado com sucesso!`, 'success');
-    setNewCardName('');
-    setNewCardDigits('');
+    setData(previous => ({ ...previous, ...patch }));
+    if (primaryId !== data.primaryCardId || cards.find(c => c.id === primaryId)?.closingDay !== mainCard?.closingDay) monthNavigation.followCurrentMonth();
+    triggerNotification('Cartões atualizados. Os lançamentos existentes foram preservados.', 'success');
   };
 
-  // Delete a credit card
-  const handleDeleteCreditCard = async (cardId: string) => {
-    const updatedCards = (data.creditCards || []).filter(c => c.id !== cardId);
+  const handleAddCreditCard = async (cardName: string, lastDigits: string, dates: Pick<CreditCard, 'closingDay' | 'dueDay'>): Promise<CreditCard> => {
+    if (!cardName.trim() || !/^\d{4}$/.test(lastDigits) || !validDay(dates.closingDay) || !validDay(dates.dueDay)) throw new Error('Informe apelido, quatro últimos dígitos, fechamento e vencimento válidos.');
+    const newCard: CreditCard = { id: 'card-' + crypto.randomUUID(), name: cardName.trim(), lastDigits, ...dates };
+    await handleSaveCards([...(data.creditCards ?? []), newCard], data.primaryCardId ?? null);
+    return newCard;
+  };
 
-    if (storageType === 'cloud' && auth?.currentUser?.uid) {
-      const uid = auth.currentUser.uid;
-      await setDoc(doc(db!, 'users', uid), cleanDocument({
-        uid: uid,
-        creditCards: updatedCards
-      }), { merge: true }).catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`));
-    } else {
-      setData(prev => ({
-        ...prev,
-        creditCards: updatedCards
-      }));
-    }
-    triggerNotification('Cartão excluído com sucesso.', 'info');
+  const handleDeleteCreditCard = async (cardId: string) => {
+    await handleSaveCards((data.creditCards ?? []).filter(card => card.id !== cardId), data.primaryCardId === cardId ? null : data.primaryCardId ?? null);
   };
 
   // Save current month's configuration adjustments
@@ -1556,43 +1598,41 @@ export default function App() {
     triggerNotification(`Planejamento de ${formatMonthName(selectedMonth)} foi atualizado.`);
   };
 
-  // JSON Export / Import handlers
-  const handleExportData = () => {
-    exportDataAsJSON(data);
-    triggerNotification('Backup exportado com sucesso.', 'info');
+  // Backup restoration always targets the separate local copy, after an explicit preview.
+  const checkBackupReady = () => {
+    if (storageType === 'cloud' && (!cloudState.available || cloudState.error)) throw new Error('Aguarde a conta carregar antes de exportar o backup.');
   };
-
-  const handleImportButtonClick = () => {
-    fileInputRef.current?.click();
+  const handleExportData = async () => {
+    checkBackupReady();
+    const result = await exportDataAsJSON(data);
+    if (result !== 'cancelled') triggerNotification(result === 'saved' ? 'Backup salvo no local escolhido.' : 'Download do backup iniciado.', 'info');
   };
-
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleShareBackup = async () => { checkBackupReady(); await shareBackupFile(data); };
+  const previewBackup = (json: string, fileName: string) => {
+    const restored = importDataFromJSON(json);
+    closeSettings(); setPendingImport({ data: restored, fileName });
+  };
+  const handleImportButtonClick = async () => {
+    if (Capacitor.getPlatform() !== 'android') { fileInputRef.current?.click(); return; }
+    try {
+      const file = await DeviceFiles.openBackup();
+      if (!file.cancelled && file.json !== undefined) previewBackup(file.json, file.fileName || 'backup.json');
+    } catch (error) { triggerNotification(error instanceof Error ? error.message : 'Não foi possível abrir o backup.', 'error'); }
+  };
+  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]; event.target.value = '';
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const fileContent = event.target?.result as string;
-        const importedData = importDataFromJSON(fileContent);
-        
-        if (storageType === 'cloud' && auth?.currentUser?.uid) {
-          await uploadDataToCloud(
-            auth.currentUser.uid,
-            importedData,
-            'Backup importado e gravado com sucesso no seu banco na Nuvem! ☁️'
-          );
-        } else {
-          setData(importedData);
-          triggerNotification('Seus dados foram importados com sucesso!');
-        }
-      } catch (err: any) {
-        alert(`Falha na importação: ${err.message || 'Formato incorreto'}`);
-      }
-    };
-    reader.readAsText(file);
-    // Clear input after handle
-    e.target.value = '';
+    try {
+      if (file.size > MAX_BACKUP_BYTES) throw new Error('Use um backup de até 10 MB.');
+      previewBackup(await file.text(), file.name);
+    } catch (error) { triggerNotification(error instanceof Error ? error.message : 'Backup inválido.', 'error'); }
+  };
+  const handleConfirmImport = async () => {
+    if (!pendingImport) return;
+    if (!demoMode) await restoreAppData(pendingImport.data);
+    if (storageType === 'local') setData(pendingImport.data);
+    setPendingImport(null); setLocalSaveError(false);
+    triggerNotification(storageType === 'cloud' ? 'Backup restaurado na cópia local. Saia da conta para consultá-la.' : 'Backup restaurado na cópia local.', 'success');
   };
 
   // Clear only this application's local financial copy, preserving session and preferences.
@@ -1601,7 +1641,7 @@ export default function App() {
     if (!demoMode) saveAppData(emptyData);
     if (storageType === 'local') setData(emptyData);
     setShowDeleteConfirm(false);
-    triggerNotification(demoMode ? 'Os exemplos foram limpos desta visualização.' : 'A cópia financeira deste navegador foi apagada.', 'success');
+    triggerNotification(demoMode ? 'Os exemplos foram limpos desta visualização.' : 'A cópia financeira local foi apagada.', 'success');
   };
 
   const handleClearData = () => {
@@ -1657,6 +1697,9 @@ export default function App() {
           <a href="/" className="underline underline-offset-2 font-semibold">Voltar aos meus dados</a>
         </div>
       )}
+      {isNativeApp && import.meta.env.VITE_NATIVE_RELEASE !== 'true' && <div role="status" className="w-full bg-indigo-950 text-indigo-100 border-b border-indigo-400/30 px-4 py-2 text-xs text-center">
+        Versão de teste Android · {nativePreviewMode ? 'Google ainda não configurado nesta compilação.' : 'Conecte a mesma conta Google do site para acessar a nuvem.'}
+      </div>}
 
       {/* GLOWING NOTIFICATION TOAST */}
       {showNotification && (
@@ -1784,6 +1827,7 @@ export default function App() {
 
           {tutorialRoute.page === 'tutorials' && <div className="tutorial-header-label">Central de tutoriais</div>}
           <div className="compact-header-actions" id="action-controls-row">
+            <ReminderInbox reminders={reminders} openRequest={inboxRequest} onConfigure={() => openSettings('reminders')} onViewMonth={month => { setSelectedMonth(month); setActiveView('entries'); }} />
             <button type="button" className="compact-header-button"
               onClick={() => setPrivacyMode(value => !value)}
               aria-label={privacyMode ? 'Mostrar valores' : 'Ocultar valores'}
@@ -1798,27 +1842,40 @@ export default function App() {
             </button>
             <AccountMenu
               user={user} cloudConnected={storageType === 'cloud' && !!user}
-              firebaseConfigured={!demoMode && isFirebaseConfigured} demoMode={demoMode}
+              firebaseConfigured={!demoMode && isFirebaseConfigured} demoMode={demoMode} nativePreview={nativePreviewMode} nativeApp={isNativeApp}
               onLogin={handleLogin} onLogout={handleLogout} onOpenSettings={openSettings}
             />
           </div>
         </div>
       </header>
+      <PwaStatus pwa={pwa} cloudConnected={storageType === 'cloud' && !!user} showUpdate={!!cookieChoice && !demoMode}
+        cloudMessage={storageType !== 'cloud' ? '' : cloudState.error || (cloudState.pending ? 'Alterações aguardando confirmação da nuvem.' : !cloudState.available ? (pwa.online ? 'Carregando os dados da conta…' : 'Esta conta ainda precisa ser carregada com internet neste aparelho.') : cloudState.cached ? (pwa.online ? 'Consultando a cópia do aparelho enquanto a conta é atualizada.' : 'Sem internet. Dados da conta disponíveis para consulta; conecte-se para editar.') : '')} />
+      {localSaveError && <div role="alert" className="pwa-status"><p>Não foi possível gravar a cópia local. Exporte um backup e confira o espaço disponível no dispositivo.</p><button type="button" className="sereno-secondary" onClick={async () => { try { await restoreAppData(loadAppData()); setLocalSaveError(false); } catch { triggerNotification('A gravação ainda não foi concluída. Exporte um backup.', 'error'); } }}>Repetir gravação</button></div>}
+      {pendingImport && <BackupRestore backup={pendingImport} onCancel={() => setPendingImport(null)} onConfirm={handleConfirmImport} />}
+      {deleteAccountOpen && <AccountDeletion account={demoMode ? 'Demonstração — nenhum pedido real será enviado' : user?.email || 'Conta conectada'} onCancel={() => setDeleteAccountOpen(false)} onConfirm={async () => {
+        if (demoMode) { await new Promise(resolve => setTimeout(resolve, 300)); return 'accepted'; }
+        if (!auth || !db) throw new Error('Conecte sua conta primeiro.');
+        return requestAccountDeletion(auth, db);
+      }} />}
       <input type="file" accept=".json,application/json" ref={fileInputRef} onChange={handleImportFile} hidden aria-label="Arquivo de backup" />
 
       {showConfigPanel && (
         <AppSettings
           demoMode={demoMode} section={settingsSection} onSectionChange={setSettingsSection} onClose={closeSettings}
           cloudConnected={storageType === 'cloud' && !!user}
+          accountDeletionEnabled={ACCOUNT_SERVICES.enabled || demoMode}
+          onDeleteAccount={() => { closeSettings(); setDeleteAccountOpen(true); }}
           theme={themePreference} onThemeChange={changeTheme}
           privacyMode={privacyMode} onPrivacyModeChange={setPrivacyMode}
           hideMobileBudgets={hideMobileBudgets} onHideMobileBudgetsChange={changeHideMobileBudgets}
-          onExport={handleExportData} onImport={handleImportButtonClick}
+          onExport={handleExportData} onImport={handleImportButtonClick} onShare={isNativeApp ? handleShareBackup : undefined} nativeApp={isNativeApp}
           onUploadLocal={async () => { if (user) await handleMergeLocalDataToCloud(user.uid); }}
           onOpenCookiePreferences={() => { closeSettings(); setCookieManagerOpen(true); }} rememberAppearance={cookieChoice?.preferences === true && !temporaryCookieChoice.current}
           onClearLocal={() => { closeSettings(); handleClearData(); }}
           onDiagnostics={() => { closeSettings(); setShowDiagnosticModal(true); runFirebaseDiagnostics(); }}
           onReplayTour={replayTour}
+          appContent={<PwaSettings pwa={pwa} cloudConnected={storageType === 'cloud' && !!user} demoMode={demoMode} />}
+          remindersContent={<ReminderSettings reminders={reminders} demo={demoMode} />}
           budgetContent={<>
             <form id="settings-month-budget-form" onSubmit={handleSaveMonthConfig} className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-end">
               <div>
@@ -1862,7 +1919,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div>
+              {mainCard ? <p className="settings-description">O fechamento do cartão principal <strong>{mainCard.name}</strong>, dia {mainCard.closingDay}, orienta a virada. Até esse dia o painel fica no mês anterior e muda no dia seguinte. Edite o cartão abaixo para alterar a regra.</p> : <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 select-none">
                   Virada do Cartão (Dia) — {formatMonthName(closingConfigurationMonth)}
                 </label>
@@ -1883,97 +1940,19 @@ export default function App() {
                     ? 'Este fechamento controla o ciclo atual, mesmo quando o painel mostra o mês anterior, e vira padrão para meses sem configuração própria.'
                     : 'Esta alteração vale apenas para o mês indicado; o padrão da virada atual será mantido.'}
                 </span>
-              </div>
+              </div>}
 
             </form>
 
-            {/* GERENCIAMENTO DE CARTÕES CADASTRADOS */}
-            <div className="border-t border-white/5 mt-5 pt-5">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-3.5 flex items-center gap-1.5 select-none animate-fadeIn">
-                <CreditCardIcon className="w-3.5 h-3.5 text-indigo-400" />
-                Cadastrar e Gerenciar Meus Cartões de Crédito
-              </h3>
-              
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-                {/* Form to add new credit card */}
-                <div className="bg-zinc-950/40 border border-white/5 rounded-2xl p-4">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-3.5">Novo Cartão</span>
-                  <div className="space-y-3.5">
-                    <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Nome ou Apelido do Cartão</label>
-                      <input
-                        type="text"
-                        placeholder="Ex: Cartão XP, Nubank, Inter"
-                        className="w-full bg-[#18181b] border border-white/10 rounded-xl px-3 py-2 mt-1 text-xs text-white outline-none focus:border-indigo-500 font-semibold"
-                        value={newCardName}
-                        onChange={(e) => setNewCardName(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide">4 últimos dígitos</label>
-                      <input
-                        type="text"
-                        maxLength={4}
-                        placeholder="Ex: 5678"
-                        className="w-full bg-[#18181b] border border-white/10 rounded-xl px-3 py-2 mt-1 text-xs text-white outline-none focus:border-indigo-500 font-mono tracking-widest font-semibold"
-                        value={newCardDigits}
-                        onChange={(e) => setNewCardDigits(e.target.value.replace(/\D/g, ''))}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleAddCreditCard(newCardName, newCardDigits)}
-                      className="w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-1.5 h-9"
-                    >
-                      <PlusCircle className="w-4 h-4" />
-                      Cadastrar Cartão
-                    </button>
-                  </div>
-                </div>
-
-                {/* List of registered credit cards */}
-                <div className="bg-zinc-950/20 border border-white/5 rounded-2xl p-4 h-full min-h-[196px] flex flex-col justify-start">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-3.5">Cartões Cadastrados</span>
-                  {!data.creditCards || data.creditCards.length === 0 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center text-xs text-slate-500 border border-white/5 border-dashed rounded-xl p-6 text-center">
-                      <CreditCardIcon className="w-8 h-8 text-zinc-800 stroke-1 mb-2 animate-pulse" />
-                      Nenhum cartão cadastrado ainda. Cadastre um cartão para facilitar seus lançamentos de despesas!
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[148px] overflow-y-auto pr-1 scrollbar-thin">
-                      {data.creditCards.map(card => (
-                        <div key={card.id} className="bg-[#18181b] border border-white/5 hover:border-white/10 rounded-xl p-3 flex items-center justify-between transition-all hover:translate-x-0.5">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="p-1.5 rounded-lg bg-indigo-500/15 text-indigo-400 shrink-0">
-                              <CreditCardIcon className="w-4 h-4" />
-                            </div>
-                            <div className="min-w-0">
-                              <span className="text-xs font-bold text-white block truncate leading-tight">{card.name}</span>
-                              <span className="text-[10px] font-mono text-slate-550 block mt-0.5">**** {card.lastDigits}</span>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteCreditCard(card.id)}
-                            className="p-1.5 text-slate-500 hover:text-rose-450 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer shrink-0"
-                            title="Remover Cartão"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <CardSettings cards={data.creditCards ?? []} primaryId={data.primaryCardId} onSave={handleSaveCards} />
 
           </>}
         />
       )}
 
       {/* ÁREA DE CONTEÚDO PRINCIPAL (DASHBOARD) */}
-      <main hidden={tutorialRoute.page === 'tutorials'} className="sereno-main" id="dashboard-main-area">
+      {storageType === 'cloud' && !cloudState.available && <p className="sereno-main" role="status">{cloudState.error || (pwa.online ? 'Preparando seu planejamento da conta…' : 'Conecte-se para carregar o planejamento desta conta neste aparelho.')}</p>}
+      <main hidden={storageType === 'cloud' && !cloudState.available || tutorialRoute.page === 'tutorials'} className="sereno-main" id="dashboard-main-area">
         <DashboardTour userId={user?.uid ?? null} ready={authReady && !!cookieChoice && !cookieManagerOpen && !showConfigPanel && tutorialRoute.page === 'dashboard' && activeView === 'monthly'} demoMode={demoMode} replayRequest={tourReplayRequest} />
         <div className="sereno-page-heading">
           <div>
@@ -1992,6 +1971,7 @@ export default function App() {
             <button type="button" key={view} aria-current={activeView === view ? 'page' : undefined} onClick={() => setActiveView(view)}>{label}</button>
           ))}
         </nav>
+        <PaymentReminders reminders={reminders} onConfigure={() => openSettings('reminders')} onViewMonth={month => { setSelectedMonth(month); setActiveView('entries'); }} />
         <div hidden={activeView !== 'monthly'} className="sereno-overview">
           <KpiCards
             totalSpent={totalSpent}
@@ -2035,8 +2015,8 @@ export default function App() {
             onDeleteRevenue={handleDeleteRevenue}
             onUpdateRevenue={handleUpdateRevenue}
             selectedMonth={selectedMonth}
-            monthlyBudgets={data.monthlyBudgets}
-            defaultCardClosingDay={data.defaultCardClosingDay}
+            monthlyBudgets={cycle.budgets}
+            defaultCardClosingDay={cycle.closingDay}
             creditCards={data.creditCards || []}
             onAddCreditCard={handleAddCreditCard}
             onDeleteCreditCard={handleDeleteCreditCard}
@@ -2281,7 +2261,7 @@ export default function App() {
       {/* MENU FLUTUANTE MOBILE (FAB) */}
       <AnimatePresence>
         {activeView === 'monthly' && !isTrackerVisible && (
-          <div className="fixed bottom-6 right-6 z-40 md:hidden flex flex-col items-center gap-3">
+          <div className="native-fab fixed bottom-6 right-6 z-40 md:hidden flex flex-col items-center gap-3">
             {/* Backdrop para fechar o menu expandido ao clicar fora */}
             {showMobileFabMenu && (
               <div 

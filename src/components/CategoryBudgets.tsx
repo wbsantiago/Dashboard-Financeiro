@@ -23,6 +23,7 @@ import { CategoryBudget } from '../types';
 import { formatCurrency } from '../utils/format';
 import { categoryBudgetUsage, getCategoryColor, isCustomExpenseCategory } from '../utils/categories';
 import { useChartEntrance } from '../hooks/useChartEntrance';
+import { useBackHandler } from '../hooks/useBackHandler';
 import './CategoryBudgets.css';
 
 interface CategoryBudgetsProps {
@@ -48,6 +49,8 @@ export const CategoryBudgets = forwardRef<CategoryBudgetsHandle, CategoryBudgets
   const [showArchived, setShowArchived] = useState(false);
   const [isSavingLimits, setIsSavingLimits] = useState(false);
   const [limitsError, setLimitsError] = useState('');
+  useBackHandler(isModalOpen, () => { if (!isSavingLimits) setIsModalOpen(false); }, 120);
+  useBackHandler(activeIndex !== null, () => setActiveIndex(null), 40);
   const modalRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!isModalOpen) return;

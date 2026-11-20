@@ -1,0 +1,4 @@
+Primeira preparação Android para testes na Google Play.
+Planejamento local, conta Google compartilhada com o site, gráficos, categorias, limites, recorrências e cartões.
+Backup, importação com confirmação, compartilhamento e consulta offline após carregar a conta.
+Temas claro, escuro e automático; ajustes de teclado, rotação e botão Voltar.

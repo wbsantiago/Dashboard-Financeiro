@@ -25,6 +25,7 @@ export interface Expense extends RecurrenceFields {
   date: string; // "YYYY-MM-DD"
   createdAt: number;
   paid?: boolean;
+  dueDate?: string | null; // Vencimento de boleto/Pix; independente da data do lançamento.
   paymentMethod?: 'pix' | 'boleto' | 'card';
   cardLastDigits?: string;
   cardId?: string;
@@ -58,6 +59,8 @@ export interface CreditCard {
   id: string;
   name: string;
   lastDigits: string;
+  closingDay?: number;
+  dueDay?: number;
 }
 
 export interface AppData {
@@ -66,6 +69,7 @@ export interface AppData {
   categoryBudgets: CategoryBudget[];
   monthlyBudgets: MonthlyBudget[];
   creditCards?: CreditCard[];
+  primaryCardId?: string | null; // Somente este cartão orienta a virada do painel.
   defaultMonthlySalary: number;
   defaultTargetSavingsPercentage: number;
   defaultCardClosingDay?: number; // Dia de fechamento padrão do cartão (ex: 5)

@@ -11,6 +11,8 @@
   color-scheme:dark; background:var(--sereno-bg)!important; color:var(--sereno-ink);
   font-family:Manrope,'Segoe UI',ui-sans-serif,system-ui,-apple-system,sans-serif;
   font-size:14px; line-height:1.5;
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);
+  min-height:100dvh;
 }
 .sereno-app.theme-light {
   --sereno-bg:#f1f5f9; --sereno-panel:#fff; --sereno-ink:#1c2e42;
@@ -272,3 +274,6 @@
   .sereno-app .sereno-totals strong { font-size:clamp(18px,5.1vw,25px); letter-spacing:-.6px; }
 }
 @media(prefers-reduced-motion:reduce) { .sereno-app * { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }
+.account-deletion label { display: grid; gap: .5rem; margin: 1rem 0; }
+.account-deletion input { padding: .75rem; border: 1px solid var(--line, #718096); border-radius: .65rem; background: transparent; color: inherit; }
+.account-deletion button:disabled { opacity: .5; cursor: not-allowed; }

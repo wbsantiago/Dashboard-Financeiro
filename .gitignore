@@ -1,8 +1,16 @@
 node_modules/
 build/
 dist/
+dist-native/
 coverage/
 .DS_Store
 *.log
 .env*
 !.env.example
+*.jks
+*.keystore
+*.p12
+*.f10backup
+*importar-no-Bitwarden.json
+*signing*.properties
+functions/node_modules/

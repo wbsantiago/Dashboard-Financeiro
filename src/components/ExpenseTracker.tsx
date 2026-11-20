@@ -19,11 +19,12 @@ import {
 } from 'lucide-react';
 import { Expense, Revenue, CategoryBudget, MonthlyBudget, CreditCard as CreditCardType, ExpenseEditScope, RecurrenceScope } from '../types';
 import { RecurrenceControls, RecurrenceScopeSelector, EntryType } from './RecurrenceControls';
+import { useBackHandler } from '../hooks/useBackHandler';
 import { EntryFilters } from './EntryFilters';
 import { getCategoryColor, getExpenseCategories } from '../utils/categories';
 import { getCardFilterOptions, matchesCardFilter } from '../utils/expenseFilters';
 import { validateRecurrenceMonths } from '../utils/recurrence';
-import { formatCurrency, formatMonthName, formatDate, getInstallmentInfo, getCompetenceMonth } from '../utils/format';
+import { getLocalDateStr, formatCurrency, formatMonthName, formatDate, getInstallmentInfo, getCompetenceMonth } from '../utils/format';
 import { 
   DEFAULT_CATEGORIES, 
   DEFAULT_REVENUE_CATEGORIES, 
@@ -55,7 +56,7 @@ interface ExpenseTrackerProps {
   monthlyBudgets?: MonthlyBudget[];
   defaultCardClosingDay?: number;
   creditCards?: CreditCardType[];
-  onAddCreditCard?: (cardName: string, lastDigits: string) => Promise<void>;
+  onAddCreditCard?: (cardName: string, lastDigits: string, dates: Pick<CreditCardType, 'closingDay' | 'dueDay'>) => Promise<CreditCardType>;
   onDeleteCreditCard?: (cardId: string) => Promise<void>;
   onPayCardBill?: (cardLastDigits: string, month: string) => Promise<void>;
 }
@@ -142,7 +143,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   useEffect(() => {
     if (!isCustomCategory && !expenseCategories.includes(category)) setCategory(expenseCategories[0]);
   }, [expenseCategories, category, isCustomCategory]);
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getLocalDateStr());
   const [expenseEntryType, setExpenseEntryType] = useState<EntryType>('single');
   const isInstallment = expenseEntryType === 'installment';
   const [recurrenceMonths, setRecurrenceMonths] = useState('12');
@@ -153,11 +154,15 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   const [firstInstallmentNextMonth, setFirstInstallmentNextMonth] = useState(false);
   const [installmentValueType, setInstallmentValueType] = useState<'total' | 'single'>('single');
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'boleto' | 'card'>('pix');
+  const [dueDate, setDueDate] = useState('');
   const [cardLastDigits, setCardLastDigits] = useState('');
   const [selectedCardId, setSelectedCardId] = useState<string>('');
   const [showInlineAddCard, setShowInlineAddCard] = useState(false);
   const [inlineCardName, setInlineCardName] = useState('');
   const [inlineCardDigits, setInlineCardDigits] = useState('');
+  const [inlineClosingDay, setInlineClosingDay] = useState('');
+  const [inlineDueDay, setInlineDueDay] = useState('');
+  const [savingInlineCard, setSavingInlineCard] = useState(false);
 
   // State for credit card bill payment confirmation modal
   const [billToPay, setBillToPay] = useState<{ digits: string; count: number; name?: string; unpaidValue: number } | null>(null);
@@ -206,6 +211,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   const [editFirstInstallmentInNextMonth, setEditFirstInstallmentInNextMonth] = useState(false);
   const [editInstallmentValueType, setEditInstallmentValueType] = useState<'total' | 'single'>('single');
   const [editPaymentMethod, setEditPaymentMethod] = useState<'pix' | 'boleto' | 'card'>('pix');
+  const [editDueDate, setEditDueDate] = useState('');
   const [editCardLastDigits, setEditCardLastDigits] = useState('');
   const [editSelectedCardId, setEditSelectedCardId] = useState<string>('');
 
@@ -220,6 +226,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
     setEditValue(exp.value.toString());
     setEditDate(exp.date);
     setEditPaymentMethod(exp.paymentMethod || 'pix');
+    setEditDueDate(exp.dueDate || '');
     setEditCardLastDigits(exp.cardLastDigits || '');
     const initialCardId = exp.cardId || (exp.paymentMethod === 'card' && exp.cardLastDigits ? (creditCards.find(c => c.lastDigits === exp.cardLastDigits)?.id || '') : '');
     setEditSelectedCardId(initialCardId);
@@ -285,6 +292,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
           category: finalCategory,
           date: editDate,
           paymentMethod: editPaymentMethod,
+          dueDate: editPaymentMethod === 'card' ? null : editDueDate || null,
           cardLastDigits: editPaymentMethod === 'card' ? editCardLastDigits : undefined,
           cardId: resolvedEditCard?.id,
           cardNickname: resolvedEditCard?.name,
@@ -301,6 +309,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
           category: finalCategory,
           date: editDate,
           paymentMethod: editPaymentMethod,
+          dueDate: editPaymentMethod === 'card' ? null : editDueDate || null,
           cardLastDigits: editPaymentMethod === 'card' ? editCardLastDigits : undefined,
           cardId: resolvedEditCard?.id,
           cardNickname: resolvedEditCard?.name,
@@ -312,6 +321,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
           category: finalCategory,
           date: editDate,
           paymentMethod: editPaymentMethod,
+          dueDate: editPaymentMethod === 'card' ? null : editDueDate || null,
           cardLastDigits: editPaymentMethod === 'card' ? editCardLastDigits : undefined,
           cardId: resolvedEditCard?.id,
           cardNickname: resolvedEditCard?.name,
@@ -396,7 +406,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   const [revCategory, setRevCategory] = useState(DEFAULT_REVENUE_CATEGORIES[0]);
   const [customRevCategory, setCustomRevCategory] = useState('');
   const [isCustomRevCategory, setIsCustomRevCategory] = useState(false);
-  const [revDate, setRevDate] = useState(new Date().toISOString().split('T')[0]);
+  const [revDate, setRevDate] = useState(getLocalDateStr());
   const [revenueEntryType, setRevenueEntryType] = useState<EntryType>('single');
   const [revenueRecurrenceMonths, setRevenueRecurrenceMonths] = useState('12');
 
@@ -550,6 +560,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   // SUBMIT HANDLERS
   const handleExpenseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (paymentMethod === 'card' && showInlineAddCard) { alert('Salve o novo cartão antes de salvar a despesa.'); return; }
     if (isSavingExpense) return;
 
     const expenseValue = parseFloat(value);
@@ -597,6 +608,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
         firstInstallmentInNextMonth: isInstallment ? firstInstallmentNextMonth : undefined,
         date,
         paymentMethod,
+        dueDate: paymentMethod === 'card' ? null : dueDate || null,
         cardLastDigits: paymentMethod === 'card' ? cardLastDigits : undefined,
         cardId: resolvedCard?.id,
         cardNickname: resolvedCard?.name,
@@ -611,6 +623,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
       setFirstInstallmentNextMonth(false);
       setInstallmentValueType('single');
       setPaymentMethod('pix');
+      setDueDate('');
       setCardLastDigits('');
       setSelectedCardId('');
       setShowInlineAddCard(false);
@@ -625,6 +638,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
   };
 
   const handleAddInlineCard = async () => {
+    if (savingInlineCard) return;
     if (!inlineCardName.trim() || !inlineCardDigits.trim()) {
       alert('Preencha o apelido e os 4 últimos dígitos do cartão.');
       return;
@@ -634,7 +648,10 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
       return;
     }
     if (onAddCreditCard) {
-      await onAddCreditCard(inlineCardName, inlineCardDigits);
+      if (![inlineClosingDay, inlineDueDay].every(v => Number.isInteger(Number(v)) && Number(v) >= 1 && Number(v) <= 31)) { alert('Informe fechamento e vencimento entre 1 e 31.'); return; }
+      setSavingInlineCard(true);
+      try {
+      const added = await onAddCreditCard(inlineCardName, inlineCardDigits, { closingDay: Number(inlineClosingDay), dueDay: Number(inlineDueDay) });
       
       // Clear inputs
       setInlineCardName('');
@@ -643,6 +660,10 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
       
       // Set digits so it's auto filled
       setCardLastDigits(inlineCardDigits.trim());
+      setSelectedCardId(added.id);
+      setInlineClosingDay(''); setInlineDueDay('');
+      } catch (error) { alert(error instanceof Error ? error.message : 'Não foi possível cadastrar o cartão.'); }
+      finally { setSavingInlineCard(false); }
     }
   };
 
@@ -694,6 +715,15 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
       setIsSavingRevenue(false);
     }
   };
+
+  useBackHandler(!!(itemToDelete || billToPay || editingExpense || editingRevenue || showEntryForm), () => {
+    if (isDeleting || isSavingExpense || isSavingRevenue) return;
+    if (itemToDelete) setItemToDelete(null);
+    else if (billToPay) setBillToPay(null);
+    else if (editingExpense) setEditingExpense(null);
+    else if (editingRevenue) setEditingRevenue(null);
+    else setShowEntryForm(false);
+  });
 
   return (
     <div className="flex flex-col gap-0" id="tracker-component-root">
@@ -906,6 +936,10 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                       </div>
 
                       {/* Se for Cartão, selecionar dos cadastrados ou digitar dígitos */}
+                      {paymentMethod !== 'card' && <label className="payment-due-field">{paymentMethod === 'boleto' ? 'Vencimento do boleto' : 'Vencimento do Pix (opcional)'}
+                        <input type="date" aria-label="Vencimento da despesa" value={dueDate} required={paymentMethod === 'boleto'} onChange={e => setDueDate(e.target.value)} />
+                        <small>Data do pagamento, separada da data do lançamento. Usada nos lembretes enquanto estiver pendente.</small>
+                      </label>}
                       {paymentMethod === 'card' && (
                         <div className="mt-2.5 animate-slideDown p-2.5 bg-zinc-950/20 border border-white/5 rounded-xl flex flex-col gap-2.5">
                           <div>
@@ -925,7 +959,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                             {/* Inline Add Card Form */}
                             {showInlineAddCard ? (
                               <div className="bg-zinc-900 border border-white/5 rounded-xl p-2.5 space-y-2 mt-1 animate-fadeIn">
-                                <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider block">Cadastrar cartão inline</span>
+                                <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider block">Novo cartão</span>
                                 <div className="space-y-2">
                                   <div>
                                     <label className="block text-[8px] text-slate-400 font-semibold uppercase leading-none mb-1">Apelido do Cartão</label>
@@ -948,12 +982,16 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                                       onChange={(e) => setInlineCardDigits(e.target.value.replace(/\D/g, ''))}
                                     />
                                   </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <label className="payment-due-field">Fechamento (dia)<input type="number" min="1" max="31" aria-label="Fechamento do novo cartão" value={inlineClosingDay} onChange={e => setInlineClosingDay(e.target.value)} /></label>
+                                    <label className="payment-due-field">Vencimento (dia)<input type="number" min="1" max="31" aria-label="Vencimento do novo cartão" value={inlineDueDay} onChange={e => setInlineDueDay(e.target.value)} /></label>
+                                  </div>
                                   <button
                                     type="button"
-                                    onClick={handleAddInlineCard}
+                                    onClick={handleAddInlineCard} disabled={savingInlineCard}
                                     className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-bold transition-all shadow-md cursor-pointer text-center h-7"
                                   >
-                                    Salvar e Usar Cartão
+                                    {savingInlineCard ? 'Salvando…' : 'Salvar e Usar Cartão'}
                                   </button>
                                 </div>
                               </div>
@@ -1428,6 +1466,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                                     <Calendar className="w-3 h-3 text-slate-600" />
                                     {formatDate(exp.date)}
                                   </span>
+                                  {exp.dueDate && exp.paymentMethod !== 'card' && <span>Vence {formatDate(exp.dueDate)}</span>}
                                   {exp.paymentMethod && (
                                     <>
                                       <span>•</span>
@@ -1739,7 +1778,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
       {/* MODAL DE EDIÇÃO DE DESPESA */}
       {editingExpense && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className={`bg-[#141414] border border-white/10 w-full rounded-2xl p-5 shadow-2xl flex flex-col gap-4 animate-scaleUp transition-all ${
+          <div role="dialog" aria-modal="true" aria-label="Editar despesa" className={`bg-[#141414] border border-white/10 w-full rounded-2xl p-5 shadow-2xl flex flex-col gap-4 animate-scaleUp transition-all ${
             editingExpense.isInstallment || getInstallmentInfo(editingExpense).hasInfo ? 'max-w-md' : 'max-w-sm'
           }`}>
             <div className="flex items-center gap-2 pb-2 border-b border-white/5">
@@ -1897,6 +1936,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
                 </div>
 
                 {/* Se for Cartão, selecionar dos cadastrados ou digitar dígitos */}
+                {editPaymentMethod !== 'card' && <label className="payment-due-field">{editPaymentMethod === 'boleto' ? 'Vencimento do boleto' : 'Vencimento do Pix (opcional)'}
+                  <input type="date" aria-label="Editar vencimento da despesa" value={editDueDate} required={editPaymentMethod === 'boleto'} onChange={e => setEditDueDate(e.target.value)} />
+                </label>}
                 {editPaymentMethod === 'card' && (
                   <div className="mt-2.5 animate-slideDown p-2 bg-zinc-950/20 border border-white/5 rounded-xl flex flex-col gap-2.5">
                     <div>
@@ -2163,7 +2205,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
       {/* MODAL DE EDIÇÃO DE RENDIMENTO */}
       {editingRevenue && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-[#141414] border border-white/10 max-w-sm w-full rounded-2xl p-5 shadow-2xl flex flex-col gap-4 animate-scaleUp">
+          <div role="dialog" aria-modal="true" aria-label="Editar entrada" className="bg-[#141414] border border-white/10 max-w-sm w-full rounded-2xl p-5 shadow-2xl flex flex-col gap-4 animate-scaleUp">
             <div className="flex items-center gap-2 pb-2 border-b border-white/5">
               <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-450">
                 <Pencil className="w-4 h-4" />
@@ -2291,7 +2333,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
       {/* FULLSCREEN DELETE CONFIRMATION MODAL */}
       {itemToDelete && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-55 flex items-center justify-center p-4">
-          <div className="bg-[#141414] border border-white/10 max-w-sm w-full rounded-2xl p-6 shadow-2xl flex flex-col gap-4 animate-fadeIn" id="delete-confirmation-modal">
+          <div role="dialog" aria-modal="true" aria-label="Confirmar exclusão" className="bg-[#141414] border border-white/10 max-w-sm w-full rounded-2xl p-6 shadow-2xl flex flex-col gap-4 animate-fadeIn" id="delete-confirmation-modal">
             <div className="flex items-center gap-3 text-rose-500">
               <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20">
                 <Trash2 className="w-5 h-5 text-rose-400" />
@@ -2360,7 +2402,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({
       {/* MODAL DE CONFIRMAÇÃO DE QUITAÇÃO DE FATURA */}
       {billToPay && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-[#141414] border border-white/10 w-full max-w-sm rounded-2xl p-5 shadow-2xl flex flex-col gap-4 animate-scaleUp transition-all">
+          <div role="dialog" aria-modal="true" aria-label="Quitar fatura de cartão" className="bg-[#141414] border border-white/10 w-full max-w-sm rounded-2xl p-5 shadow-2xl flex flex-col gap-4 animate-scaleUp transition-all">
             <div className="flex items-center gap-2.5 pb-2 border-b border-white/5">
               <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
                 <CreditCard className="w-5 h-5" />

@@ -166,13 +166,13 @@ export const tutorials: Tutorial[] = [
       { id: 'local-nuvem', title: 'Escolha onde trabalhar', steps: [
         'Sem uma conta conectada, os dados financeiros ficam neste navegador e dispositivo.',
         'Para usar a nuvem, abra Meu perfil → Conectar com Google. Use a mesma conta para voltar a acessar seus dados.',
-        'Uma conta nova começa com os padrões do aplicativo; seus dados locais não são importados automaticamente. Ao sair, o aplicativo volta à cópia do navegador.',
+        'Uma conta nova começa com os padrões do aplicativo; seus dados locais não são importados automaticamente. Ao sair, o aplicativo volta à cópia local do dispositivo.',
       ] },
       { id: 'salvar-copia', title: 'Exporte e restaure um backup', steps: [
         'Abra Configurações → Dados e backups. Confira se está usando os dados locais ou os dados da conta.',
         'Clique em Exportar backup para baixar um arquivo JSON dos dados em uso. Guarde-o em um local seguro.',
-        'Para restaurar, use Importar backup e escolha um arquivo gerado pelo aplicativo. No modo local, ele substitui a cópia financeira do navegador; na nuvem, registros com os mesmos identificadores e configurações podem ser substituídos.',
-      ], note: 'Esse arquivo é um backup do aplicativo. A importação não é uma leitura de fatura bancária, PDF, OFX ou CSV. Exporte uma cópia antes de restaurar outra.' },
+        'Para restaurar, use Importar backup, escolha um arquivo JSON gerado pelo aplicativo e confira o resumo. A confirmação substitui apenas a cópia local do dispositivo; a conta Google e os dados da nuvem são preservados.',
+      ], note: 'Esse arquivo é um backup do aplicativo. A importação não é uma leitura de fatura bancária, PDF, OFX ou CSV. Exporte uma cópia antes de restaurar outra. No Android, você também pode escolher a pasta do arquivo ou compartilhar o backup.' },
       { id: 'enviar-nuvem', title: 'Envie a cópia local para sua conta', steps: [
         'Conecte a conta Google que vai receber os dados.',
         'Em Dados e backups, escolha Enviar dados do navegador.',

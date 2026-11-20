@@ -1,14 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Wallet, Database, ShieldCheck, Palette, CircleHelp, X, Download, Upload, Cloud, Trash2, Mail, BookOpen } from 'lucide-react';
+import { Wallet, Database, ShieldCheck, Palette, CircleHelp, X, Download, Upload, Cloud, Trash2, Mail, BookOpen, Smartphone, Share2, Bell } from 'lucide-react';
 import { APP_CONTACT } from '../config/appContact';
 import './AppSettings.css';
+import { useBackHandler } from '../hooks/useBackHandler';
+import { AppLockSettings } from './AppLockSettings';
 
-export type SettingsSection = 'budget' | 'data' | 'privacy' | 'appearance' | 'help';
+export type SettingsSection = 'budget' | 'reminders' | 'data' | 'privacy' | 'appearance' | 'app' | 'help';
 const sections = [
   { id: 'budget', label: 'Orçamento do mês', icon: Wallet },
+  { id: 'reminders', label: 'Lembretes', icon: Bell },
   { id: 'data', label: 'Dados e backups', icon: Database },
   { id: 'privacy', label: 'Privacidade', icon: ShieldCheck },
   { id: 'appearance', label: 'Aparência', icon: Palette },
+  { id: 'app', label: 'Aplicativo', icon: Smartphone },
   { id: 'help', label: 'Ajuda e contato', icon: CircleHelp },
 ] as const;
 
@@ -18,6 +22,8 @@ interface Props {
   onSectionChange: (section: SettingsSection) => void;
   onClose: () => void;
   budgetContent: React.ReactNode;
+  appContent: React.ReactNode;
+  remindersContent: React.ReactNode;
   cloudConnected: boolean;
   theme: 'light' | 'dark' | 'system';
   onThemeChange: (theme: 'light' | 'dark' | 'system') => void;
@@ -25,10 +31,14 @@ interface Props {
   onPrivacyModeChange: (value: boolean) => void;
   hideMobileBudgets: boolean;
   onHideMobileBudgetsChange: (value: boolean) => void;
-  onExport: () => void;
-  onImport: () => void;
+  onExport: () => Promise<void>;
+  onImport: () => Promise<void>;
+  onShare?: () => Promise<void>;
+  nativeApp?: boolean;
   onUploadLocal: () => Promise<void>;
   onClearLocal: () => void;
+  onDeleteAccount?: () => void;
+  accountDeletionEnabled?: boolean;
   rememberAppearance: boolean;
   onOpenCookiePreferences: () => void;
   onDiagnostics: () => void;
@@ -39,6 +49,7 @@ export function AppSettings(p: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const [busy, setBusy] = useState(false);
+  useBackHandler(true, () => { if (!busy) p.onClose(); }, 120);
   const [error, setError] = useState('');
   const [topic, setTopic] = useState('Dúvida sobre o aplicativo');
   const cloud = p.cloudConnected;
@@ -61,7 +72,7 @@ export function AppSettings(p: Props) {
     setBusy(true);
     setError('');
     try { await action(); }
-    catch { setError('Não foi possível concluir. Verifique sua conexão e tente novamente.'); }
+    catch (error) { setError(error instanceof Error ? error.message : 'Não foi possível concluir. Tente novamente.'); }
     finally { setBusy(false); }
   }
 
@@ -98,26 +109,32 @@ export function AppSettings(p: Props) {
           <h3>{sections.find(s => s.id === p.section)?.label}</h3>
           {error && <p className="settings-error" role="alert">{error}</p>}
           {p.section === 'budget' && <><p className="settings-description">Ajuste a renda prevista, a meta de poupança e os cartões usados nos lançamentos.</p>{p.budgetContent}</>}
+          {p.section === 'app' && p.appContent}
+          {p.section === 'reminders' && p.remindersContent}
           {p.section === 'data' && <>
-            <p className="settings-description">Você está usando os dados {p.demoMode ? 'fictícios da demonstração' : cloud ? 'da sua conta na nuvem' : 'deste navegador'}. Os arquivos de backup contêm suas informações financeiras; guarde-os com cuidado.</p>
-            <div className="settings-action"><div><h4>Exportar backup</h4><p>Baixe os dados em uso em um arquivo JSON, incluindo lançamentos, orçamentos e cartões.</p></div><button type="button" className="settings-secondary" onClick={p.onExport}><Download size={16} />Exportar</button></div>
-            <div className="settings-action"><div><h4>Importar backup</h4><p>{cloud ? 'Grava o arquivo na conta conectada. Registros com o mesmo identificador e as configurações podem ser substituídos.' : 'Substitui os dados financeiros deste navegador pelo conteúdo do arquivo.'}</p></div><button type="button" className="settings-secondary" onClick={p.onImport}><Upload size={16} />Importar</button></div>
-            {cloud && <div className="settings-action"><div><h4>Enviar dados do navegador</h4><p>Envio manual para a conta conectada. Você confirma o destino antes de continuar; configurações e registros com o mesmo identificador podem ser substituídos.</p></div><button type="button" className="settings-secondary" disabled={busy} onClick={() => run(p.onUploadLocal)}><Cloud size={16} />Enviar</button></div>}
+            <p className="settings-description">Você está usando os dados {p.demoMode ? 'fictícios da demonstração' : cloud ? 'da sua conta na nuvem' : p.nativeApp ? 'deste aplicativo' : 'deste navegador'}. Os arquivos de backup contêm suas informações financeiras; guarde-os com cuidado.</p>
+            <div className="settings-action"><div><h4>Exportar backup</h4><p>Salve os dados em uso em um arquivo JSON, incluindo lançamentos, orçamentos e cartões.{p.nativeApp ? ' Você escolhe a pasta no Android.' : ''}</p></div><button type="button" disabled={busy} className="settings-secondary" onClick={() => run(p.onExport)}><Download size={16} />Exportar</button></div>
+            {p.onShare && <div className="settings-action"><div><h4>Compartilhar backup</h4><p>Escolha o aplicativo e o destino no Android. O arquivo contém seus dados financeiros completos; confira com quem vai compartilhar.</p></div><button type="button" disabled={busy} className="settings-secondary" onClick={() => run(p.onShare!)}><Share2 size={16} />Compartilhar</button></div>}
+            <div className="settings-action"><div><h4>Importar backup</h4><p>Confira o resumo do arquivo antes de confirmar a substituição da cópia local. A conta Google e os dados da nuvem são preservados.</p></div><button type="button" disabled={busy} className="settings-secondary" onClick={() => run(p.onImport)}><Upload size={16} />Importar</button></div>
+            {cloud && <div className="settings-action"><div><h4>Enviar cópia local</h4><p>Envio manual para a conta conectada. Você confirma o destino antes de continuar; configurações e registros com o mesmo identificador podem ser substituídos.</p></div><button type="button" className="settings-secondary" disabled={busy} onClick={() => run(p.onUploadLocal)}><Cloud size={16} />Enviar</button></div>}
           </>}
           {p.section === 'privacy' && <>
+            <AppLockSettings />
             <p className="settings-description">{p.demoMode ? 'Você está explorando exemplos fictícios. Seus dados salvos permanecem separados da demonstração.' : cloud ? 'Os dados em uso são armazenados na nuvem, na conta conectada.' : 'Os dados em uso ficam neste navegador e neste dispositivo.'}</p>
             <div className="settings-action"><div><h4>Cookies e armazenamento</h4><p>Reveja as finalidades e permita ou revogue a gravação das preferências opcionais. Sua escolha não apaga os dados financeiros nem encerra a sessão.</p></div><button type="button" className="settings-secondary" onClick={p.onOpenCookiePreferences}>Gerenciar escolhas</button></div>
             <h4 className="settings-subtitle">Como seus dados são usados</h4>
             <ul className="settings-info-list">
               <li>O aplicativo usa os lançamentos, orçamentos e apelidos de cartões para organizar seu controle financeiro. Cadastre somente os quatro últimos dígitos do cartão.</li>
-              <li>No uso local, limpar os dados do navegador pode apagar seus registros. Exporte um backup para guardar uma cópia.</li>
+              <li>{p.nativeApp ? 'No Android, a cópia local fica na área interna do aplicativo e no armazenamento da interface. Desinstalar ou apagar os dados do aplicativo pode remover essas cópias. A conta Google conserva um cache separado para consulta; backups exportados ficam no destino que você escolher.' : 'No uso local, limpar os dados do navegador pode apagar seus registros.'} Exporte um backup para guardar uma cópia.</li>
               <li>Ao conectar o Google, o aplicativo recebe dados de identificação da conta e usa o Firebase para autenticar e armazenar o planejamento. Os dados locais não são enviados automaticamente.</li>
               <li>Sair da conta encerra a sessão no aplicativo. Essa ação não apaga os dados da nuvem nem a cópia local anterior.</li>
             </ul>
             <button type="button" className="settings-text-button" onClick={() => p.onSectionChange('data')}>Ir para dados e backups →</button>
+            <p><a className="settings-text-button" href="./privacidade.html">Ler política de privacidade completa →</a></p>
             {APP_CONTACT.responsibleName && <p className="settings-description">Responsável pelo aplicativo: {APP_CONTACT.responsibleName}.</p>}
             {APP_CONTACT.email && <p className="settings-description">Para dúvidas ou solicitações sobre seus dados, <button type="button" className="settings-text-button" onClick={() => p.onSectionChange('help')}>acesse o atendimento</button>.</p>}
-            <div className="settings-danger-zone"><div><h4>{p.demoMode ? 'Dados da demonstração' : 'Dados deste navegador'}</h4><p>{p.demoMode ? 'Limpa os exemplos desta visualização. Atualize a página para carregá-los novamente.' : 'Apaga somente a cópia financeira local, incluindo cartões e orçamentos. Os dados da nuvem e os backups baixados permanecem. Você confirma na próxima etapa.'}</p></div><button type="button" className="settings-danger" onClick={p.onClearLocal}><Trash2 size={16} />{p.demoMode ? 'Limpar exemplos' : 'Apagar cópia local'}</button></div>
+            <div className="settings-danger-zone"><div><h4>{p.demoMode ? 'Dados da demonstração' : 'Dados deste dispositivo'}</h4><p>{p.demoMode ? 'Limpa os exemplos desta visualização. Atualize a página para carregá-los novamente.' : 'Apaga somente a cópia financeira local, incluindo cartões e orçamentos. Os dados da nuvem e os backups baixados permanecem. Você confirma na próxima etapa.'}</p></div><button type="button" className="settings-danger" onClick={p.onClearLocal}><Trash2 size={16} />{p.demoMode ? 'Limpar exemplos' : 'Apagar cópia local'}</button></div>
+            <div className="settings-danger-zone"><div><h4>Conta e dados da nuvem</h4><p>Exclusão permanente do cadastro do Finanças10 e do planejamento de todos os meses na nuvem. Não exclui sua conta Google, a cópia local ou backups exportados.</p>{!p.accountDeletionEnabled && <p>A solicitação é atendida por e-mail. Abra as instruções e envie o pedido a partir do e-mail da conta usada no Finanças10. Nenhum dado é apagado ao abrir a página.</p>}</div>{p.accountDeletionEnabled && p.onDeleteAccount ? <button type="button" className="settings-danger" onClick={p.onDeleteAccount} disabled={!cloud && !p.demoMode}><Trash2 size={16} />Excluir conta</button> : <a className="settings-danger" href="./excluir-conta.html"><Trash2 size={16} />Solicitar exclusão da conta</a>}</div>
           </>}
           {p.section === 'appearance' && <>
             <p className="settings-description">{p.rememberAppearance ? 'Tema e exibição dos orçamentos podem ser lembrados neste navegador, conforme sua escolha de cookies.' : 'Tema e exibição dos orçamentos valem nesta visita. Para lembrá-los entre visitas, autorize as preferências opcionais.'} A opção de ocultar valores é mantida para respeitar sua privacidade na tela.</p>
@@ -129,7 +146,7 @@ export function AppSettings(p: Props) {
           {p.section === 'help' && <>
             <div className="settings-action"><div><h4>Passeio pelo painel</h4><p>Veja onde escolher o mês, registrar entradas e despesas e consultar o resumo mensal.</p></div><button type="button" className="settings-secondary" onClick={p.onReplayTour}>Refazer passeio</button></div>
             <div className="settings-action"><div><h4>Aprenda a usar o aplicativo</h4><p>Guias de primeiros passos, lançamentos, cartões, planejamento e backups.</p></div><a href="#/tutoriais" className="settings-primary" onClick={p.onClose}><BookOpen size={16} />Abrir tutoriais</a></div>
-            <p className="settings-description">No uso local, os dados ficam neste navegador. Para ver os dados da nuvem, conecte a mesma conta Google usada anteriormente.</p>
+            <p className="settings-description">No uso local, os dados ficam neste dispositivo. Para ver os dados da nuvem, conecte a mesma conta Google usada anteriormente.</p>
             {APP_CONTACT.email && <div className="settings-contact"><h4>Falar com o atendimento</h4><p>Não envie senhas, números completos de cartão ou seu backup financeiro.</p><label>Assunto<select value={topic} onChange={e => setTopic(e.target.value)}>{['Dúvida sobre o aplicativo', 'Acesso aos meus dados', 'Correção dos meus dados', 'Exclusão dos meus dados', 'Problema técnico'].map(t => <option key={t}>{t}</option>)}</select></label><a className="settings-primary" href={`mailto:${APP_CONTACT.email}?subject=${encodeURIComponent(`Finanças10 — ${topic}`)}`}><Mail size={16} />Enviar email</a><p>{APP_CONTACT.email}</p></div>}
             <div className="settings-action"><div><h4>Diagnóstico da sincronização</h4><p>Teste manual da conexão com o Firebase. Cria registros de teste na sua conta e tenta removê-los ao terminar.</p></div><button type="button" className="settings-secondary" disabled={!cloud || busy} onClick={p.onDiagnostics}>Executar teste</button></div>
             {!cloud && <p className="settings-description">Conecte sua conta para executar o diagnóstico da nuvem.</p>}

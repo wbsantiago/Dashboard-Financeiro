@@ -12,8 +12,8 @@ export function createDemoData(year: number): AppData {
     'Cuidados Pessoais': 150, 'Assinaturas': 100, 'Educação & Profissional': 200, 'Outros': 100,
   };
   const cards = [
-    { id: 'demo-card-daily', name: 'Cartão do dia a dia', lastDigits: '1234' },
-    { id: 'demo-card-shopping', name: 'Cartão de compras', lastDigits: '5678' },
+    { id: 'demo-card-daily', name: 'Cartão do dia a dia', lastDigits: '1234', closingDay: 3, dueDay: 10 },
+    { id: 'demo-card-shopping', name: 'Cartão de compras', lastDigits: '5678', closingDay: 20, dueDay: 28 },
   ];
   const fixed: [string, number, string, Expense['paymentMethod']][] = [
     ['Aluguel', 1350, 'Moradia', 'pix'],
@@ -34,6 +34,7 @@ export function createDemoData(year: number): AppData {
       expenses.push({ id: `demo-${year}-${m}-${key}`, title, value: Math.round(value * 100) / 100,
         category, month, date: date(day), createdAt: Date.UTC(year, m - 1, day, 12),
         isInstallment: false, paid: date(day) < now, paymentMethod,
+        ...(paymentMethod !== 'card' ? { dueDate: date(Math.min(day + 4, 28)) } : {}),
         ...(paymentMethod === 'card' ? { cardId: cards[0].id, cardLastDigits: cards[0].lastDigits, cardNickname: cards[0].name } : {}),
         ...extra,
       });

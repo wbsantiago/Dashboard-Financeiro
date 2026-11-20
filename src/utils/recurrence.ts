@@ -35,9 +35,9 @@ export function readRecurrenceFields(value: RecurrenceFields & { isInstallment?:
   return { recurrenceId, recurrenceIndex, recurrenceMonths };
 }
 
-type MonthlyItem = RecurrenceFields & { id: string; date: string; month: string; createdAt: number };
+type MonthlyItem = RecurrenceFields & { id: string; date: string; month: string; createdAt: number; dueDate?: string | null };
 
-export function createMonthlyOccurrences<T extends { date: string; month: string; value: number }>(
+export function createMonthlyOccurrences<T extends { date: string; month: string; value: number; dueDate?: string | null }>(
   draft: T, months: number, prefix: 'exp' | 'rev',
   getMonth: (date: string) => string = date => date.slice(0, 7),
 ): (T & MonthlyItem)[] {
@@ -47,7 +47,7 @@ export function createMonthlyOccurrences<T extends { date: string; month: string
   const createdAt = Date.now();
   return Array.from({ length: months }, (_, index) => {
     const date = shiftMonthlyDate(draft.date, index);
-    return { ...draft, id: `${prefix}-${recurrenceId}-${index + 1}`, date, month: getMonth(date),
+    return { ...draft, ...(draft.dueDate ? { dueDate: shiftMonthlyDate(draft.dueDate, index) } : {}), id: `${prefix}-${recurrenceId}-${index + 1}`, date, month: getMonth(date),
       recurrenceId, recurrenceIndex: index + 1, recurrenceMonths: months, createdAt };
   });
 }
@@ -66,7 +66,8 @@ export function updateRecurringItems<T extends MonthlyItem>(
     const dateChanged = changes.date !== undefined && changes.date !== pivot.date;
     const offset = scope === 'future' ? item.recurrenceIndex! - pivot.recurrenceIndex! : 0;
     const date = dateChanged ? shiftMonthlyDate(changes.date!, offset) : item.date;
-    return { ...item, ...changes, id: item.id, createdAt: item.createdAt,
+    const dueDate = changes.dueDate === undefined ? item.dueDate : changes.dueDate ? shiftMonthlyDate(changes.dueDate, offset) : null;
+    return { ...item, ...changes, ...(dueDate !== undefined ? { dueDate } : {}), id: item.id, createdAt: item.createdAt,
       recurrenceId: item.recurrenceId, recurrenceIndex: item.recurrenceIndex, recurrenceMonths: item.recurrenceMonths,
       date, month: dateChanged ? getMonth(date) : item.month };
   });

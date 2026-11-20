@@ -1,5 +1,7 @@
 # Roadmap do projeto
 
+**Estado do aplicativo principal em 19/11/2026:** a [versão consolidada 0.7.3](RELEASE-0.7.3.md) reúne PWA, Android, biometria e lembretes. O roteiro abaixo mantém o planejamento inicial; a integração bancária continua na frente separada `bancos`. Nome definitivo, tutoriais em vídeo e distribuição pela loja permanecem como próximos trabalhos.
+
 Atualizado em 02/11/2026. Roadmap sem prazos definidos. Foco atual: área de tutoriais; o experimento bancário permanece separado na branch `bancos`.
 
 ## Objetivo
@@ -92,7 +94,7 @@ Pesquisa inicial registrada em [Integração com bancos brasileiros](PESQUISA-BA
 3. **Quando retomarmos a integração bancária:** continuar o piloto na branch `bancos`, separado do principal.
 4. **Com nome e materiais prontos:** iniciar a divulgação. Ela pode começar antes da integração, apresentando apenas os recursos já disponíveis.
 
-Antes de ampliar o uso público, também revisar o canal de atendimento, hoje sem contato configurado, e o fluxo de exclusão da conta e dos dados na nuvem, ainda não implementado.
+O contato público e a solicitação de exclusão por atendimento estão configurados. Antes de ampliar o uso público, concluir o teste da caixa de e-mail e a validação operacional da exclusão; a automação de exclusão continua desativada. Consulte [EXCLUSAO-ATENDIMENTO.md](EXCLUSAO-ATENDIMENTO.md).
 
 ## Decisões para nossa próxima conversa
 

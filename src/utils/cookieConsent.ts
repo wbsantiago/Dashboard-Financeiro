@@ -19,12 +19,12 @@ function browserStore(): BrowserStore | null {
   catch { return null; }
 }
 
-export function readNecessaryPreference(key: 'storage-type' | 'privacy-mode', fallback: string, storage = browserStore()): string {
+export function readNecessaryPreference(key: 'storage-type' | 'privacy-mode' | `cloud-cache-ready:${string}`, fallback: string, storage = browserStore()): string {
   try { return storage?.getItem(key) ?? fallback; }
   catch { return fallback; }
 }
 
-export function writeNecessaryPreference(key: 'storage-type' | 'privacy-mode', value: string, storage = browserStore()): boolean {
+export function writeNecessaryPreference(key: 'storage-type' | 'privacy-mode' | `cloud-cache-ready:${string}`, value: string, storage = browserStore()): boolean {
   try { storage?.setItem(key, value); return !!storage; }
   catch { return false; }
 }

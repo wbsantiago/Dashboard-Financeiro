@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
-import { createMonthlyOccurrences, readRecurrenceFields, selectRecurringItems, updateRecurringItems } from '../src/utils/recurrence';
+import { createMonthlyOccurrences, readRecurrenceFields, selectRecurringItems, updateRecurringItems, shiftMonthlyDate } from '../src/utils/recurrence';
 import { getCompetenceMonth } from '../src/utils/format';
+import { cycleConfiguration, shiftedDueDate, validDate } from '../src/utils/paymentDates';
 import { INITIAL_MOCK_DATA } from '../src/utils/storage';
 import { isArchivedExpenseCategory } from '../src/utils/categories';
 import type { AppData } from '../src/types';
@@ -32,7 +33,7 @@ function setup(mode: 'local' | 'cloud', initial: AppData = structuredClone(INITI
   let failWrite = false;
   const context: any = {
     data: initial, storageType: mode, auth: { currentUser: { uid: 'test-user' } }, db: {},
-    createMonthlyOccurrences, readRecurrenceFields, selectRecurringItems, updateRecurringItems, getCompetenceMonth, isArchivedExpenseCategory,
+    createMonthlyOccurrences, readRecurrenceFields, selectRecurringItems, updateRecurringItems, getCompetenceMonth, isArchivedExpenseCategory, cycleConfiguration, shiftedDueDate, validDate, shiftMonthlyDate,
     cleanDocument: (data: any) => JSON.parse(JSON.stringify(data)),
     OperationType: { WRITE: 'write', UPDATE: 'update', DELETE: 'delete' },
     handleFirestoreError: (error: unknown) => { throw error; }, triggerNotification: () => {},
@@ -171,4 +172,35 @@ test('the maximum duration fits into a single cloud batch for creation and delet
   await h.handlers.handleDeleteExpense(first.id, 'future');
   assert.equal(h.commits.length, 2);
   assert.equal(h.context.data.expenses.length, 0);
+});
+
+for (const mode of ['local', 'cloud'] as const) test(`due dates survive real creation and future editing in ${mode}; principal closing wins over legacy month override`, async () => {
+  const h = setup(mode);
+  h.context.data.creditCards = [{ id: 'primary', name: 'Principal', lastDigits: '1234', closingDay: 3, dueDay: 10 }];
+  h.context.data.primaryCardId = 'primary';
+  h.context.data.monthlyBudgets = [{ month: '2026-01', salary: 0, targetSavingsPercentage: 20, cardClosingDay: 20 }];
+  await h.handlers.handleAddExpense({ ...expense, date: '2026-01-10', month: '2026-01', paymentMethod: 'boleto', dueDate: '2026-01-31', recurrenceMonths: 3 });
+  const entries = [...h.context.data.expenses].sort((a, b) => a.recurrenceIndex - b.recurrenceIndex);
+  assert.equal(entries[0].month, '2026-01');
+  assert.deepEqual(entries.map(e => e.dueDate), ['2026-01-31', '2026-02-28', '2026-03-31']);
+  await h.handlers.handleUpdateExpense(entries[1].id, { dueDate: '2026-02-20' }, 'future');
+  assert.equal(h.context.data.expenses.find(e => e.id === entries[0].id).dueDate, '2026-01-31');
+  assert.equal(h.context.data.expenses.find(e => e.id === entries[2].id).dueDate, '2026-03-20');
+});
+
+test('explicit cloud upload carries principal, card dates and expense due date without dropping the new fields', async () => {
+  const h = setup('cloud'); let profile: any;
+  h.context.setDoc = async (_path: string, value: any) => { profile = value; };
+  const state = { ...structuredClone(INITIAL_MOCK_DATA), primaryCardId: 'card-test', creditCards: [{ id: 'card-test', name: 'Teste', lastDigits: '1234', closingDay: 3, dueDay: 10 }], expenses: [{ ...expense, id: 'due-test', createdAt: 1, recurrenceMonths: undefined, dueDate: '2026-11-20' }] };
+  await h.handlers.uploadDataToCloud('test-user', state, 'done');
+  assert.equal(profile.primaryCardId, 'card-test'); assert.equal(profile.creditCards[0].dueDay, 10);
+  assert.equal(h.context.data.expenses.find(e => e.id === 'due-test').dueDate, '2026-11-20');
+});
+
+for (const mode of ['local', 'cloud'] as const) test(`new installments clamp dates and independent due dates in ${mode}`, async () => {
+  const h = setup(mode);
+  await h.handlers.handleAddExpense({ ...expense, date: '2026-01-31', month: '2026-01', dueDate: '2026-01-31', recurrenceMonths: undefined, isInstallment: true, totalInstallments: 3, currentInstallment: 1 });
+  const entries = [...h.context.data.expenses].sort((a, b) => a.currentInstallment - b.currentInstallment);
+  assert.deepEqual(entries.map(e => e.date), ['2026-01-31', '2026-02-28', '2026-03-31']);
+  assert.deepEqual(entries.map(e => e.dueDate), ['2026-01-31', '2026-02-28', '2026-03-31']);
 });

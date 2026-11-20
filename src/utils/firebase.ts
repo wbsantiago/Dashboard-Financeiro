@@ -4,13 +4,14 @@
  */
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, Auth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { getAuth, initializeAuth, indexedDBLocalPersistence, Auth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, Firestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { demoMode } from './demoMode';
+import { isNativeApp, nativePreviewMode } from './platform';
 
 // Detect whether the user has integrated Firebase
-const isFirebaseConfigured = !!(firebaseConfig && firebaseConfig.apiKey);
+const isFirebaseConfigured = !!(firebaseConfig && firebaseConfig.apiKey) && !nativePreviewMode;
 
 let app;
 let db: Firestore | null = null;
@@ -23,8 +24,8 @@ if (isFirebaseConfigured && !demoMode) {
     if (dbId === 'default') {
       dbId = '(default)';
     }
-    db = getFirestore(app, dbId);
-    auth = getAuth(app);
+    db = isNativeApp ? initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }, dbId) : getFirestore(app, dbId);
+    auth = isNativeApp ? initializeAuth(app, { persistence: indexedDBLocalPersistence }) : getAuth(app);
     
   } catch (err) {
     console.error('Erro ao inicializar os serviços do Firebase:', err);
@@ -58,6 +59,7 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+  if (error instanceof Error && /^(Sem internet|Aguarde o carregamento)/.test(error.message)) throw error;
   const current_auth = auth;
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),

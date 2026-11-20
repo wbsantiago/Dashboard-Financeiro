@@ -11,7 +11,14 @@ service cloud.firestore {
     }
 
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId
+        && !exists(/databases/$(database)/documents/accountDeletionRequests/$(userId));
+    }
+
+    // Only Admin Functions create/update deletion jobs. The owner can inspect acceptance.
+    match /accountDeletionRequests/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+      allow list, create, update, delete: if false;
     }
 
     // Helper to validate standard IDs

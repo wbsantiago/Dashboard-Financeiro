@@ -1,0 +1,80 @@
+apply plugin: 'com.android.application'
+
+def releaseBuild = gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
+def signingPath = System.getenv('FINANCAS10_SIGNING_PROPERTIES')
+def releaseSigning = new Properties()
+if (signingPath && file(signingPath).exists()) file(signingPath).withInputStream { releaseSigning.load(it) }
+
+android {
+    namespace = "io.github.wbsantiago.financas10.preview"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "io.github.wbsantiago.financas10"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 15
+        versionName "0.7.3"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        if (!releaseSigning.isEmpty()) {
+            upload {
+                storeFile file(releaseSigning['storeFile'])
+                storePassword releaseSigning['storePassword']
+                keyAlias releaseSigning['keyAlias']
+                keyPassword releaseSigning['keyPassword']
+            }
+        }
+    }
+    buildTypes {
+        debug {
+            applicationIdSuffix '.preview'
+            resValue 'string', 'app_name', 'Finanças10 Teste'
+            resValue 'string', 'title_activity_main', 'Finanças10 Teste'
+        }
+        release {
+            if (!releaseSigning.isEmpty()) signingConfig signingConfigs.upload
+            resValue 'string', 'app_name', 'Finanças10'
+            resValue 'string', 'title_activity_main', 'Finanças10'
+            resValue 'string', 'package_name', 'io.github.wbsantiago.financas10'
+            resValue 'string', 'custom_url_scheme', 'io.github.wbsantiago.financas10'
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation 'androidx.biometric:biometric:1.1.0'
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file(releaseBuild ? 'src/release/google-services.json' : 'src/debug/google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

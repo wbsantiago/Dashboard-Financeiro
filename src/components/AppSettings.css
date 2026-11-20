@@ -483,7 +483,7 @@
     gap:14px
   }
 
-  .settings-action>button,.settings-danger-zone>button {
+  .settings-action>button,.settings-danger-zone>button,.settings-danger-zone>a.settings-danger {
     width:100%
   }
 
@@ -526,3 +526,7 @@
   }
 
 }
+.settings-app-lock { margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line, #52678044); }
+.settings-app-lock .settings-subtitle { display: flex; align-items: center; gap: .5rem; }
+.app-lock-interval { display: grid; gap: .5rem; margin: 1rem 0; font-size: .85rem; }
+.app-lock-interval select { padding: .7rem; color: inherit; background: transparent; border: 1px solid #74879d66; border-radius: .6rem; }

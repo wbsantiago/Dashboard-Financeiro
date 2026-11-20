@@ -2,10 +2,12 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, BookOpen, Check, X } from 'lucide-react';
 import { dashboardTourSteps, readTourChoice, saveTourChoice, tourStorageKey, type TourChoice } from '../utils/onboarding';
 import './DashboardTour.css';
+import { useBackHandler } from '../hooks/useBackHandler';
 
 interface Props { userId: string | null; ready: boolean; demoMode: boolean; replayRequest: number; }
 
 function TourWelcome({ onStart, onDismiss }: { onStart: () => void; onDismiss: () => void }) {
+  useBackHandler(true, onDismiss, 150);
   const dialog = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
 
@@ -34,6 +36,7 @@ function TourWelcome({ onStart, onDismiss }: { onStart: () => void; onDismiss: (
 }
 
 function TourDialog({ step, onStep, onFinish }: { step: number; onStep: (step: number) => void; onFinish: (choice: TourChoice) => void }) {
+  useBackHandler(true, () => onFinish('dismissed'), 150);
   const dialog = useRef<HTMLDialogElement>(null);
   const card = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);

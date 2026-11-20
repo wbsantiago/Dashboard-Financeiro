@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Cookie, X } from 'lucide-react';
 import type { ChoiceSource, CookieChoice } from '../utils/cookieConsent';
 import './CookieConsent.css';
+import { useBackHandler } from '../hooks/useBackHandler';
 
 interface Props {
   choice: CookieChoice | null;
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function CookieConsent(p: Props) {
+  useBackHandler(p.managerOpen, p.onCloseManager, 200);
   const [preferences, setPreferences] = useState(false);
   const dialog = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -80,6 +82,7 @@ export function CookieConsent(p: Props) {
               <dt>Login e ocultação de valores</dt><dd>Google/Firebase mantém a sessão nos recursos do navegador. Para encerrá-la, use Meu perfil → Sair da conta. A opção de ocultar valores e o modo local/nuvem permanecem até serem alterados ou removidos do navegador.</dd>
               <dt>Escolha de cookies</dt><dd>A decisão, sua data e a versão deste aviso têm validade de 180 dias. Ao acessar o aplicativo após esse prazo, descartamos o registro vencido e pedimos uma nova escolha. Esse prazo foi definido para o aplicativo.</dd>
               <dt>Passeio pelo painel</dt><dd>Guardamos neste navegador se você concluiu ou dispensou o passeio, separadamente para o uso local e cada conta. Isso evita repetir a apresentação. A escolha permanece até limpar os dados do site; você pode refazer o passeio em Ajuda e contato.</dd>
+              <dt>Aplicativo e abertura sem internet</dt><dd>Guardamos arquivos de interface, ícones e fontes no dispositivo para abrir o painel sem conexão. Novas versões substituem os arquivos antigos. Esse cache não guarda respostas do Firebase, lançamentos, credenciais ou conteúdo de outros serviços. Seus registros financeiros continuam no armazenamento local ou na conta conectada. Limpar os dados do site também remove os arquivos do aplicativo.</dd>
               <dt>Preferências opcionais</dt><dd>Tema e exibição dos orçamentos são guardados somente após aceitar, por até a validade desta escolha. Ao rejeitar ou revogar, removemos somente essas preferências salvas; o visual atual pode continuar até você sair da página.</dd>
             </dl>
           </details>

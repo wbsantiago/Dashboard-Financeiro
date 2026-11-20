@@ -5,11 +5,13 @@ import { CategoryBudget, Expense } from '../types';
 import { categoryBudgetUsage, isArchivedExpenseCategory } from '../utils/categories';
 import { formatCurrency } from '../utils/format';
 import { useChartEntrance } from '../hooks/useChartEntrance';
+import { useBackHandler } from '../hooks/useBackHandler';
 
 interface ChartProps { expenses: Expense[]; selectedMonth: string; }
 
 export const ChartsView: React.FC<ChartProps & { categoryBudgets: CategoryBudget[]; onEditLimits: () => void }> = ({ expenses, categoryBudgets, selectedMonth, onEditLimits }) => {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  useBackHandler(activeCategory !== null, () => setActiveCategory(null), 40);
   const rows = useMemo(() => {
     const values = new Map<string, { spent: number; limit: number }>();
     const monthExpenses = expenses.filter(e => e.month === selectedMonth);
@@ -60,6 +62,7 @@ export function SpendingHistory({ expenses, selectedMonth }: ChartProps) {
   const gradientId = useId();
   const [width, setWidth] = useState(800);
   const [active, setActive] = useState<number | null>(null);
+  useBackHandler(active !== null, () => setActive(null), 40);
   const year = selectedMonth.slice(0, 4);
   const data = useMemo(() => MONTHS.map((name, i) => ({ name, value: expenses.filter(e => e.month === `${year}-${String(i + 1).padStart(2, '0')}`).reduce((sum, e) => sum + e.value, 0) })), [expenses, year]);
   const entrance = useChartEntrance(data.some(month => month.value > 0));

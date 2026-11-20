@@ -1,0 +1,74 @@
+/* Use Capacitor's injected values on older WebViews; normal browsers use env(). */
+:root {
+  --app-safe-top:var(--safe-area-inset-top,env(safe-area-inset-top,0px));
+  --app-safe-right:var(--safe-area-inset-right,env(safe-area-inset-right,0px));
+  --app-safe-bottom:var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px));
+  --app-safe-left:var(--safe-area-inset-left,env(safe-area-inset-left,0px));
+}
+.backup-restore { width:min(540px,calc(100% - 32px - var(--app-safe-left) - var(--app-safe-right))); margin:auto; color:var(--sereno-ink); border:1px solid var(--sereno-line); max-height:calc(var(--app-viewport-height,100dvh) - 32px - var(--app-safe-top) - var(--app-safe-bottom)); top:calc(var(--app-viewport-top,0px) + var(--app-safe-top)); bottom:var(--app-safe-bottom); overflow-y:auto; overscroll-behavior:contain; }
+.backup-restore::backdrop { background:#030810bf; }
+.backup-restore h2 { font-size:20px; font-weight:650; margin-bottom:10px; }
+.backup-restore p { color:var(--sereno-muted); line-height:1.7; }
+.backup-name { overflow-wrap:anywhere; font-size:12px; }
+.backup-restore dl { display:flex; gap:24px; margin:20px 0; }
+.backup-restore dd { font-size:23px; color:var(--sereno-ink); }
+.backup-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:10px; margin-top:24px; }
+.sereno-app { padding:var(--app-safe-top) var(--app-safe-right) var(--app-safe-bottom) var(--app-safe-left); }
+.sereno-app :is(.sereno-entry-overlay,.fixed.inset-0.flex) {
+  top:var(--app-viewport-top,0px); bottom:auto;
+  height:var(--app-viewport-height,100dvh);
+  padding:max(12px,var(--app-safe-top)) max(12px,var(--app-safe-right)) max(12px,var(--app-safe-bottom)) max(12px,var(--app-safe-left));
+}
+.sereno-app :is(.sereno-entry-overlay,.fixed.inset-0.flex)>div {
+  max-height:100%; min-height:0; overflow-y:auto; overscroll-behavior-y:contain;
+}
+.sereno-app .app-settings {
+  width:calc(100% - 32px - var(--app-safe-left) - var(--app-safe-right));
+  max-height:calc(var(--app-viewport-height,100dvh) - 32px - var(--app-safe-top) - var(--app-safe-bottom));
+  top:calc(var(--app-viewport-top,0px) + var(--app-safe-top)); bottom:var(--app-safe-bottom);
+}
+.sereno-app .settings-content { overscroll-behavior-y:contain; }
+.sereno-app .cookie-overlay {
+  top:var(--app-viewport-top,0px); bottom:auto; height:var(--app-viewport-height,100dvh);
+  padding:max(12px,var(--app-safe-top)) max(12px,var(--app-safe-right)) max(12px,var(--app-safe-bottom)) max(12px,var(--app-safe-left));
+}
+.sereno-app .cookie-dialog { max-height:100%; }
+.sereno-app .cookie-banner { bottom:calc(12px + var(--app-safe-bottom)); left:calc(12px + var(--app-safe-left)); right:calc(12px + var(--app-safe-right)); }
+.sereno-app :is(.cookie-notice,#toast-notification) { bottom:calc(16px + var(--app-safe-bottom)); }
+.sereno-app.cookie-choice-pending #toast-notification { top:calc(16px + var(--app-safe-top)); bottom:auto; }
+.sereno-app .native-fab { bottom:calc(24px + var(--app-safe-bottom)); right:calc(24px + var(--app-safe-right)); }
+.sereno-app .account-panel { max-height:calc(var(--app-viewport-height,100dvh) - 110px - var(--app-safe-top) - var(--app-safe-bottom)); }
+.sereno-app .tour-welcome { max-height:calc(var(--app-viewport-height,100dvh) - 32px - var(--app-safe-top) - var(--app-safe-bottom)); }
+.sereno-app :is(input,select,textarea) { scroll-margin-block:20px; }
+
+@media(pointer:coarse) {
+  .sereno-app :is(.compact-header-button,.sereno-chart-actions button,.sereno-entry-close,.category-limits-archive,.account-close,.settings-icon-button) { min-width:44px; min-height:44px; }
+  .sereno-app .sereno-history-plot { touch-action:pan-y; }
+}
+@media(max-width:380px) {
+  .sereno-app .compact-header-content { grid-template-columns:minmax(0,1fr) auto; gap:6px; padding:12px; }
+  .sereno-app .compact-header-actions { gap:4px; }
+  .sereno-app .app-brand { min-width:0; gap:4px; }
+  .sereno-app .app-brand>div { min-width:0; }
+  .sereno-app .app-brand p { display:none; }
+  .sereno-app #main-app-header .app-brand h1 { font-size:14px; }
+  .sereno-app .compact-header-content #main-brand-logo { width:22px; height:22px; }
+}
+@media(max-height:540px) {
+  .sereno-app .sereno-entry-dialog { padding:20px; }
+  .sereno-app .settings-heading { padding:4px 14px; }
+  .sereno-app .settings-heading p { display:none; }
+  .sereno-app .settings-heading h2 { font-size:16px; }
+  .sereno-app .settings-mobile-nav { align-items:center; gap:10px; padding:6px 14px; }
+  .sereno-app .settings-mobile-nav select { margin:0; flex:1; min-width:0; }
+  .sereno-app .settings-content { padding:10px 14px; }
+  .sereno-app .settings-content>h3 { display:none; }
+  .sereno-app .settings-content:has(#settings-month-budget-form)>.settings-description { display:none; }
+  .sereno-app .settings-footer { padding:6px 14px; }
+  /* One scroll region prevents a zero-height category list above the keyboard. */
+  .sereno-app .category-limits-modal>form { flex:none; min-height:auto; }
+  .sereno-app .category-limits-modal .scrollbar-thin { flex:none; max-height:none; overflow:visible; }
+}
+@media(max-height:540px) and (max-width:800px) {
+  .sereno-app .settings-mobile-nav { display:flex; }
+}
