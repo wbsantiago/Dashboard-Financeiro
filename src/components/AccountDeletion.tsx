@@ -15,9 +15,9 @@ export function AccountDeletion({ account, onCancel, onConfirm }: { account: str
   }
   return <dialog ref={ref} className="backup-restore sereno-panel account-deletion" aria-labelledby="delete-account-title" onCancel={event => { event.preventDefault(); if (!busy && !accepted) onCancel(); }}>
     <h2 id="delete-account-title">{accepted ? 'Pedido de exclusão recebido' : 'Excluir conta e dados da nuvem'}</h2>
-    {accepted ? <><p>O servidor continuará a remoção mesmo se você fechar o aplicativo. Sua conta do Finanças10 e seus lançamentos na nuvem serão excluídos. Isso não exclui sua conta Google.</p><p>A cópia financeira local e os backups que você exportou permanecem separados.</p><button type="button" className="sereno-primary" onClick={() => window.location.reload()}>Voltar ao modo local</button></> : <>
+    {accepted ? <><p>O servidor continuará a remoção mesmo se você fechar o aplicativo. Sua conta do Mês de Boa e seus lançamentos na nuvem serão excluídos. Isso não exclui sua conta Google.</p><p>A cópia financeira local e os backups que você exportou permanecem separados.</p><button type="button" className="sereno-primary" onClick={() => window.location.reload()}>Voltar ao modo local</button></> : <>
       <p className="backup-name">{account}</p>
-      <p>Esta ação é permanente e vale para todos os meses e dispositivos: remove entradas, despesas, cartões, categorias, orçamentos e o cadastro do Finanças10 na nuvem.</p>
+      <p>Esta ação é permanente e vale para todos os meses e dispositivos: remove entradas, despesas, cartões, categorias, orçamentos e o cadastro do Mês de Boa na nuvem.</p>
       <p>Sua conta Google, a cópia financeira local e arquivos de backup exportados permanecem. Você pode exportar seus dados antes de continuar. O acesso à conta será bloqueado quando o pedido for recebido.</p>
       <label>Digite EXCLUIR para continuar<input autoComplete="off" value={confirmation} disabled={busy} onChange={event => setConfirmation(event.target.value)} /></label>
       <p>Depois, confirme a mesma conta no Google. Cancelar essa confirmação não envia o pedido.</p>

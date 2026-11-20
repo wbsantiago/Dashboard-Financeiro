@@ -79,7 +79,7 @@ final class AppLockController {
         shield.setFillViewport(true);
         shield.setClickable(true);
         shield.setFocusableInTouchMode(true);
-        shield.setContentDescription("Proteção do Finanças10");
+        shield.setContentDescription("Proteção do Mês de Boa");
         shield.setTag("financas10-native-lock-shield");
         LinearLayout content = new LinearLayout(activity);
         content.setOrientation(LinearLayout.VERTICAL);
@@ -87,7 +87,7 @@ final class AppLockController {
         int padding = dp(28);
         content.setPadding(padding, padding, padding, padding);
         title = new TextView(activity);
-        title.setText("Finanças10 bloqueado");
+        title.setText("Mês de Boa bloqueado");
         title.setTextSize(26);
         title.setGravity(Gravity.CENTER);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -183,7 +183,7 @@ final class AppLockController {
         updateShield();
         try {
             if (Build.VERSION.SDK_INT < 30) {
-                Intent intent = activity.getSystemService(KeyguardManager.class).createConfirmDeviceCredentialIntent("Desbloquear Finanças10", "Confirme o bloqueio do seu celular");
+                Intent intent = activity.getSystemService(KeyguardManager.class).createConfirmDeviceCredentialIntent("Desbloquear Mês de Boa", "Confirme o bloqueio do seu celular");
                 if (intent == null) { failed(current.id, "Configure o bloqueio do celular no Android.", "UNAVAILABLE"); return; }
                 credentialLauncher.launch(intent);
                 return;
@@ -198,7 +198,7 @@ final class AppLockController {
                 }
             });
             BiometricPrompt.PromptInfo info = new BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Desbloquear Finanças10")
+                .setTitle("Desbloquear Mês de Boa")
                 .setSubtitle("Confirme sua identidade neste celular")
                 .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL)
                 .build();
@@ -245,7 +245,7 @@ final class AppLockController {
         shield.setBackgroundColor(Color.parseColor(light ? "#f1f5f9" : "#0d141c"));
         title.setTextColor(Color.parseColor(light ? "#18304d" : "#edf4ff"));
         description.setTextColor(Color.parseColor(light ? "#48617c" : "#a9bdd7"));
-        title.setText(pending != null ? "Confirme no Android" : "Finanças10 bloqueado");
+        title.setText(pending != null ? "Confirme no Android" : "Mês de Boa bloqueado");
         description.setText(pending != null ? "Use a biometria ou o bloqueio do seu celular." : !deviceSecure()
             ? "Configure um PIN, padrão ou senha no Android para voltar a desbloquear este aplicativo."
             : "Seu planejamento está protegido neste aparelho. Use a biometria ou o PIN, padrão ou senha do celular.");

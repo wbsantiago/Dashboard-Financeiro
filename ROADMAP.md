@@ -64,13 +64,13 @@ Pesquisa inicial registrada em [Integração com bancos brasileiros](PESQUISA-BA
 
 ### 3. Nome e identidade do aplicativo
 
-**Objetivo:** definir como o produto será apresentado ao público. O código usa atualmente “Finanças10”; o nome definitivo ainda será decidido.
+**Objetivo:** definir como o produto será apresentado ao público. Nome escolhido: **Mês de Boa**, com o símbolo **M fluido**, sem numeral. O domínio existente será mantido. A identidade está implementada na versão 0.7.4; a verificação de marca e perfis continua pendente.
 
 - [ ] Definir o público inicial e a principal promessa do aplicativo.
-- [ ] Criar uma lista curta de nomes e escolher os favoritos.
+- [x] Criar uma lista curta de nomes e escolher os favoritos.
 - [ ] Verificar disponibilidade de domínio, nomes de usuário nas redes e possíveis conflitos de marca antes da escolha final.
-- [ ] Escolher o nome e definir uma identidade visual básica e uma descrição curta do produto.
-- [ ] Planejar a atualização do nome no aplicativo e nos materiais de divulgação.
+- [x] Escolher o nome e definir uma identidade visual básica e uma descrição curta do produto.
+- [x] Atualizar a identidade no aplicativo e nos textos preparados para a loja.
 
 **Primeira entrega:** lista curta de nomes com justificativas para decidirmos juntos.
 
@@ -101,7 +101,7 @@ O contato público e a solicitação de exclusão por atendimento estão configu
 - Quais bancos você usa e quer priorizar?
 - A primeira automação deve trazer movimentações de conta, cartão ou ambos?
 - Quem queremos atender primeiro e qual benefício queremos destacar?
-- Mantemos “Finanças10” entre os candidatos ou buscamos um nome novo?
+- Como apresentar o nome escolhido, Mês de Boa, nos canais de divulgação?
 - Qual rede social conseguimos manter com consistência no início?
 
 As entregas locais concluídas estão marcadas acima. Não houve publicação da central, contratação de serviços nem criação de perfis nas redes.

@@ -1,6 +1,6 @@
-# 📊 Dashboard de Planejamento & Controle Financeiro Pessoal
+# Mês de Boa — Planejamento financeiro
 
-Versão consolidada **0.7.3**: PWA, aplicativo Android, biometria, vencimentos e central de avisos. Consulte as [notas da entrega e validações](RELEASE-0.7.3.md). O pacote Android e a publicação na Google Play são etapas distintas.
+Versão **0.7.4**: nova identidade Mês de Boa, com símbolo M fluido e ajustes de cores nos temas claro e escuro. O domínio continua https://dashboard-financeiro-liart.vercel.app/. Consulte as [notas da entrega e validações](RELEASE-0.7.4.md). O pacote Android e a publicação na Google Play são etapas distintas.
 
 Um painel completo, interativo e extremamente polido para controle financeiro pessoal. Projetado com foco em usabilidade de alto nível, este dashboard permite planejar metas de economia, acompanhar receitas/gastos e monitorar despesas reais versus o planejado em tempo real. Ele implementa uma lógica financeira inteligente que preserva os objetivos de poupança programada mesmo com variações de receita.
 
@@ -8,7 +8,7 @@ O [roadmap do projeto](ROADMAP.md) reúne o que já está implementado e as pró
 
 A [preparação para a Google Play (Sprint 5)](PLAY-STORE.md) inclui candidato Android 0.5.1 assinado e instalado separadamente, com Firebase Google de distribuição configurado. Por decisão do titular, o Firebase permanece no plano Spark gratuito e a exclusão usa [atendimento por e-mail](EXCLUSAO-ATENDIMENTO.md); Cloud Functions não foram ativadas. A versão de teste existente e seus dados foram preservados. Cadastro Play, links públicos HTTPS, validação administrativa do atendimento e assinatura/teste pela loja continuam pendentes; o candidato ainda não está liberado para produção.
 
-O Finanças10 também pode ser instalado pelo navegador. **Configurações → Aplicativo** reúne instalação, instruções para iPhone/Android/computador e atualizações. Consulte [PWA.md](PWA.md) para funcionamento offline, dados locais e validação. A conta Google e o banco Firebase são compartilhados com a versão web.
+O Mês de Boa também pode ser instalado pelo navegador. **Configurações → Aplicativo** reúne instalação, instruções para iPhone/Android/computador e atualizações. Consulte [PWA.md](PWA.md) para funcionamento offline, dados locais e validação. A conta Google e o banco Firebase são compartilhados com a versão web.
 
 O [aplicativo Android com Capacitor](ANDROID.md) tem compilação separada, login Google na mesma conta do site, cópia local interna, consulta da conta sem internet após carregá-la e backups por arquivo/compartilhamento. Na versão de teste 0.4.0, restaurar um backup exige confirmação e altera somente a cópia local. A versão 0.4.0 foi validada no Moto G75 5G/Android 16, incluindo arquivos, persistência e retomada offline/reconexão; as alterações ainda não foram publicadas.
 
@@ -18,7 +18,7 @@ A versão local **0.7.2** acrescenta [vencimentos e lembretes](LEMBRETES.md): bo
 
 A **Central de tutoriais** está em `/#/tutoriais`, com acesso pelo link **Tutoriais** no rodapé e em **Configurações → Ajuda e contato**. Inclui sete guias em texto, busca e filtros por assunto. Os espaços para vídeos do YouTube estão preparados; confira [como adicionar os vídeos](TUTORIAIS.md) depois de gravar.
 
-O painel recomenda um passeio guiado no primeiro acesso de cada conta/uso local neste navegador. São cinco passos sobre mês, entradas, despesas, resumo e lançamentos, sem criar transações. Concluir ou dispensar evita repetir a recomendação; **Ajuda e contato → Refazer passeio** permite rever. O logo e o nome Finanças10 retornam à Visão geral.
+O painel recomenda um passeio guiado no primeiro acesso de cada conta/uso local neste navegador. São cinco passos sobre mês, entradas, despesas, resumo e lançamentos, sem criar transações. Concluir ou dispensar evita repetir a recomendação; **Ajuda e contato → Refazer passeio** permite rever. O logo e o nome Mês de Boa retornam à Visão geral.
 
 ---
 

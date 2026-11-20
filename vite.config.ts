@@ -31,8 +31,8 @@ export default defineConfig(({ mode }) => {
       injectRegister: false,
       manifest: {
         id: '/',
-        name: 'Finanças10 — Planejamento financeiro',
-        short_name: 'Finanças10',
+        name: 'Mês de Boa — Planejamento financeiro',
+        short_name: 'Mês de Boa',
         description: 'Organize entradas, despesas e limites do seu planejamento financeiro.',
         lang: 'pt-BR',
         start_url: '/',
@@ -48,7 +48,7 @@ export default defineConfig(({ mode }) => {
       },
       workbox: {
         cacheId: 'financas10-shell',
-        globPatterns: ['index.html', 'assets/*.{js,css}', 'fonts/*.ttf', 'icons/*.png', 'favicon.svg'],
+        globPatterns: ['index.html', 'assets/*.{js,css}', 'fonts/*.ttf', 'icons/*.png', 'favicon.svg', 'brand-mark.svg'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: false,

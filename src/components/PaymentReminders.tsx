@@ -24,7 +24,7 @@ export function ReminderSettings({ reminders, demo }: { reminders: State; demo: 
     </div>
     {reminders.supported && <div className="settings-action"><div><h4>Conferir no celular</h4><p>Envia somente uma notificação de teste, sem alterar seus lançamentos.</p></div><button type="button" className="settings-secondary" disabled={busy} onClick={() => void action(async () => { await reminders.testNotification(); setMessage('Teste enviado ao Android e registrado no sino. Confira a barra de notificações.'); })}>Testar notificação</button></div>}
     {(message || reminders.error) && <p role="status" className="settings-description">{message || reminders.error}</p>}
-    {reminders.supported && reminders.permission === 'denied' && <p className="settings-error">Notificações bloqueadas. Permita em Configurações do Android → Aplicativos → Finanças10 → Notificações.</p>}
+    {reminders.supported && reminders.permission === 'denied' && <p className="settings-error">Notificações bloqueadas. Permita em Configurações do Android → Aplicativos → Mês de Boa → Notificações.</p>}
     <p className="settings-description">Os alertas usam os dados carregados neste aparelho e são atualizados ao abrir o app ou alterar o planejamento. Marcar como pago, excluir ou alterar um vencimento atualiza os próximos avisos. Mudanças feitas em outro aparelho precisam sincronizar aqui. São preparados até 90 dias de alertas, renovados ao abrir o app.</p>
     <p className="settings-description">O Android pode atrasar os avisos por economia de bateria, aparelho desligado ou restrições do sistema. Não há confirmação bancária automática de pagamento; mantenha as pendências atualizadas.</p>
   </div>;

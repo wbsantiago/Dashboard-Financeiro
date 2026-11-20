@@ -24,7 +24,7 @@ O passeio destaca os controles reais em cinco passos: mês, adicionar entrada, a
 
 Ao avançar ou voltar, a página mantém sua posição enquanto o controle destacado estiver visível. O destaque e o cartão explicativo mudam de lugar, sem alinhar cada controle ao topo. Em telas pequenas, só ocorre a rolagem mínima necessária para revelar um controle que esteja fora da tela; o cartão se adapta ao espaço disponível sem cobrir o destaque.
 
-Clicar no logo ou no nome **Finanças10** retorna à Visão geral do painel, no topo, preservando o mês selecionado. O link **Voltar ao painel** dos tutoriais continua retornando à visão anteriormente aberta.
+Clicar no logo ou no nome **Mês de Boa** retorna à Visão geral do painel, no topo, preservando o mês selecionado. O link **Voltar ao painel** dos tutoriais continua retornando à visão anteriormente aberta.
 
 ## Como adicionar os vídeos depois de gravar
 

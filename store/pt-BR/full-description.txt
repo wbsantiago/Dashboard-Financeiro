@@ -1,4 +1,4 @@
-Entenda seu mês e acompanhe o ano com o Finanças10.
+Entenda seu mês e acompanhe o ano com o Mês de Boa.
 
 Registre entradas e despesas, organize categorias e acompanhe seu planejamento em gráficos. Cadastre os apelidos dos cartões, defina o fechamento e consulte os lançamentos do mês.
 
@@ -15,6 +15,6 @@ Use o modo local para organizar o planejamento neste aparelho, inclusive sem int
 
 Exporte seus registros em um arquivo de backup, escolha onde salvá-lo e compartilhe somente quando quiser. Ao importar, confira o resumo antes de confirmar a substituição da cópia local. A restauração local não substitui os dados da conta Google.
 
-O Finanças10 é uma ferramenta de organização financeira pessoal. Não se conecta a bancos, não realiza pagamentos, não oferece crédito e não recomenda investimentos. Os lançamentos são cadastrados por você. Não informe senhas bancárias, códigos de segurança ou números completos de cartão.
+O Mês de Boa é uma ferramenta de organização financeira pessoal. Não se conecta a bancos, não realiza pagamentos, não oferece crédito e não recomenda investimentos. Os lançamentos são cadastrados por você. Não informe senhas bancárias, códigos de segurança ou números completos de cartão.
 
 Privacidade e solicitações sobre seus dados estão disponíveis nas configurações e nas páginas públicas do aplicativo.

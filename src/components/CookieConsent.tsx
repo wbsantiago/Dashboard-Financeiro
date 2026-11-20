@@ -73,7 +73,7 @@ export function CookieConsent(p: Props) {
           <button type="button" aria-label="Fechar preferências de cookies" onClick={p.onCloseManager}><X size={20} /></button>
         </header>
         <div className="cookie-dialog-content">
-          <p>Além de cookies usados pelos serviços de login, o Finanças10 utiliza o armazenamento do navegador. Não usamos ferramentas de publicidade ou análise de audiência neste aplicativo.</p>
+          <p>Além de cookies usados pelos serviços de login, o Mês de Boa utiliza o armazenamento do navegador. Não usamos ferramentas de publicidade ou análise de audiência neste aplicativo.</p>
           <div className="cookie-category"><div><h3>Necessários</h3><p>Permitem salvar seu planejamento local, registrar esta escolha, identificar o modo de armazenamento e manter a sessão quando você usa Google. A escolha de ocultar valores é mantida para respeitar sua privacidade na tela.</p></div><span className="cookie-required">Sempre ativos</span></div>
           <label className="cookie-category cookie-optional"><div><h3>Lembrar preferências de aparência</h3><p>Guarda o tema claro/escuro e a opção de recolher os orçamentos no celular entre visitas. Sem autorização, você continua usando essas opções durante a visita.</p></div><input type="checkbox" checked={preferences} onChange={event => setPreferences(event.target.checked)} /></label>
           <details className="cookie-details"><summary>O que é armazenado e por quanto tempo?</summary>

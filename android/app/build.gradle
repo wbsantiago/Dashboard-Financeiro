@@ -12,8 +12,8 @@ android {
         applicationId "io.github.wbsantiago.financas10"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 15
-        versionName "0.7.3"
+        versionCode 16
+        versionName "0.7.4"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -34,13 +34,13 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix '.preview'
-            resValue 'string', 'app_name', 'Finanças10 Teste'
-            resValue 'string', 'title_activity_main', 'Finanças10 Teste'
+            resValue 'string', 'app_name', 'Mês de Boa Teste'
+            resValue 'string', 'title_activity_main', 'Mês de Boa Teste'
         }
         release {
             if (!releaseSigning.isEmpty()) signingConfig signingConfigs.upload
-            resValue 'string', 'app_name', 'Finanças10'
-            resValue 'string', 'title_activity_main', 'Finanças10'
+            resValue 'string', 'app_name', 'Mês de Boa'
+            resValue 'string', 'title_activity_main', 'Mês de Boa'
             resValue 'string', 'package_name', 'io.github.wbsantiago.financas10'
             resValue 'string', 'custom_url_scheme', 'io.github.wbsantiago.financas10'
             minifyEnabled false

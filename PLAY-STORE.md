@@ -1,5 +1,8 @@
 # Sprint 5 — preparação Google Play
 
+**Identidade atual — 0.7.4/código 16:** o nome público agora é **Mês de Boa**, com ícone M fluido. Identificadores Android, assinatura e Firebase permanecem iguais; o restante deste documento conserva o histórico das sprints anteriores. Consulte [RELEASE-0.7.4.md](RELEASE-0.7.4.md).
+
+
 **Consolidação de 19/11/2026:** o pacote local atual é **0.7.3 / versionCode 15**. Veja [RELEASE-0.7.3.md](RELEASE-0.7.3.md) para conteúdo, validações e arquivo da entrega. A publicação web/GitHub não publica o aplicativo na Google Play. O plano continua Spark e o serviço automático de exclusão permanece desativado. Os números de versão e resultados das seções abaixo registram a preparação histórica da Sprint 5.
 
 **Atualização após decisão do titular:** manter **Spark gratuito**, com exclusão por atendimento e automação desativada. O Android de distribuição foi cadastrado no mesmo Firebase, com SHA-1/SHA-256 de upload; configuração oficial salva em `android/app/src/release/google-services.json` e ignorada pelo Git. App Firebase: `1:164999356070:android:f7fb06ceef07b6e5319e67`. A versão atual é **0.5.1/versionCode 8**, compilada/assinada e instalada separadamente como **Finanças10**. O Google está habilitado nesse candidato e o teste de entrada com usuário real foi solicitado ao titular; sem envio de cópia local ou teste destrutivo. Consulte [EXCLUSAO-ATENDIMENTO.md](EXCLUSAO-ATENDIMENTO.md) para o processo manual e validações pendentes. O restante deste documento conserva o histórico da preparação 0.5.0 e a alternativa automática futura; **não implantar Functions nem ativar cobrança para esta entrega**.

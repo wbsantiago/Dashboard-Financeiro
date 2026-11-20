@@ -6,7 +6,7 @@ import { nativePreviewMode } from '../utils/platform';
 
 export function PwaSettings({ pwa, cloudConnected, demoMode = false }: { pwa: PwaState; cloudConnected: boolean; demoMode?: boolean }) {
   if (pwa.native) return <div className="pwa-settings">
-    <div className="pwa-install-intro"><img src="/icons/app-192.png" width="64" height="64" alt="" /><div><h4>Finanças10 para Android</h4><p>{import.meta.env.VITE_NATIVE_RELEASE === 'true' ? 'Versão Android' : 'Versão de teste'} · {import.meta.env.VITE_ANDROID_VERSION}</p></div></div>
+    <div className="pwa-install-intro"><img src="/icons/app-192.png" width="64" height="64" alt="" /><div><h4>Mês de Boa para Android</h4><p>{import.meta.env.VITE_NATIVE_RELEASE === 'true' ? 'Versão Android' : 'Versão de teste'} · {import.meta.env.VITE_ANDROID_VERSION}</p></div></div>
     <h4>Seu planejamento neste aplicativo</h4>
     <p>Cadastre entradas e despesas, consulte os gráficos e ajuste seu planejamento. Sem login, os dados ficam neste aplicativo, separados do navegador.</p>
     <h4 className="settings-subtitle">Conexão com Google</h4>
@@ -21,14 +21,14 @@ export function PwaSettings({ pwa, cloudConnected, demoMode = false }: { pwa: Pw
   return <div className="pwa-settings">
     <div className="pwa-install-intro">
       <img src="/icons/app-192.png" width="64" height="64" alt="" />
-      <div><h4>Finanças10 no seu dispositivo</h4><p>Abra pelo ícone, em uma janela própria, e continue com o mesmo planejamento.</p></div>
+      <div><h4>Mês de Boa no seu dispositivo</h4><p>Abra pelo ícone, em uma janela própria, e continue com o mesmo planejamento.</p></div>
     </div>
     {pwa.error && <p className="settings-error" role="alert">{pwa.error}</p>}
     {pwa.message && <p className="pwa-message" role="status">{pwa.message}</p>}
     <div className="settings-action">
-      <div><h4 className="pwa-install-title">{pwa.installed && <Check size={16} aria-hidden="true" />}{pwa.installed ? 'Aplicativo instalado' : 'Instalar aplicativo'}</h4><p>{pwa.installed ? 'O Finanças10 está pronto para abrir pelo ícone do dispositivo.' : 'A instalação pelo navegador é gratuita e não exige a Play Store ou a App Store.'}</p></div>
+      <div><h4 className="pwa-install-title">{pwa.installed && <Check size={16} aria-hidden="true" />}{pwa.installed ? 'Aplicativo instalado' : 'Instalar aplicativo'}</h4><p>{pwa.installed ? 'O Mês de Boa está pronto para abrir pelo ícone do dispositivo.' : 'A instalação pelo navegador é gratuita e não exige a Play Store ou a App Store.'}</p></div>
       {!pwa.installed && (pwa.canInstall && !demoMode
-        ? <button type="button" className="settings-primary" disabled={pwa.installing} onClick={pwa.install}><Download size={16} />{pwa.installing ? 'Instalando…' : 'Instalar Finanças10'}</button>
+        ? <button type="button" className="settings-primary" disabled={pwa.installing} onClick={pwa.install}><Download size={16} />{pwa.installing ? 'Instalando…' : 'Instalar Mês de Boa'}</button>
         : <Smartphone size={22} aria-hidden="true" />)}
     </div>
     {!pwa.installed && <>

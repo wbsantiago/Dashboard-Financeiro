@@ -37,7 +37,7 @@
 .reminder-inbox-heading p { font-size:12px; color:var(--sereno-muted); margin-top:4px; }
 .reminder-inbox-heading button { display:grid; place-items:center; min-width:36px; min-height:36px; border-radius:8px; border:1px solid var(--sereno-line); }
 .reminder-inbox-toolbar { padding:12px 20px; }
-.reminder-inbox-toolbar button,.reminder-inbox-item-actions button,.reminder-inbox footer button { display:inline-flex; align-items:center; gap:7px; color:var(--sereno-action); font-size:12px; min-height:36px; }
+.reminder-inbox-toolbar button,.reminder-inbox-item-actions button,.reminder-inbox footer button { display:inline-flex; align-items:center; gap:7px; color:var(--sereno-link); font-size:12px; min-height:36px; }
 .reminder-inbox-toolbar button:disabled { opacity:.5; cursor:default; }
 .reminder-inbox-list { overflow-y:auto; min-height:0; overscroll-behavior:contain; padding:0 12px; }
 .reminder-inbox-item { padding:16px 12px; border-top:1px solid var(--sereno-line); }

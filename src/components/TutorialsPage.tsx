@@ -31,7 +31,7 @@ export default function TutorialsPage({ guideId }: { guideId: string | null }) {
   const guide = tutorials.find(tutorial => tutorial.id === guideId);
   const visible = filterTutorials(tutorials, search, topic);
   useEffect(() => {
-    document.title = `${guide ? guide.title : 'Tutoriais'} | Finanças10`;
+    document.title = `${guide ? guide.title : 'Tutoriais'} | Mês de Boa`;
     window.scrollTo({ top: 0, behavior: 'instant' });
     titleRef.current?.focus({ preventScroll: true });
   }, [guideId]);

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Finanças10 Teste</string>
-    <string name="title_activity_main">Finanças10 Teste</string>
+    <string name="app_name">Mês de Boa Teste</string>
+    <string name="title_activity_main">Mês de Boa Teste</string>
     <string name="package_name">io.github.wbsantiago.financas10.preview</string>
     <string name="custom_url_scheme">io.github.wbsantiago.financas10.preview</string>
 </resources>

@@ -1,10 +1,10 @@
-# Finanças10 como aplicativo instalável
+# Mês de Boa como aplicativo instalável
 
 O mesmo projeto React/Vite pode ser instalado pelo navegador e aberto em uma janela independente. O site continua disponível normalmente. Esta documentação descreve o PWA. O APK com Capacitor é uma saída separada, descrita em [ANDROID.md](ANDROID.md); ainda não há publicação nas lojas ou notificações push.
 
 ## Instalação
 
-Abra **Configurações → Aplicativo**. Quando o navegador disponibilizar a instalação, o botão **Instalar Finanças10** abre a confirmação do próprio navegador. Recusar não impede o uso do site e não grava novas preferências.
+Abra **Configurações → Aplicativo**. Quando o navegador disponibilizar a instalação, o botão **Instalar Mês de Boa** abre a confirmação do próprio navegador. Recusar não impede o uso do site e não grava novas preferências.
 
 - **Android:** Chrome → menu ⋮ → Instalar aplicativo ou Adicionar à tela inicial.
 - **iPhone/iPad:** Safari → Compartilhar → Adicionar à Tela de Início. Quando aparecer, ative Abrir como App.

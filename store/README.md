@@ -1,6 +1,6 @@
 # Materiais da Google Play — rascunho para revisão
 
-Nome público provisório: **Finanças10**. Pode ser alterado depois; o identificador do pacote não acompanha a mudança de nome. Os arquivos em `pt-BR/` contêm título, descrição curta (até 80 caracteres), descrição completa (até 4.000) e notas de versão. Revisar o nome e a disponibilidade real das funções no candidato final antes de enviar.
+Nome público escolhido: **Mês de Boa**. A disponibilidade da marca e dos perfis ainda precisa ser verificada antes da divulgação; o identificador do pacote não acompanha a mudança de nome. Os arquivos em `pt-BR/` contêm título, descrição curta (até 80 caracteres), descrição completa (até 4.000) e notas de versão. Revisar o nome e a disponibilidade real das funções no candidato final antes de enviar.
 
 Os recursos PNG preparados localmente ficam em `../work/play-store/` a partir da raiz do repositório:
 

@@ -19,7 +19,7 @@ export async function reminderPermission(request = false) {
   return (await (request ? LocalNotifications.requestPermissions() : LocalNotifications.checkPermissions())).display;
 }
 function notification(alarm: ReminderAlarm): LocalNotificationSchema {
-  return { id: alarm.id, title: 'Finanças10 · Lembrete de pagamento', body: 'Confira seus vencimentos e pagamentos pendentes no aplicativo.',
+  return { id: alarm.id, title: 'Mês de Boa · Lembrete de pagamento', body: 'Confira seus vencimentos e pagamentos pendentes no aplicativo.',
     schedule: { at: alarm.at }, isExactNotification: false, channelId, smallIcon: 'ic_stat_reminder',
     extra: { [marker]: true, at: alarm.at.getTime() } };
 }

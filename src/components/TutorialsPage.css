@@ -1,7 +1,7 @@
 .tutorials-page { width:100%; max-width:var(--sereno-content-width); margin:0 auto; padding:28px 26px 32px; flex:1; min-width:0; }
 .tutorial-breadcrumb { display:flex; flex-wrap:wrap; align-items:center; gap:12px; color:var(--sereno-muted); font-size:13px; margin-bottom:28px; }
 .tutorial-breadcrumb a { display:inline-flex; align-items:center; gap:8px; min-height:36px; }
-.tutorial-breadcrumb a:hover { color:var(--sereno-action); }
+.tutorial-breadcrumb a:hover { color:var(--sereno-link); }
 .tutorials-heading { display:flex; align-items:center; justify-content:space-between; gap:24px; margin-bottom:28px; }
 .tutorials-heading h1,.tutorial-reader-heading h1 { font-size:36px; font-weight:650; letter-spacing:-1.1px; line-height:1.2; margin:0 0 12px; }
 .tutorials-page h1:focus { outline:none; }
@@ -14,7 +14,7 @@
 .tutorial-start-intro p { max-width:41ch; margin-bottom:24px; }
 .tutorial-start-steps { list-style:none; padding:32px; border-left:1px solid var(--sereno-line); background:var(--sereno-soft); display:flex; flex-direction:column; justify-content:center; gap:25px; }
 .tutorial-start-steps li { display:flex; align-items:flex-start; gap:15px; }
-.tutorial-start-steps li>span { display:grid; place-items:center; flex-shrink:0; width:32px; height:32px; border-radius:50%; border:1px solid var(--sereno-line); color:var(--sereno-action); font-weight:650; font-size:13px; }
+.tutorial-start-steps li>span { display:grid; place-items:center; flex-shrink:0; width:32px; height:32px; border-radius:50%; border:1px solid var(--sereno-line); color:var(--sereno-link); font-weight:650; font-size:13px; }
 .tutorial-start-steps h3 { font-size:15px; font-weight:650; margin:2px 0 4px; }
 .tutorial-start-steps p { font-size:13px; max-width:45ch; }
 .tutorial-library-heading { display:flex; align-items:center; justify-content:space-between; gap:24px; margin-bottom:20px; }
@@ -34,7 +34,7 @@
 .tutorial-card { display:flex; align-items:flex-start; gap:16px; padding:22px; background:var(--sereno-panel); border:1px solid var(--sereno-line); border-radius:12px; min-width:0; }
 .tutorial-card:hover { border-color:var(--sereno-action); }
 .tutorial-card>div { min-width:0; flex:1; }
-.tutorial-topic-icon { display:grid; place-items:center; color:var(--sereno-action); padding-top:5px; flex-shrink:0; }
+.tutorial-topic-icon { display:grid; place-items:center; color:var(--sereno-link); padding-top:5px; flex-shrink:0; }
 .tutorial-card .tutorial-card-topic { font-size:11px; margin-bottom:6px; color:var(--sereno-muted); }
 .tutorial-card h3 { font-size:16px; font-weight:650; line-height:1.4; margin-bottom:8px; letter-spacing:-.25px; }
 .tutorial-card p { font-size:13px; color:var(--sereno-muted); line-height:1.65; }
@@ -55,13 +55,13 @@
 .tutorial-article { min-width:0; }
 .tutorial-video { border:1px solid var(--sereno-line); border-radius:14px; overflow:hidden; background:var(--sereno-panel); margin-bottom:36px; }
 .tutorial-video-placeholder { aspect-ratio:16/9; min-height:250px; display:flex; align-items:center; justify-content:center; flex-direction:column; text-align:center; padding:24px; }
-.tutorial-video-icon { color:var(--sereno-action); display:inline-flex; margin-bottom:14px; }
+.tutorial-video-icon { color:var(--sereno-link); display:inline-flex; margin-bottom:14px; }
 .tutorial-video h2 { font-size:19px; font-weight:600; letter-spacing:-.3px; margin-bottom:10px; }
 .tutorial-video p { font-size:13px; color:var(--sereno-muted); line-height:1.7; max-width:48ch; }
 .tutorial-video-status { display:inline-flex; font-size:12px; color:var(--sereno-muted); border:1px solid var(--sereno-line); border-radius:6px; margin-top:18px; padding:5px 10px; }
 .tutorial-video .sereno-primary { margin-top:18px; }
 .tutorial-video iframe { width:100%; aspect-ratio:16/9; display:block; border:0; }
-.tutorial-video-actions { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:12px 16px; color:var(--sereno-action); font-size:12px; }
+.tutorial-video-actions { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:12px 16px; color:var(--sereno-link); font-size:12px; }
 .tutorial-video-actions a,.tutorial-video-actions button { min-height:30px; display:flex; align-items:center; }
 .tutorial-section { padding-bottom:28px; margin-bottom:30px; border-bottom:1px solid var(--sereno-line); max-width:76ch; }
 .tutorial-section h2 { font-size:23px; line-height:1.35; font-weight:600; letter-spacing:-.4px; margin-bottom:18px; scroll-margin-top:26px; }
@@ -69,17 +69,17 @@
 .tutorial-section ol { list-style:decimal; padding-left:24px; font-size:15px; line-height:1.85; }
 .tutorial-section li { padding-left:6px; }
 .tutorial-section li+li { margin-top:14px; }
-.tutorial-section li::marker { color:var(--sereno-action); font-weight:600; }
+.tutorial-section li::marker { color:var(--sereno-link); font-weight:600; }
 .tutorial-section .tutorial-note { margin:22px 0 0; background:var(--sereno-soft); border-left:3px solid var(--sereno-action); border-radius:0 8px 8px 0; padding:16px 18px; font-size:13px; color:var(--sereno-ink); }
 .tutorial-reader-aside { position:sticky; top:26px; font-size:13px; }
 .tutorial-reader-aside h2 { font-size:14px; font-weight:650; margin-bottom:14px; }
 .tutorial-reader-aside ol { list-style:none; display:grid; gap:8px; }
 .tutorial-reader-aside nav button { display:flex; gap:10px; text-align:left; color:var(--sereno-muted); padding:8px 0; line-height:1.6; }
-.tutorial-reader-aside nav button:hover { color:var(--sereno-action); }
-.tutorial-reader-aside nav button span { color:var(--sereno-action); }
+.tutorial-reader-aside nav button:hover { color:var(--sereno-link); }
+.tutorial-reader-aside nav button span { color:var(--sereno-link); }
 .tutorial-related { border-top:1px solid var(--sereno-line); margin-top:24px; padding-top:22px; }
 .tutorial-related a { display:flex; justify-content:space-between; gap:12px; align-items:center; color:var(--sereno-muted); padding:10px 0; line-height:1.6; }
-.tutorial-related a:hover { color:var(--sereno-action); }
+.tutorial-related a:hover { color:var(--sereno-link); }
 .tutorial-related svg { flex-shrink:0; }
 .tutorial-finish { display:flex; flex-wrap:wrap; align-items:center; gap:16px; padding:24px; border-radius:12px; background:var(--sereno-panel); border:1px solid var(--sereno-line); }
 .tutorial-finish>span { color:var(--sereno-good); }

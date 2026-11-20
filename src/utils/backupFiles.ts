@@ -10,7 +10,7 @@ export function createBackup(data: AppData) {
   if (new TextEncoder().encode(json).length > MAX_BACKUP_BYTES) json = JSON.stringify(envelope);
   if (new TextEncoder().encode(json).length > MAX_BACKUP_BYTES) throw new Error('O backup excede o limite de 10 MB.');
   return {
-    fileName: `financas10-backup-${getLocalDateStr()}-${Date.now()}.json`,
+    fileName: `mes-de-boa-backup-${getLocalDateStr()}-${Date.now()}.json`,
     json,
   };
 }
@@ -26,6 +26,6 @@ export async function shareBackupFile(data: AppData) {
   const file = createBackup(data);
   const { url } = await DeviceFiles.prepareShare(file);
   const { Share } = await import('@capacitor/share');
-  try { await Share.share({ files: [url], dialogTitle: 'Compartilhar backup do Finanças10' }); }
+  try { await Share.share({ files: [url], dialogTitle: 'Compartilhar backup do Mês de Boa' }); }
   catch (error) { if (!/cancel/i.test(String((error as { message?: string })?.message))) throw error; }
 }

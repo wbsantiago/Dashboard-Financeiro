@@ -1,5 +1,8 @@
 # Finanças10 Android — Sprints 0 a 5
 
+**Identidade atual — 0.7.4/código 16:** o nome público agora é **Mês de Boa**, com ícone M fluido. Identificadores Android, assinatura e Firebase permanecem iguais; o restante deste documento conserva o histórico das sprints anteriores. Consulte [RELEASE-0.7.4.md](RELEASE-0.7.4.md).
+
+
 **Versão consolidada em 19/11/2026: 0.7.3 / versionCode 15.** Inclui Google, arquivos/offline, biometria e lembretes, além do ajuste do cabeçalho em telas estreitas. Consulte [RELEASE-0.7.3.md](RELEASE-0.7.3.md) para o estado atual e as pendências de validação. As seções de sprints abaixo preservam as entregas históricas; não indicam a versão atual do APK.
 
 **Decisão atual:** Firebase Spark gratuito e exclusão por atendimento, com Android de distribuição e certificados cadastrados. Configuração release oficial validada; versão **0.5.1/versionCode 8** em preparação. [EXCLUSAO-ATENDIMENTO.md](EXCLUSAO-ATENDIMENTO.md) descreve o processo manual. Não ativar Cloud Functions/Blaze nesta modalidade.
